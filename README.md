@@ -10,10 +10,14 @@ An open source SASS assembler for NVIDIA(Maxwell Pascal Volta Turing Ampere) GPU
 
 ## Supported NVIDIA GPUs:
 
-Maxwell(SM50, SM52, SM53) 
+Maxwell(SM50, SM52, SM53)
+
 Pascal(SM60, SM61, SM62)
+
 Volta(SM70, SM72)
+
 Turing(SM75)
+
 Ampere(SM80)
 
 
@@ -115,7 +119,7 @@ nbasm test -c ethash.cubin
 
 ## ASM Grammar
 
-```python
+```gas
 # 单行注释
 # 反汇编出来的其它用不到的元信息将写入文件头的注释。汇编时忽略。
 /* 多行注释 */
