@@ -1,0 +1,32 @@
+# Python setup tmp files
+/build/
+/dist/
+/*.egg-info/
+
+# sass folder
+/sass/
+
+# Python cache files
+__pycache__
+*.pyc
+*.cubin
+*.out
+
+# other
+*.swp
+
+.vscode
+.idea
+/MaxAs/
+/maxas.pl
+/test.cu
+/temp.bin
+/sass.txt
+
+*.s
+*.ptx
+*.sass
+
+kernels_ptx/
+
+kernels_cubin/
