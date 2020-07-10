@@ -8,10 +8,10 @@ def process_include(str_, asm_path, define_dict):
         path = os.path.join(os.path.dirname(asm_path), x.group('file'))
         with open(path, 'r') as fd:
             source = fd.read()
-        global out_
+        define_dict['out'] = ''
         if path.endswith('.py'):
             exec(source, define_dict)
-            source = out_
+            source = define_dict['out']
         return source
 
     str_ = re.sub(INCLUDE_RE, include_file, str_)
@@ -21,10 +21,11 @@ def process_include(str_, asm_path, define_dict):
 # run embedded python code
 def process_python_code(str_, define_dict):
     def run_python_code(x):
-        global out_
+        define_dict['out'] = ''
         source = x.group('code')
         if '\n' in source:
             exec(source, define_dict)
+            out_ = define_dict['out']
         else:
             out_ = eval(source, define_dict)
         return out_

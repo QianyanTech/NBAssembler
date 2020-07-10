@@ -154,10 +154,10 @@ nbasm test -c ethash.cubin
 {
 # 例如，条件include
 if define1:
-    out_ += '.include "source1.s"\n'
+    out += '.include "source1.s"\n'
 else:
-    out_ += '.include "source2.s"\n'
-out_ = '''
+    out += '.include "source2.s"\n'
+out = '''
 ...
 '''
 }
