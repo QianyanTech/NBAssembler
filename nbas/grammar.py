@@ -979,7 +979,10 @@ grammar_75 = {
     ],
     'LDGDEPBAR': [],  # Global Load Dependency Barrier
     'LDGSTS': [],  # Asynchronous Global to Shared Memcopy
-    'LDL': [],  # Load within Local Memory Window
+    'LDL': [  # Load within Local Memory Window
+        {'type': 'x32', 'code': 0x983,
+         'rule': rf'LDL{tmem_cache}{tmem_type} {r16}, {uaddr32};'},
+    ],
     'LDS': [  # Load within Shared Memory Window
         {'type': 'x32', 'code': 0x984,
          'rule': rf'LDS{tu}{tmem_type}{tzd} {r16}, {uaddr32};'},
@@ -994,7 +997,10 @@ grammar_75 = {
          'rule': rf'STG{te}{tmem_cache}{tmem_type}{tmem_const}{tmem_scope}{tprivate}{tzd}'
                  rf' {uaddr64}, {r32};'},
     ],
-    'STL': [],  # Store within Local or Shared Window
+    'STL': [  # Store within Local or Shared Window
+        {'type': 'x32', 'code': 0x387,
+         'rule': rf'STL{tmem_cache}{tmem_type} {addr24}, {r32};'},
+    ],
     'STS': [  # Store within Local or Shared Window
         {'type': 'x32', 'code': 0x388,
          'rule': rf'STS{tmem_type} {addr24}, {r32};'},
@@ -1748,7 +1754,7 @@ RET: type
 0x00000000000000000000000000000000 .REL
 0x00000000002000000000000000000000 .ABS
 
-STS, LDS, ATOMS: r24x
+STS, STL, LDS, LDL, ATOMS: r24x
 0x00000000000040000000000000000000 .X4
 0x00000000000080000000000000000000 .X8
 0x000000000000c0000000000000000000 .X16
@@ -1880,7 +1886,7 @@ IMAD, UIMAD, LOP3, ISETP, IMNMX, SEL, WARPSYNC: p87not
 IADD3: p77not
 0x00000000000100000000000000000000 !
 
-LDG, LDS, IMAD, UIMAD, ULDC, IADD3, FLO, POPC, UPOPC, LOP3, LEA, ISETP, MOV: ur32
+LDG, LDS, LDL, IMAD, UIMAD, ULDC, IADD3, FLO, POPC, UPOPC, LOP3, LEA, ISETP, MOV: ur32
 0x00000000080000000000000000000000 ALL
 
 IMAD, IADD3, LEA, LDG, FLO, LOP3: p81
@@ -1892,7 +1898,7 @@ LOP3: PAND
 LDS: U
 0x00000000000010000000000000000000 .U
 
-LDG, STG, ATOMG, STS, ATOMS, LDS: r24
+LDG, STG, ATOMG, STS, STL, ATOMS, LDS, LDL: r24
 0x000000000000000000000000ff000000 DEFAULT
 
 LDG, STG: r24type
@@ -1914,7 +1920,7 @@ LDG: p64qnot
 LDG, STG, ATOMG: E
 0x00000000000001000000000000000000 .E
 
-LDG, STG, ATOMG: cache
+LDG, STG, LDL, STL, ATOMG: cache
 0x00000000000000000000000000000000 .EF
 0x00000000001000000000000000000000 DEFAULT
 0x00000000002000000000000000000000 .EL
@@ -1926,7 +1932,7 @@ LDG: ltc
 0x00000000000000100000000000000000 .LTC64B
 0x00000000000000200000000000000000 .LTC128B
 
-LDG, LDC, ULDC, STG, LDS, STS: type
+LDG, LDC, ULDC, STG, LDL, LDS, STS, STL: type
 0x00000000000000000000000000000000 .U8
 0x00000000000002000000000000000000 .S8
 0x00000000000004000000000000000000 .U16
