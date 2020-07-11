@@ -376,41 +376,89 @@ instr_type_75 = {
 
 grammar_61 = {
     # Floating Point Instructions
-    'MUFU': [  # FP Multi-Function Operator 参考ptx的 cos|sin|ex2|lg2|rcp|rsqrt等
-        {'type': qtr_t, 'code': 0x5080000000000000, 'rule': rf'MUFU{func} {r0}, {r8};'}],
+    'FADD': [],  # FP32 Add
+    'FCHK': [],  # Single Precision FP Divide Range Check
+    'FCMP': [],  # FP32 Compare to Zero and Select Source
+    'FFMA': [],  # FP32 Fused Multiply and Add
+    'FMNMX': [],  # FP32 Minimum/Maximum
+    'FMUL': [],  # FP32 Multiply
+    'FSET': [],  # FP32 Compare And Set
+    'FSETP': [],  # FP32 Compare And Set Predicate
+    'FSWZADD': [],  # FP32 Add used for FSWZ emulation
+    'MUFU': [  # Multi Function Operation
+        {'type': qtr_t, 'code': 0x5080000000000000, 'rule': rf'MUFU{func} {r0}, {r8};'}
+    ],  # 参考ptx的 cos|sin|ex2|lg2|rcp|rsqrt等
+    'RRO': [],  # Range Reduction Operator FP
+    'DADD': [],  # FP64 Add
+    'DFMA': [],  # FP64 Fused Mutiply Add
+    'DMNMX': [],  # FP64 Minimum/Maximum
+    'DMUL': [],  # FP64 Multiply
+    'DSET': [],  # FP64 Compare And Set
+    'DSETP': [],  # FP64 Compare And Set Predicate
+    'HADD2': [],  # FP16 Add
+    'HFMA2': [],  # FP16 Fused Mutiply Add
+    'HMUL2': [],  # FP16 Multiply
+    'HSET2': [],  # FP16 Compare And Set
+    'HSETP2': [],  # FP16 Compare And Set Predicate
 
     # Integer Instructions
-    'BFE': [  # bfe
+    'BFE': [  # Bit Field Extract
         {'type': shft_t, 'code': 0x3801000000000000, 'rule': rf'BFE{u32} {r0}, {r8}, {i20};'},
         {'type': shft_t, 'code': 0x4c01000000000000, 'rule': rf'BFE{u32} {r0}, {r8}, {c20};'},
-        {'type': shft_t, 'code': 0x5c01000000000000, 'rule': rf'BFE{u32} {r0}, {r8}, {r20};'}],
-    'BFI': [  # bfi
+        {'type': shft_t, 'code': 0x5c01000000000000, 'rule': rf'BFE{u32} {r0}, {r8}, {r20};'}
+    ],  # bfe
+    'BFI': [  # Bit Field Insert
         {'type': shft_t, 'code': 0x36f0000000000000, 'rule': rf'BFI {r0}, {r8}, {i20}, {r39};'},
         {'type': shft_t, 'code': 0x53f0000000000000, 'rule': rf'BFI {r0}, {r8}, {r20}, {c20};'},
-        {'type': shft_t, 'code': 0x5bf0000000000000, 'rule': rf'BFI {r0}, {r8}, {r20}, {r39};'}],
-    'FLO': [  # clz
+        {'type': shft_t, 'code': 0x5bf0000000000000, 'rule': rf'BFI {r0}, {r8}, {r20}, {r39};'}
+    ],  # bfi
+    'FLO': [  # Find Leading One
         {'type': s2r_t, 'code': 0x3830000000000000, 'rule': rf'FLO\.U32 {r0}, {i20};'},
         {'type': s2r_t, 'code': 0x4c30000000000000, 'rule': rf'FLO\.U32 {r0}, {c20};'},
-        {'type': s2r_t, 'code': 0x5c30000000000000, 'rule': rf'FLO\.U32 {r0}, {r20};'}],
-    'IADD': [  # add
+        {'type': s2r_t, 'code': 0x5c30000000000000, 'rule': rf'FLO\.U32 {r0}, {r20};'}
+    ],  # clz
+    'IADD': [  # Integer Addition
         {'type': x32_t, 'code': 0x3810000000000000, 'rule': rf'IADD{sat}{X} {r0}, {r8}, {i20};'},
         {'type': x32_t, 'code': 0x4c10000000000000, 'rule': rf'IADD{sat}{X} {r0}, {r8}, {c20};'},
-        {'type': x32_t, 'code': 0x5c10000000000000, 'rule': rf'IADD{sat}{X} {r0}, {r8}, {r20};'}],
-    'IADD32I': [  # add
-        {'type': x32_t, 'code': 0x1c00000000000000, 'rule': rf'IADD32I{X} {r0}, {r8}, {i20w32};'}],
-    'IADD3': [  # add ls: DST = add_with_carry(((SRC1 + SRC2) << 16), SRC3)
+        {'type': x32_t, 'code': 0x5c10000000000000, 'rule': rf'IADD{sat}{X} {r0}, {r8}, {r20};'}
+    ],  # add
+    'IADD3': [  # 3-input Integer Addition
         {'type': x32_t, 'code': 0x38c0000000000000, 'rule': rf'IADD3{add3} {r0}, {r8}, {i20}, {r39};'},
         {'type': x32_t, 'code': 0x4cc0000000000000, 'rule': rf'IADD3{add3} {r0}, {r8}, {c20}, {r39};'},
-        {'type': x32_t, 'code': 0x5cc0000000000000, 'rule': rf'IADD3{add3} {r0}, {r8}, {r20}, {r39};'}],
-    'IMNMX': [  # max min
+        {'type': x32_t, 'code': 0x5cc0000000000000, 'rule': rf'IADD3{add3} {r0}, {r8}, {r20}, {r39};'}
+    ],  # add ls: DST = add_with_carry(((SRC1 + SRC2) << 16), SRC3)
+    'ICMP': [  # Integer Compare to Zero and Select Source
+        {'type': cmp_t, 'code': 0x3641000000000000, 'rule': rf'ICMP{icmp}{u32} {r0}, {r8}, {i20}, {r39};'},
+        {'type': cmp_t, 'code': 0x4b41000000000000, 'rule': rf'ICMP{icmp}{u32} {r0}, {r8}, {c20}, {r39};'},
+        {'type': cmp_t, 'code': 0x5b41000000000000, 'rule': rf'ICMP{icmp}{u32} {r0}, {r8}, {r20}, {r39};'}
+    ],  # slct
+    'IMAD': [],  # Integer Multiply And Add
+    'IMADSP': [],  # Extracted Integer Multiply And Add.
+    'IMNMX': [  # Integer Minimum/Maximum
         {'type': shft_t, 'code': 0x3821000000000000, 'rule': rf'IMNMX{u32}{hilo} {r0}, {r8}, {i20}, {p39};'},
         {'type': shft_t, 'code': 0x4c21000000000000, 'rule': rf'IMNMX{u32}{hilo} {r0}, {r8}, {c20}, {p39};'},
-        {'type': shft_t, 'code': 0x5c21000000000000, 'rule': rf'IMNMX{u32}{hilo} {r0}, {r8}, {r20}, {p39};'}],
-    'ISCADD': [  # mad 或 ld st内置
+        {'type': shft_t, 'code': 0x5c21000000000000, 'rule': rf'IMNMX{u32}{hilo} {r0}, {r8}, {r20}, {p39};'}
+    ],  # max min
+    'IMUL': [],  # Integer Multiply
+    'ISCADD': [  # Scaled Integer Addition
         {'type': shft_t, 'code': 0x3818000000000000, 'rule': rf'ISCADD {r0}, {r8}, {i20}, {i39w5};'},
         {'type': shft_t, 'code': 0x4c18000000000000, 'rule': rf'ISCADD {r0}, {r8}, {c20}, {i39w5};'},
-        {'type': shft_t, 'code': 0x5c18000000000000, 'rule': rf'ISCADD {r0}, {r8}, {r20}, {i39w5};'}],
-    'LEA': [  # mad 或 ld st内置
+        {'type': shft_t, 'code': 0x5c18000000000000, 'rule': rf'ISCADD {r0}, {r8}, {r20}, {i39w5};'}
+    ],  # mad 或 ld st内置
+    'ISET': [  # Integer Compare And Set
+        {'type': shft_t, 'code': 0x3651000000000000, 'rule': rf'ISET{icmp}{u32}{X}{bool_} {r0}, {r8}, {i20}, {p39};'},
+        {'type': shft_t, 'code': 0x4b51000000000000, 'rule': rf'ISET{icmp}{u32}{X}{bool_} {r0}, {r8}, {c20}, {p39};'},
+        {'type': shft_t, 'code': 0x5b51000000000000, 'rule': rf'ISET{icmp}{u32}{X}{bool_} {r0}, {r8}, {r20}, {p39};'}
+    ],  # set
+    'ISETP': [  # Integer Compare And Set Predicate
+        {'type': cmp_t, 'code': 0x3661000000000000,
+         'rule': rf'ISETP{icmp}{u32}{X}{bool_} {p3}, {p0}, {r8}, {i20}, {p39};'},
+        {'type': cmp_t, 'code': 0x4b61000000000000,
+         'rule': rf'ISETP{icmp}{u32}{X}{bool_} {p3}, {p0}, {r8}, {c20}, {p39};'},
+        {'type': cmp_t, 'code': 0x5b61000000000000,
+         'rule': rf'ISETP{icmp}{u32}{X}{bool_} {p3}, {p0}, {r8}, {r20}, {p39};'}
+    ],  # setp
+    'LEA': [  # Compute Effective Address
         {'type': shft_t, 'code': 0x1807000000000000,
          'rule': rf'LEA\.HI{X}( {p48q},)? {r0}, {r8}, {c20}, {r39}(, {i51w5})?;'},
         {'type': cmp_t, 'code': 0x36d7000000000000,
@@ -420,169 +468,241 @@ grammar_61 = {
         {'type': cmp_t, 'code': 0x5bd7000000000000,
          'rule': rf'LEA{X46}( {p48q},)? {r0}, {r8n45}, {r20}(, {i39w5})?;'},
         {'type': shft_t, 'code': 0x5bdf000000000000,
-         'rule': rf'LEA\.HI{X38}( {p48q},)? {r0}, {r8n37}, {r20}, {r39}(, {i28w5})?;'}],
-    'POPC': [  # popc
-        {'type': s2r_t, 'code': 0x5c08000000000000, 'rule': rf'POPC {r0}, {r20};'}],
-    'XMAD': [  # mad
-        {'type': x32_t, 'code': 0x3600000000000000, 'rule': rf'XMAD{xmad} {r0}, {r8}, {i20}, {r39};'},
-        {'type': x32_t, 'code': 0x5b00000000000000, 'rule': rf'XMAD{xmad} {r0}, {r8}, {r20}, {r39};'},
-        {'type': x32_t, 'code': 0x5100000000000000, 'rule': rf'XMAD{xmad} {r0}, {r8}, {r39s20}, {c20};'},
-        {'type': x32_t, 'code': 0x4e00000000000000, 'rule': rf'XMAD{xmadc} {r0}, {r8}, {c20}, {r39};'}],
-    'IDP': [  # dp4a dp2a
-        {'type': x32_t, 'code': 0x53d8000000000000, 'rule': rf'IDP{idp} {r0}, {r8}, {c20}, {r39};'},
-        {'type': x32_t, 'code': 0x53f8000000000000, 'rule': rf'IDP{idp} {r0}, {r8}, {r20}, {r39};'}],
-
-    # Comparison and Selection Instructions
-    'ISET': [  # set
-        {'type': shft_t, 'code': 0x3651000000000000, 'rule': rf'ISET{icmp}{u32}{X}{bool_} {r0}, {r8}, {i20}, {p39};'},
-        {'type': shft_t, 'code': 0x4b51000000000000, 'rule': rf'ISET{icmp}{u32}{X}{bool_} {r0}, {r8}, {c20}, {p39};'},
-        {'type': shft_t, 'code': 0x5b51000000000000, 'rule': rf'ISET{icmp}{u32}{X}{bool_} {r0}, {r8}, {r20}, {p39};'}],
-    'ISETP': [  # setp
-        {'type': cmp_t, 'code': 0x3661000000000000,
-         'rule': rf'ISETP{icmp}{u32}{X}{bool_} {p3}, {p0}, {r8}, {i20}, {p39};'},
-        {'type': cmp_t, 'code': 0x4b61000000000000,
-         'rule': rf'ISETP{icmp}{u32}{X}{bool_} {p3}, {p0}, {r8}, {c20}, {p39};'},
-        {'type': cmp_t, 'code': 0x5b61000000000000,
-         'rule': rf'ISETP{icmp}{u32}{X}{bool_} {p3}, {p0}, {r8}, {r20}, {p39};'}],
-    'ICMP': [  # slct
-        {'type': cmp_t, 'code': 0x3641000000000000, 'rule': rf'ICMP{icmp}{u32} {r0}, {r8}, {i20}, {r39};'},
-        {'type': cmp_t, 'code': 0x4b41000000000000, 'rule': rf'ICMP{icmp}{u32} {r0}, {r8}, {c20}, {r39};'},
-        {'type': cmp_t, 'code': 0x5b41000000000000, 'rule': rf'ICMP{icmp}{u32} {r0}, {r8}, {r20}, {r39};'}],
-
-    # Logic and Shift Instructions
-    'LOP': [  # and or xor not
+         'rule': rf'LEA\.HI{X38}( {p48q},)? {r0}, {r8n37}, {r20}, {r39}(, {i28w5})?;'}
+    ],  # mad 或 ld st内置
+    'LOP': [  # Logic Operation
         {'type': x32_t, 'code': 0x3847000000000000,
          'rule': rf'LOP{bool_}{X}{lopz}? {r0}, (?P<INV8>~)?{r8}, {i20}(?P<TINV>\.INV)?;'},
         {'type': x32_t, 'code': 0x4c47000000000000,
          'rule': rf'LOP{bool_}{X}{lopz}? {r0}, (?P<INV8>~)?{r8}, (?P<INV>~)?{c20};'},
         {'type': x32_t, 'code': 0x5c47000000000000,
-         'rule': rf'LOP{bool_}{X}{lopz}? {r0}, (?P<INV8>~)?{r8}, (?P<INV>~)?{r20};'}],
-    'LOP32I': [  # and or xor not
-        {'type': x32_t, 'code': 0x0400000000000000, 'rule': rf'LOP32I{bool_} {r0}, (?P<INV8>~)?{r8}, {i20w32};'}],
-    'LOP3': [  # lop3
+         'rule': rf'LOP{bool_}{X}{lopz}? {r0}, (?P<INV8>~)?{r8}, (?P<INV>~)?{r20};'}
+    ],  # and or xor not
+    'LOP3': [  # 3-input Logic Operation
         {'type': x32_t, 'code': 0x5be7000000000000, 'rule': rf'LOP3\.LUT {r0}, {r8}, {r20}, {r39}, {i28w8};'},
         {'type': x32_t, 'code': 0x3c00000000000000, 'rule': rf'LOP3\.LUT {r0}, {r8}, {i20}, {r39}, {i48w8};'},
-        {'type': x32_t, 'code': 0x0200000000000000, 'rule': rf'LOP3\.LUT {r0}, {r8}, {c20}, {r39}, {i48w8};'}],
-    'SHF': [  # shf
+        {'type': x32_t, 'code': 0x0200000000000000, 'rule': rf'LOP3\.LUT {r0}, {r8}, {c20}, {r39}, {i48w8};'}
+    ],  # lop3
+    'POPC': [  # Population count
+        {'type': s2r_t, 'code': 0x5c08000000000000, 'rule': rf'POPC {r0}, {r20};'}
+    ],  # popc
+    'SHF': [  # Funnel Shift
         {'type': shft_t, 'code': 0x36f8000000000000, 'rule': rf'SHF\.L{shf} {r0}, {r8}, {i20}, {r39};'},
         {'type': shft_t, 'code': 0x38f8000000000000, 'rule': rf'SHF\.R{shf} {r0}, {r8}, {i20}, {r39};'},
         {'type': shft_t, 'code': 0x5bf8000000000000, 'rule': rf'SHF\.L{shf} {r0}, {r8}, {r20}, {r39};'},
-        {'type': shft_t, 'code': 0x5cf8000000000000, 'rule': rf'SHF\.R{shf} {r0}, {r8}, {r20}, {r39};'}],
-    'SHL': [  # shl
+        {'type': shft_t, 'code': 0x5cf8000000000000, 'rule': rf'SHF\.R{shf} {r0}, {r8}, {r20}, {r39};'}
+    ],  # shf
+    'SHL': [  # Shift Left
         {'type': shft_t, 'code': 0x3848000000000000, 'rule': rf'SHL(?P<W>\.W)? {r0}, {r8}, {i20};'},
         {'type': shft_t, 'code': 0x4c48000000000000, 'rule': rf'SHL(?P<W>\.W)? {r0}, {r8}, {c20};'},
-        {'type': shft_t, 'code': 0x5c48000000000000, 'rule': rf'SHL(?P<W>\.W)? {r0}, {r8}, {r20};'}],
-    'SHR': [  # shr
+        {'type': shft_t, 'code': 0x5c48000000000000, 'rule': rf'SHL(?P<W>\.W)? {r0}, {r8}, {r20};'}
+    ],  # shl
+    'SHR': [  # Shift Right
         {'type': shft_t, 'code': 0x3829000000000000, 'rule': rf'SHR{u32} {r0}, {r8}, {i20};'},
         {'type': shft_t, 'code': 0x4c29000000000000, 'rule': rf'SHR{u32} {r0}, {r8}, {c20};'},
-        {'type': shft_t, 'code': 0x5c29000000000000, 'rule': rf'SHR{u32} {r0}, {r8}, {r20};'}],
+        {'type': shft_t, 'code': 0x5c29000000000000, 'rule': rf'SHR{u32} {r0}, {r8}, {r20};'}
+    ],  # shr
+    'XMAD': [  # Integer Short Multiply Add
+        {'type': x32_t, 'code': 0x3600000000000000, 'rule': rf'XMAD{xmad} {r0}, {r8}, {i20}, {r39};'},
+        {'type': x32_t, 'code': 0x5b00000000000000, 'rule': rf'XMAD{xmad} {r0}, {r8}, {r20}, {r39};'},
+        {'type': x32_t, 'code': 0x5100000000000000, 'rule': rf'XMAD{xmad} {r0}, {r8}, {r39s20}, {c20};'},
+        {'type': x32_t, 'code': 0x4e00000000000000, 'rule': rf'XMAD{xmadc} {r0}, {r8}, {c20}, {r39};'}
+    ],  # mad
+
+    # Conversion Instructions
+    'F2F': [  # Floating Point To Floating Point Conversion
+        {'type': qtr_t, 'code': 0x4ca8000000000000, 'rule': rf'F2F{ftz}{x2x}{rnd}{round_}{sat} {r0}, {c20};'},
+        {'type': qtr_t, 'code': 0x5ca8000000000000, 'rule': rf'F2F{ftz}{x2x}{rnd}{round_}{sat} {r0}, {r20};'}
+    ],  # cvt
+    'F2I': [  # Floating Point To Integer Conversion
+        {'type': qtr_t, 'code': 0x4cb0000000000000, 'rule': rf'F2I{ftz}{x2x}{round_} {r0}, {c20};'},
+        {'type': qtr_t, 'code': 0x5cb0000000000000, 'rule': rf'F2I{ftz}{x2x}{round_} {r0}, {r20};'}
+    ],  # cvt
+    'I2F': [  # Integer To Floating Point Conversion
+        {'type': qtr_t, 'code': 0x38b8000000000000, 'rule': rf'I2F{x2x}{rnd} {r0}, {i20};'},
+        {'type': qtr_t, 'code': 0x4cb8000000000000, 'rule': rf'I2F{x2x}{rnd} {r0}, {c20};'},
+        {'type': qtr_t, 'code': 0x5cb8000000000000, 'rule': rf'I2F{x2x}{rnd} {r0}, {r20};'}
+    ],  # cvt
+    'I2I': [  # Integer To Integer Conversion
+        {'type': qtr_t, 'code': 0x4ce0000000000000, 'rule': rf'I2I{x2x}{sat} {r0}, {c20};'},
+        {'type': qtr_t, 'code': 0x5ce0000000000000, 'rule': rf'I2I{x2x}{sat} {r0}, {r20};'}
+    ],  # cvt
 
     # Movement Instructions
-    'MOV': [  # mov
+    'MOV': [  # Move
         {'type': x32_t, 'code': 0x3898078000000000, 'rule': rf'MOV {r0}, {i20};'},
         {'type': x32_t, 'code': 0x4c98078000000000, 'rule': rf'MOV {r0}, {c20};'},
-        {'type': x32_t, 'code': 0x5c98078000000000, 'rule': rf'MOV {r0}, {r20};'}],
-    'MOV32I': [  # mov
-        {'type': x32_t, 'code': 0x010000000000f000, 'rule': rf'MOV32I {r0}, {i20w32};'}],
-    'SHFL': [  # shfl.sync
-        {'type': smem_t, 'code': 0xef10000000000000,
-         'rule': rf'SHFL{shfl} {p48}, {r0}, {r8}, (?:{i20w8}|{r20}), (?:{i34w13}|{r39});'}],
-    'PRMT': [  # prmt
+        {'type': x32_t, 'code': 0x5c98078000000000, 'rule': rf'MOV {r0}, {r20};'}
+    ],  # mov
+    'PRMT': [  # Permute Register Pair
         {'type': x32_t, 'code': 0x36c0000000000000, 'rule': rf'PRMT{prmt} {r0}, {r8}, {i20}, {r39};'},
         {'type': x32_t, 'code': 0x4bc0000000000000, 'rule': rf'PRMT{prmt} {r0}, {r8}, {c20}, {r39};'},
         {'type': x32_t, 'code': 0x5bc0000000000000, 'rule': rf'PRMT{prmt} {r0}, {r8}, {r20}, {r39};'},
-        {'type': x32_t, 'code': 0x53c0000000000000, 'rule': rf'PRMT{prmt} {r0}, {r8}, {r39}, {c20};'}],
-    'SEL': [  # selp
+        {'type': x32_t, 'code': 0x53c0000000000000, 'rule': rf'PRMT{prmt} {r0}, {r8}, {r39}, {c20};'}
+    ],  # prmt
+    'SEL': [  # Select Source with Predicate
         {'type': x32_t, 'code': 0x38a0000000000000, 'rule': rf'SEL {r0}, {r8}, {i20}, {p39};'},
         {'type': x32_t, 'code': 0x4ca0000000000000, 'rule': rf'SEL {r0}, {r8}, {c20}, {p39};'},
-        {'type': x32_t, 'code': 0x5ca0000000000000, 'rule': rf'SEL {r0}, {r8}, {r20}, {p39};'}],
-
-    # Conversion Instructions
-    'F2F': [  # cvt
-        {'type': qtr_t, 'code': 0x4ca8000000000000, 'rule': rf'F2F{ftz}{x2x}{rnd}{round_}{sat} {r0}, {c20};'},
-        {'type': qtr_t, 'code': 0x5ca8000000000000, 'rule': rf'F2F{ftz}{x2x}{rnd}{round_}{sat} {r0}, {r20};'}],
-    'F2I': [  # cvt
-        {'type': qtr_t, 'code': 0x4cb0000000000000, 'rule': rf'F2I{ftz}{x2x}{round_} {r0}, {c20};'},
-        {'type': qtr_t, 'code': 0x5cb0000000000000, 'rule': rf'F2I{ftz}{x2x}{round_} {r0}, {r20};'}],
-    'I2F': [  # cvt
-        {'type': qtr_t, 'code': 0x38b8000000000000, 'rule': rf'I2F{x2x}{rnd} {r0}, {i20};'},
-        {'type': qtr_t, 'code': 0x4cb8000000000000, 'rule': rf'I2F{x2x}{rnd} {r0}, {c20};'},
-        {'type': qtr_t, 'code': 0x5cb8000000000000, 'rule': rf'I2F{x2x}{rnd} {r0}, {r20};'}],
-    'I2I': [  # cvt
-        {'type': qtr_t, 'code': 0x4ce0000000000000, 'rule': rf'I2I{x2x}{sat} {r0}, {c20};'},
-        {'type': qtr_t, 'code': 0x5ce0000000000000, 'rule': rf'I2I{x2x}{sat} {r0}, {r20};'}],
+        {'type': x32_t, 'code': 0x5ca0000000000000, 'rule': rf'SEL {r0}, {r8}, {r20}, {p39};'}
+    ],  # selp
+    'SHFL': [  # Warp Wide Register Shuffle
+        {'type': smem_t, 'code': 0xef10000000000000,
+         'rule': rf'SHFL{shfl} {p48}, {r0}, {r8}, (?:{i20w8}|{r20}), (?:{i34w13}|{r39});'}
+    ],  # shfl.sync
 
     # Predicate/CC Instructions
-    'PSET': [  # set
-        {'type': cmp_t, 'code': 0x5088000000000000, 'rule': rf'PSET{bool2}{bool_} {r0}, {p12}, {p29}, {p39};'}],
-    'PSETP': [  # setp
-        {'type': cmp_t, 'code': 0x5090000000000000, 'rule': rf'PSETP{bool2}{bool_} {p3}, {p0}, {p12}, {p29}, {p39};'}],
+    'CSET': [],  # Test Condition Code And Set
+    'CSETP': [],  # Test Condition Code and Set Predicate
+    'PSET': [  # Combine Predicates and Set
+        {'type': cmp_t, 'code': 0x5088000000000000, 'rule': rf'PSET{bool2}{bool_} {r0}, {p12}, {p29}, {p39};'}
+    ],  # set
+    'PSETP': [  # Combine Predicates and Set Predicate
+        {'type': cmp_t, 'code': 0x5090000000000000, 'rule': rf'PSETP{bool2}{bool_} {p3}, {p0}, {p12}, {p29}, {p39};'}
+    ],  # setp
+    'P2R': [],  # Move Predicate Register To Register
+    'R2P': [  # Move Register To Predicate/CC Register
+        {'type': shft_t, 'code': 0x38f0000000000000, 'rule': rf'R2P {r2p}, {r8}, {i20};'}
+    ],
+
+    # Texture Instructions
+    'TEX': [],  # Texture Fetch
+    'TLD': [],  # Texture Load
+    'TLD4': [],  # Texture Load 4
+    'TXQ': [],  # Texture Query
+    'TEXS': [],  # Texture Fetch with scalar/non-vec4 source/destinations
+    'TLD4S': [],  # Texture Load 4 with scalar/non-vec4 source/destinations
+    'TLDS': [],  # Texture Load with scalar/non-vec4 source/destinations
 
     # Compute Load/Store Instructions
-    'LD': [  # ld
-        {'type': gmem_t, 'code': 0x800000000000ff00, 'rule': rf'LD{mem_cache}{mem_type} {r0}, {addr}, {p58};'}],
-    'ST': [  # st
-        {'type': gmem_t, 'code': 0xa00000000000ff00, 'rule': rf'ST{mem_cache}{mem_type} {addr}, {r0}, {p58};'}],
-    'LDG': [  # ld
-        {'type': gmem_t, 'code': 0xeed000000000ff00, 'rule': rf'LDG{mem_cache}{mem_type} {r0}, {addr};'}],
-    'STG': [  # st
-        {'type': gmem_t, 'code': 0xeed800000000ff00, 'rule': rf'STG{mem_cache}{mem_type} {addr}, {r0};'}],
-    'LDS': [  # ld
-        {'type': smem_t, 'code': 0xef4800000000ff00, 'rule': rf'LDS{mem_cache}{mem_type} {r0}, {addr};'}],
-    'STS': [  # st
-        {'type': smem_t, 'code': 0xef5800000000ff00, 'rule': rf'STS{mem_cache}{mem_type} {addr}, {r0};'}],
-    'LDL': [  # ld
-        {'type': gmem_t, 'code': 0xef4000000000ff00, 'rule': rf'LDL{mem_cache}{mem_type} {r0}, {addr};'}],
-    'STL': [  # st
-        {'type': gmem_t, 'code': 0xef5000000000ff00, 'rule': rf'STL{mem_cache}{mem_type} {addr}, {r0};'}],
-    'LDC': [  # ld
-        {'type': gmem_t, 'code': 0xef9000000000ff00, 'rule': rf'LDC{mem_cache}{mem_type} {r0}, {ldc};'}],
+    'LD': [  # Load from generic Memory
+        {'type': gmem_t, 'code': 0x800000000000ff00, 'rule': rf'LD{mem_cache}{mem_type} {r0}, {addr}, {p58};'}
+    ],  # ld
+    'LDC': [  # Load Constant
+        {'type': gmem_t, 'code': 0xef9000000000ff00, 'rule': rf'LDC{mem_cache}{mem_type} {r0}, {ldc};'}
+    ],  # ld
+    'LDG': [  # Load from Global Memory
+        {'type': gmem_t, 'code': 0xeed000000000ff00, 'rule': rf'LDG{mem_cache}{mem_type} {r0}, {addr};'}
+    ],  # ld
+    'LDL': [  # Load within Local Memory Window
+        {'type': gmem_t, 'code': 0xef4000000000ff00, 'rule': rf'LDL{mem_cache}{mem_type} {r0}, {addr};'}
+    ],  # ld
+    'LDS': [  # Local within Shared Memory Window
+        {'type': smem_t, 'code': 0xef4800000000ff00, 'rule': rf'LDS{mem_cache}{mem_type} {r0}, {addr};'}
+    ],  # ld
+    'ST': [  # Store to generic Memory
+        {'type': gmem_t, 'code': 0xa00000000000ff00, 'rule': rf'ST{mem_cache}{mem_type} {addr}, {r0}, {p58};'}
+    ],  # st
+    'STG': [  # Store to global Memory
+        {'type': gmem_t, 'code': 0xeed800000000ff00, 'rule': rf'STG{mem_cache}{mem_type} {addr}, {r0};'}
+    ],  # st
+    'STL': [  # Store within Local or Shared Window
+        {'type': gmem_t, 'code': 0xef5000000000ff00, 'rule': rf'STL{mem_cache}{mem_type} {addr}, {r0};'}
+    ],  # st
+    'STS': [  # Store within Local or Shared Window
+        {'type': smem_t, 'code': 0xef5800000000ff00, 'rule': rf'STS{mem_cache}{mem_type} {addr}, {r0};'}
+    ],  # st
     # Note for ATOM(S).CAS operations the last register needs to be in sequence with the second to last
     # (as it's not encoded).
-    'ATOM': [  # atom
-        {'type': gmem_t, 'code': 0xed0000000000ff00, 'rule': rf'ATOM{atom} {r0}, {addr2}, {r20}(?:, {r39a})?;'}],
-    'ATOMS': [  # atom
-        {'type': smem_t, 'code': 0xec0000000000ff00, 'rule': rf'ATOMS{atom} {r0}, {addr3}, {r20}(?:, {r39a})?;'}],
-    'RED': [  # red
-        {'type': gmem_t, 'code': 0xebf800000000ff00, 'rule': rf'RED{atom} {addr2}, {r0};'}],
+    'ATOM': [  # Atomic Operation on generic Memory
+        {'type': gmem_t, 'code': 0xed0000000000ff00, 'rule': rf'ATOM{atom} {r0}, {addr2}, {r20}(?:, {r39a})?;'}
+    ],  # atom
+    'ATOMS': [  # Atomic Operation on Shared Memory
+        {'type': smem_t, 'code': 0xec0000000000ff00, 'rule': rf'ATOMS{atom} {r0}, {addr3}, {r20}(?:, {r39a})?;'}
+    ],  # atom
+    'RED': [  # Reduction Operation on generic Memory
+        {'type': gmem_t, 'code': 0xebf800000000ff00, 'rule': rf'RED{atom} {addr2}, {r0};'}
+    ],  # red
+    'CCTL': [],  # Cache Control
+    'CCTLL': [],  # Cache Control
+    'MEMBAR': [  # Memory Barrier
+        {'type': x32_t, 'code': 0xef98000000000000, 'rule': rf'MEMBAR{mbar};'}
+    ],  # membar
+    'CCTLT': [],  # Texture Cache Control
+
+    # Surface Memory Instructions
+    'SUATOM': [],  # Atomic Op on Surface Memory
+    'SULD': [],  # Surface Load
+    'SURED': [],  # Reduction Op on Surface Memory
+    'SUST': [],  # Surface Store
 
     # Control Instructions
-    'BRA': [  # bra
-        {'type': x32_t, 'code': 0xe24000000000000f, 'rule': rf'BRA(?P<U>\.U)? ((?P<CC_NEU>CC.NEU), )?{i20w24};'}],
-    'BRX': [  # brx
-        {'type': x32_t, 'code': 0xe25000000000000f, 'rule': rf'BRX {r8} {i20w24};'}],
-    'PBK': [  # 类似SSY
-        {'type': x32_t, 'code': 0xe2a0000000000000, 'rule': rf'{noPred}?PBK {i20w24};'}],
-    'BRK': [  # bra
-        {'type': x32_t, 'code': 0xe34000000000000f, 'rule': rf'BRK;'}],
-    'SSY': [  # 映射label后忽略
-        {'type': x32_t, 'code': 0xe290000000000000, 'rule': rf'{noPred}?SSY {i20w24};'}],
-    'SYNC': [  # bra
-        {'type': x32_t, 'code': 0xf0f800000000000f, 'rule': rf'SYNC;'}],
-    'CAL': [  # call
-        {'type': x32_t, 'code': 0xe260000000000040, 'rule': rf'{noPred}?CAL {i20w24};'}],
-    'RET': [  # ret
-        {'type': x32_t, 'code': 0xe32000000000000f, 'rule': rf'RET;'}],
-    'EXIT': [  # exit
-        {'type': x32_t, 'code': 0xe30000000000000f, 'rule': rf'EXIT;'}],
+    'BRA': [  # Relative Branch
+        {'type': x32_t, 'code': 0xe24000000000000f, 'rule': rf'BRA(?P<U>\.U)? ((?P<CC_NEU>CC.NEU), )?{i20w24};'}
+    ],  # bra
+    'BRX': [  # Relative Branch Indirect
+        {'type': x32_t, 'code': 0xe25000000000000f, 'rule': rf'BRX {r8} {i20w24};'}
+    ],  # brx
+    'JMP': [],  # Absolute Jump
+    'JMX': [],  # Absolute Jump Indirect
+    'SSY': [  # Set Synchronization Point
+        {'type': x32_t, 'code': 0xe290000000000000, 'rule': rf'{noPred}?SSY {i20w24};'}
+    ],  # 映射label后忽略
+    'SYNC': [  # Converge threads after conditional branch
+        {'type': x32_t, 'code': 0xf0f800000000000f, 'rule': rf'SYNC;'}
+    ],  # bra
+    'CAL': [  # Relative Call
+        {'type': x32_t, 'code': 0xe260000000000040, 'rule': rf'{noPred}?CAL {i20w24};'}
+    ],  # call
+    'JCAL': [],  # Absolute Call
+    'PRET': [],  # Pre-Return From Subroutine
+    'RET': [  # Return From Subroutine
+        {'type': x32_t, 'code': 0xe32000000000000f, 'rule': rf'RET;'}
+    ],  # ret
+    'BRK': [  # Break
+        {'type': x32_t, 'code': 0xe34000000000000f, 'rule': rf'BRK;'}
+    ],  # bra
+    'PBK': [  # Pre-Break
+        {'type': x32_t, 'code': 0xe2a0000000000000, 'rule': rf'{noPred}?PBK {i20w24};'}
+    ],  # 类似SSY
+    'CONT': [],  # Continue
+    'PCNT': [],  # Pre-continue
+    'EXIT': [  # Exit Program
+        {'type': x32_t, 'code': 0xe30000000000000f, 'rule': rf'EXIT;'}
+    ],  # exit
+    'PEXIT': [],  # Pre-Exit
+    'BPT': [],  # BreakPoint/Trap
 
     # Miscellaneous Instructions
-    'NOP': [  # 忽略
-        {'type': x32_t, 'code': 0x50b0000000000f00, 'rule': rf'NOP;'}],
-    'BAR': [  # bar
-        {'type': gmem_t, 'code': 0xf0a80b8000000000, 'rule': rf'BAR\.SYNC (?:{i8w8}|{r8});'}],
-    'DEPBAR': [  # bar
-        {'type': gmem_t, 'code': 0xf0f0000000000000, 'rule': rf'DEPBAR{icmp} {dbar_sb}, {i20w6}(, {dbar_db})?;'},
-        {'type': gmem_t, 'code': 0xf0f0000000000000, 'rule': rf'DEPBAR {dbar_db};'}],
-    'MEMBAR': [  # membar
-        {'type': x32_t, 'code': 0xef98000000000000, 'rule': rf'MEMBAR{mbar};'}],
-    'VOTE': [  # vote
+    'NOP': [  # No Operation
+        {'type': x32_t, 'code': 0x50b0000000000f00, 'rule': rf'NOP;'}
+    ],  # 忽略
+    'CS2R': [],  # Move Special Register to Register
+    'S2R': [  # Move Special Register to Register
+        {'type': x32_t, 'code': 0xf0c8000000000000, 'rule': rf'S2R {r0}, {sr};'}
+    ],  # mov
+    'B2R': [],  # Move Barrier To Register
+    'BAR': [  # Barrier Synchronization
+        {'type': gmem_t, 'code': 0xf0a80b8000000000, 'rule': rf'BAR\.SYNC (?:{i8w8}|{r8});'}
+    ],  # bar
+    'R2B': [],  # Move Register to Barrier
+    'VOTE': [  # Vote Across SIMD Thread Group
         {'type': vote_t, 'code': 0x50d8000000000000, 'rule': rf'VOTE{vote} {r0}, {p45}, {p39};'},
-        {'type': vote_t, 'code': 0x50d8000000000000, 'rule': rf'VOTE{vote} {p45}, {p39};'}],
-    'S2R': [  # mov
-        {'type': x32_t, 'code': 0xf0c8000000000000, 'rule': rf'S2R {r0}, {sr};'}],
-    'R2P': [
-        {'type': shft_t, 'code': 0x38f0000000000000, 'rule': rf'R2P {r2p}, {r8}, {i20};'}],
+        {'type': vote_t, 'code': 0x50d8000000000000, 'rule': rf'VOTE{vote} {p45}, {p39};'}
+    ],  # vote
+
+    # SM61+
+    'IADD32I': [  #
+        {'type': x32_t, 'code': 0x1c00000000000000, 'rule': rf'IADD32I{X} {r0}, {r8}, {i20w32};'}
+    ],  # add
+
+    'IDP': [  #
+        {'type': x32_t, 'code': 0x53d8000000000000, 'rule': rf'IDP{idp} {r0}, {r8}, {c20}, {r39};'},
+        {'type': x32_t, 'code': 0x53f8000000000000, 'rule': rf'IDP{idp} {r0}, {r8}, {r20}, {r39};'}
+    ],  # dp4a dp2a
+
+    'MOV32I': [  #
+        {'type': x32_t, 'code': 0x010000000000f000, 'rule': rf'MOV32I {r0}, {i20w32};'}
+    ],  # mov
+
+    'LOP32I': [  #
+        {'type': x32_t, 'code': 0x0400000000000000, 'rule': rf'LOP32I{bool_} {r0}, (?P<INV8>~)?{r8}, {i20w32};'}
+    ],  # and or xor not
+
+    'DEPBAR': [  #
+        {'type': gmem_t, 'code': 0xf0f0000000000000, 'rule': rf'DEPBAR{icmp} {dbar_sb}, {i20w6}(, {dbar_db})?;'},
+        {'type': gmem_t, 'code': 0xf0f0000000000000, 'rule': rf'DEPBAR {dbar_db};'}
+    ],  # bar
+
 }
 
 # r16 r24 r32 r64
@@ -684,7 +804,60 @@ tle = rf'(?P<LE>\.LE)?'
 tdbar_db = r'(\{(?P<db>[0-5])\})'
 
 grammar_75 = {
-    'IMAD': [
+    # Floating Point Instructions
+    'FADD': [],  # FP32 Add
+    'FADD32I': [],  # FP32 Add
+    'FCHK': [],  # Floating-point Range Check
+    'FFMA32I': [],  # FP32 Fused Multiply and Add
+    'FFMA': [],  # FP32 Fused Multiply and Add
+    'FMNMX': [],  # FP32 Minimum/Maximum
+    'FMUL': [],  # FP32 Multiply
+    'FMUL32I': [],  # FP32 Multiply
+    'FSEL': [],  # Floating Point Select
+    'FSET': [],  # FP32 Compare And Set
+    'FSETP': [],  # FP32 Compare And Set Predicate
+    'FSWZADD': [],  # FP32 Swizzle Add
+    'MUFU': [],  # FP32 Multi Function Operation
+    'HADD2': [],  # FP16 Add
+    'HADD2_32I': [],  # FP16 Add
+    'HFMA2': [],  # FP16 Fused Mutiply Add
+    'HFMA2_32I': [],  # FP16 Fused Mutiply Add
+    'HMMA': [],  # Matrix Multiply and Accumulate
+    'HMNMX2': [],  # FP16 Minimum / Maximum
+    'HMUL2': [],  # FP16 Multiply
+    'HMUL2_32I': [],  # FP16 Multiply
+    'HSET2': [],  # FP16 Compare And Set
+    'HSETP2': [],  # FP16 Compare And Set Predicate
+    'DADD': [],  # FP64 Add
+    'DFMA': [],  # FP64 Fused Mutiply Add
+    'DMMA': [],  # Matrix Multiply and Accumulate
+    'DMUL': [],  # FP64 Multiply
+    'DSETP': [],  # FP64 Compare And Set Predicate
+
+    # Integer Instructions
+    'BMMA': [],  # Bit Matrix Multiply and Accumulate
+    'BMSK': [],  # Bitfield Mask
+    'BREV': [],  # Bit Reverse
+    'FLO': [  # Find Leading One
+        {'type': 'x32', 'code': 0x300, 'rule': rf'FLO{u32}{tsh} {r16}, ({p81}, )?{r32};'},
+        {'type': 'x32', 'code': 0xd00, 'rule': rf'FLO{u32}{tsh} {r16}, ({p81}, )?{ur32};'},
+    ],
+    'IABS': [],  # Integer Absolute Value
+    'IADD': [],  # Integer Addition
+    'IADD3': [  # 3-input Integer Addition
+        {'type': 'x32', 'code': 0x210,
+         'rule': rf'IADD3{X} {r16}, ({p81}, )?({p84}, )?{r24}, {r32}, {r64}(, {p87})?(, {p77})?;'},
+        {'type': 'x32', 'code': 0x810,
+         'rule': rf'IADD3{X} {r16}, ({p81}, )?({p84}, )?{r24}, {i32}, {r64}(, {p87})?(, {p77})?;'},
+        {'type': 'x32', 'code': 0xa10,
+         'rule': rf'IADD3{X} {r16}, ({p81}, )?({p84}, )?{r24}, {c40}, {r64}(, {p87})?(, {p77})?;'},
+        {'type': 'x32', 'code': 0xc10,
+         'rule': rf'IADD3{X} {r16}, ({p81}, )?({p84}, )?{r24}, {ur32}, {r64}(, {p87})?(, {p77})?;'},
+    ],
+    'IADD32I': [],  # Integer Addition
+    'IDP': [],  # Integer Dot Product and Accumulate
+    'IDP4A': [],  # Integer Dot Product and Accumulate
+    'IMAD': [  # Integer Multiply And Add
         {'type': 'x32', 'code': 0x224,
          'rule': rf'IMAD{timad}{u32}{X} {r16}, ({p81}, )?{r24}, {r32}, {r64}(, {p87})?;'},
         {'type': 'x32', 'code': 0x424,
@@ -700,93 +873,15 @@ grammar_75 = {
         {'type': 'x32', 'code': 0xe24,
          'rule': rf'IMAD{timad}{u32}{X} {r16}, ({p81}, )?{r24}, {r64}, {ur32}(, {p87})?;'},
     ],
-    'UIMAD': [
-        {'type': 'x32', 'code': 0x2a4,
-         'rule': rf'IMAD{timad}{u32}{X} {ur16}, ({up81}, )?{ur24}, {ur32}, {ur64}(, {up87})?;'},
+    'IMMA': [],  # Integer Matrix Multiply and Accumulate
+    'IMNMX': [  # Integer Minimum/Maximum
+        {'type': 'x32', 'code': 0x817, 'rule': rf'IMNMX{u32} {r16}, {r24}, {i32}, {p87};'},
     ],
-    'S2R': [
-        {'type': 'x32', 'code': 0x919, 'rule': rf'S2R {r16}, {sr};'},
-    ],
-    'S2UR': [
-        {'type': 'x32', 'code': 0x9c3, 'rule': rf'S2UR {ur16}, {sr};'},
-    ],
-    'CS2R': [
-        {'type': 'x32', 'code': 0x805, 'rule': rf'CS2R{tcs2r} {r16}, {sr};'},
-    ],
-    'LDG': [
-        {'type': 'x32', 'code': 0x381,
-         'rule': rf'LDG{te}{tmem_cache}{tmem_ltc}{tmem_type}{tmem_const}{tmem_scope}{tprivate}{tzd}'
-                 rf' ({p81}, )?{r16}, {addr24}(, {p64q})?;'},
-        {'type': 'x32', 'code': 0x981,
-         'rule': rf'LDG{te}{tmem_cache}{tmem_ltc}{tmem_type}{tmem_const}{tmem_scope}{tprivate}{tzd}'
-                 rf' ({p81}, )?{r16}, {uaddr32}(, {p64q})?;'},
-    ],
-    'STG': [
-        {'type': 'x32', 'code': 0x386,
-         'rule': rf'STG{te}{tmem_cache}{tmem_type}{tmem_const}{tmem_scope}{tprivate}{tzd}'
-                 rf' {addr24}, {r32};'},
-        {'type': 'x32', 'code': 0x986,
-         'rule': rf'STG{te}{tmem_cache}{tmem_type}{tmem_const}{tmem_scope}{tprivate}{tzd}'
-                 rf' {uaddr64}, {r32};'},
-    ],
-    'LDS': [
-        {'type': 'x32', 'code': 0x984,
-         'rule': rf'LDS{tu}{tmem_type}{tzd} {r16}, {uaddr32};'},
-    ],
-    'STS': [
-        {'type': 'x32', 'code': 0x388,
-         'rule': rf'STS{tmem_type} {addr24}, {r32};'},
-    ],
-    'ATOMS': [
-        {'type': 'x32', 'code': 0x38c,
-         'rule': rf'ATOMS{tatom_op}{tmem_type} {r16}, {addr24}, {r32}(, {r64})?;'},
-    ],
-    'ATOMG': [
-        {'type': 'x32', 'code': 0x3a8,
-         'rule': rf'ATOMG{te}{tatom_op}{tmem_cache}{tmem_type}{tmem_const}{tmem_scope}{tprivate}'
-                 rf' ({p81}, )?{r16}, {addr24}, {r32}(, {r64})?;'},
-        {'type': 'x32', 'code': 0x9a8,
-         'rule': rf'ATOMG{te}{tatom_op}{tmem_cache}{tmem_type}{tmem_const}{tmem_scope}{tprivate}'
-                 rf' ({p81}, )?{r16}, {uaddr64}, {r32};'},
-    ],
-    'LDC': [
-        {'type': 'x32', 'code': 0xb82,
-         'rule': rf'LDC{tmem_type}{tldc_isl} {r16}, {tldc};'},
-    ],
-    'ULDC': [
-        {'type': 'x32', 'code': 0xab9,
-         'rule': rf'ULDC{tmem_type} {ur16}, {c40};'},
-    ],
-    'BMOV': [
-        {'type': 'x32', 'code': 0x355, 'rule': rf'BMOV{tbmov} {r16}, {b24w5};'},
-    ],
-    'BSSY': [
-        {'type': 'x32', 'code': 0x945, 'rule': rf'BSSY ({p87}, )?{b16}, {i32a4};'},
-    ],
-    'BSYNC': [
-        {'type': 'x32', 'code': 0x941, 'rule': rf'BSYNC ({p87}, )?{b16};'},
-    ],
-    'WARPSYNC': [
-        {'type': 'x32', 'code': 0x948, 'rule': rf'WARPSYNC ({p87}, )?{i32};'},
-    ],
-    'BAR': [
-        {'type': 'x32', 'code': 0xb1d, 'rule': rf'BAR\.SYNC {i54w4};'}],
-    'BRA': [
-        {'type': 'x32', 'code': 0x947, 'rule': rf'BRA ({p87}, )?{i32a4};'},
-    ],
-    'EXIT': [
-        {'type': 'x32', 'code': 0x94d, 'rule': rf'EXIT( {p87}, )?;'}],
-    'LOP3': [
-        {'type': 'x32', 'code': 0x212,
-         'rule': rf'LOP3\.LUT{tpand} ({p81}, )?{r16}, {r24}, {r32}, {r64}, {i72w8}, {p87};'},
-        {'type': 'x32', 'code': 0x812,
-         'rule': rf'LOP3\.LUT{tpand} ({p81}, )?{r16}, {r24}, {i32}, {r64}, {i72w8}, {p87};'},
-        {'type': 'x32', 'code': 0xa12,
-         'rule': rf'LOP3\.LUT{tpand} ({p81}, )?{r16}, {r24}, {c40}, {r64}, {i72w8}, {p87};'},
-        {'type': 'x32', 'code': 0xc12,
-         'rule': rf'LOP3\.LUT{tpand} ({p81}, )?{r16}, {r24}, {ur32}, {r64}, {i72w8}, {p87};'},
-    ],
-    'ISETP': [
+    'IMUL': [],  # Integer Multiply
+    'IMUL32I': [],  # Integer Multiply
+    'ISCADD': [],  # Scaled Integer Addition
+    'ISCADD32I': [],  # Scaled Integer Addition
+    'ISETP': [  # Integer Compare And Set Predicate
         {'type': 'x32', 'code': 0x20c,
          'rule': rf'ISETP{ticmp}{u32}{tbool}{tex} {p81}, {p84}, {r24}, {r32}, {p87}(, {p68})?;'},
         {'type': 'x32', 'code': 0x80c,
@@ -794,71 +889,7 @@ grammar_75 = {
         {'type': 'x32', 'code': 0xc0c,
          'rule': rf'ISETP{ticmp}{u32}{tbool}{tex} {p81}, {p84}, {r24}, {ur32}, {p87}(, {p68})?;'},
     ],
-    'IMNMX': [
-        {'type': 'x32', 'code': 0x817, 'rule': rf'IMNMX{u32} {r16}, {r24}, {i32}, {p87};'},
-    ],
-    'MOV': [
-        {'type': 'x32', 'code': 0x802, 'rule': rf'MOV {r16}, {i32}(, {i72w4})?;'},
-        {'type': 'x32', 'code': 0xc02, 'rule': rf'MOV {r16}, {ur32}(, {i72w4})?;'},
-    ],
-    'UMOV': [
-        {'type': 'x32', 'code': 0x882, 'rule': rf'UMOV {ur16}, {i32};'},
-    ],
-    'P2R': [
-        {'type': 'x32', 'code': 0x803, 'rule': rf'P2R{tp2r} {r16}, PR, {r24}, {i32};'},
-    ],
-    'IADD3': [
-        {'type': 'x32', 'code': 0x210,
-         'rule': rf'IADD3{X} {r16}, ({p81}, )?({p84}, )?{r24}, {r32}, {r64}(, {p87})?(, {p77})?;'},
-        {'type': 'x32', 'code': 0x810,
-         'rule': rf'IADD3{X} {r16}, ({p81}, )?({p84}, )?{r24}, {i32}, {r64}(, {p87})?(, {p77})?;'},
-        {'type': 'x32', 'code': 0xa10,
-         'rule': rf'IADD3{X} {r16}, ({p81}, )?({p84}, )?{r24}, {c40}, {r64}(, {p87})?(, {p77})?;'},
-        {'type': 'x32', 'code': 0xc10,
-         'rule': rf'IADD3{X} {r16}, ({p81}, )?({p84}, )?{r24}, {ur32}, {r64}(, {p87})?(, {p77})?;'},
-    ],
-    'UIADD3': [
-        {'type': 'x32', 'code': 0x290,
-         'rule': rf'UIADD3{X} {ur16}, ({up81}, )?({up84}, )?{ur24}, {ur32}, {ur64}(, {up87})?(, {up77})?;'},
-        {'type': 'x32', 'code': 0x890,
-         'rule': rf'UIADD3{X} {ur16}, ({up81}, )?({up84}, )?{ur24}, {i32}, {ur64}(, {up87})?(, {up77})?;'},
-    ],
-    'VOTE': [
-        {'type': 'x32', 'code': 0x806, 'rule': rf'VOTE{tvote} {r16}, {p81}, {p87};'},
-    ],
-    'VOTEU': [
-        {'type': 'x32', 'code': 0x886, 'rule': rf'VOTEU{tvote} {ur16}, {up81}, {p87};'},
-    ],
-    'FLO': [
-        {'type': 'x32', 'code': 0x300, 'rule': rf'FLO{u32}{tsh} {r16}, ({p81}, )?{r32};'},
-        {'type': 'x32', 'code': 0xd00, 'rule': rf'FLO{u32}{tsh} {r16}, ({p81}, )?{ur32};'},
-    ],
-    'POPC': [
-        {'type': 'x32', 'code': 0x309, 'rule': rf'POPC {r16}, {r32};'},
-        {'type': 'x32', 'code': 0xd09, 'rule': rf'POPC {r16}, {ur32};'},
-    ],
-    'UPOPC': [
-        {'type': 'x32', 'code': 0x2bf, 'rule': rf'UPOPC {ur16}, {ur32};'},
-    ],
-    'SHFL': [
-        {'type': 'x32', 'code': 0x389, 'rule': rf'SHFL{shfl} {p81}, {r16}, {r24}, {r32}, {r64};'},
-        {'type': 'x32', 'code': 0x589, 'rule': rf'SHFL{shfl} {p81}, {r16}, {r24}, {r32}, {i40w13};'},
-    ],
-    'SHF': [
-        {'type': 'x32', 'code': 0x219, 'rule': rf'SHF{tshf_lr}{tw}{tshf_type} {r16}, {r24}, {r32}, {r64};'},
-        {'type': 'x32', 'code': 0x819, 'rule': rf'SHF{tshf_lr}{tw}{tshf_type} {r16}, {r24}, {i32}, {r64};'},
-    ],
-    'USHF': [
-        {'type': 'x32', 'code': 0x899, 'rule': rf'USHF{tshf_lr}{tw}{tshf_type} {ur16}, {ur24}, {i32}, {ur64};'},
-    ],
-    'SGXT': [
-        {'type': 'x32', 'code': 0x81a, 'rule': rf'SGXT{tw}{u32} {r16}, {r24}, {i32};'},
-    ],
-    'SEL': [
-        {'type': 'x32', 'code': 0x207, 'rule': rf'SEL {r16}, {r24}, {r32}, {p87};'},
-        {'type': 'x32', 'code': 0x807, 'rule': rf'SEL {r16}, {r24}, {i32}, {p87};'},
-    ],
-    'LEA': [
+    'LEA': [  # LOAD Effective Address
         {'type': 'x32', 'code': 0x211,
          'rule': rf'LEA{thi}{X}{tsx32} {r16}, ({p81}, )?{r24}, {r32}, ({r64}, )?{i75w5}(, {p87})?;'},
         {'type': 'x32', 'code': 0x811,
@@ -868,25 +899,260 @@ grammar_75 = {
         {'type': 'x32', 'code': 0xc11,
          'rule': rf'LEA{thi}{X}{tsx32} {r16}, ({p81}, )?{r24}, {ur32}, ({r64}, )?{i75w5}(, {p87})?;'},
     ],
-    'NOP': [
-        {'type': 'x32', 'code': 0x918, 'rule': rf'NOP;'},
+    'LOP': [],  # Logic Operation
+    'LOP3': [  # Logic Operation
+        {'type': 'x32', 'code': 0x212,
+         'rule': rf'LOP3\.LUT{tpand} ({p81}, )?{r16}, {r24}, {r32}, {r64}, {i72w8}, {p87};'},
+        {'type': 'x32', 'code': 0x812,
+         'rule': rf'LOP3\.LUT{tpand} ({p81}, )?{r16}, {r24}, {i32}, {r64}, {i72w8}, {p87};'},
+        {'type': 'x32', 'code': 0xa12,
+         'rule': rf'LOP3\.LUT{tpand} ({p81}, )?{r16}, {r24}, {c40}, {r64}, {i72w8}, {p87};'},
+        {'type': 'x32', 'code': 0xc12,
+         'rule': rf'LOP3\.LUT{tpand} ({p81}, )?{r16}, {r24}, {ur32}, {r64}, {i72w8}, {p87};'},
     ],
-    'YIELD': [
-        {'type': 'x32', 'code': 0x946, 'rule': rf'YIELD( {p87})?;'},
+    'LOP32I': [],  # Logic Operation
+    'POPC': [  # Population count
+        {'type': 'x32', 'code': 0x309, 'rule': rf'POPC {r16}, {r32};'},
+        {'type': 'x32', 'code': 0xd09, 'rule': rf'POPC {r16}, {ur32};'},
     ],
-    'CALL': [
-        {'type': 'x32', 'code': 0x944, 'rule': rf'CALL\.REL{tnoinc}( {p87},)? {i32a4};'},
+    'SHF': [  # Funnel Shift
+        {'type': 'x32', 'code': 0x219, 'rule': rf'SHF{tshf_lr}{tw}{tshf_type} {r16}, {r24}, {r32}, {r64};'},
+        {'type': 'x32', 'code': 0x819, 'rule': rf'SHF{tshf_lr}{tw}{tshf_type} {r16}, {r24}, {i32}, {r64};'},
     ],
-    'RET': [
-        {'type': 'x32', 'code': 0x950, 'rule': rf'RET{tra}{tnodec}( {p87},)? {r24} {i32a4};'},
+    'SHL': [],  # Shift Left
+    'SHR': [],  # Shift Right
+    'VABSDIFF': [],  # Absolute Difference
+    'VABSDIFF4': [],  # Absolute Difference
+
+    # Conversion Instructions
+    'F2F': [],  # Floating Point To Floating Point Conversion
+    'F2I': [],  # Floating Point To Integer Conversion
+    'I2F': [],  # Integer To Floating Point Conversion
+    'I2I': [],  # Integer To Integer Conversion
+    'I2IP': [],  # Integer To Integer Conversion and Packing
+    'FRND': [],  # Round To Integer
+
+    # Movement Instructions
+    'MOV': [  # Move
+        {'type': 'x32', 'code': 0x802, 'rule': rf'MOV {r16}, {i32}(, {i72w4})?;'},
+        {'type': 'x32', 'code': 0xc02, 'rule': rf'MOV {r16}, {ur32}(, {i72w4})?;'},
     ],
-    'DEPBAR': [
-        {'type': 'x32', 'code': 0x91a, 'rule': rf'DEPBAR{tle} {dbar_sb}, {i38w6}(, {dbar_db})?;'},
-    ],
-    'PRMT': [
+    'MOV32I': [],  # Move
+    'MOVM': [],  # Move Matrix with Transposition or Expansion
+    'PRMT': [  # Permute Register Pair
         {'type': 'x32', 'code': 0x216, 'rule': rf'PRMT{tprmt} {r16}, {r24}, {r32}, {r64};'},
         {'type': 'x32', 'code': 0x816, 'rule': rf'PRMT{tprmt} {r16}, {r24}, {i32}, {r64};'},
     ],
+    'SEL': [  # Select Source with Predicate
+        {'type': 'x32', 'code': 0x207, 'rule': rf'SEL {r16}, {r24}, {r32}, {p87};'},
+        {'type': 'x32', 'code': 0x807, 'rule': rf'SEL {r16}, {r24}, {i32}, {p87};'},
+    ],
+    'SGXT': [  # Sign Extend
+        {'type': 'x32', 'code': 0x81a, 'rule': rf'SGXT{tw}{u32} {r16}, {r24}, {i32};'},
+    ],
+    'SHFL': [  # Warp Wide Register Shuffle
+        {'type': 'x32', 'code': 0x389, 'rule': rf'SHFL{shfl} {p81}, {r16}, {r24}, {r32}, {r64};'},
+        {'type': 'x32', 'code': 0x589, 'rule': rf'SHFL{shfl} {p81}, {r16}, {r24}, {r32}, {i40w13};'},
+    ],
+
+    # Predicate Instructions
+    'PLOP3': [],  # Predicate Logic Operation
+    'PSETP': [],  # Combine Predicates and Set Predicate
+    'P2R': [  # Move Predicate Register To Register
+        {'type': 'x32', 'code': 0x803, 'rule': rf'P2R{tp2r} {r16}, PR, {r24}, {i32};'},
+    ],
+    'R2P': [],  # Move Register To Predicate Register
+
+    # Load/Store Instructions
+    'LD': [],  # Load from generic Memory
+    'LDC': [  # Load Constant
+        {'type': 'x32', 'code': 0xb82,
+         'rule': rf'LDC{tmem_type}{tldc_isl} {r16}, {tldc};'},
+    ],
+    'LDG': [  # Load from Global Memory
+        {'type': 'x32', 'code': 0x381,
+         'rule': rf'LDG{te}{tmem_cache}{tmem_ltc}{tmem_type}{tmem_const}{tmem_scope}{tprivate}{tzd}'
+                 rf' ({p81}, )?{r16}, {addr24}(, {p64q})?;'},
+        {'type': 'x32', 'code': 0x981,
+         'rule': rf'LDG{te}{tmem_cache}{tmem_ltc}{tmem_type}{tmem_const}{tmem_scope}{tprivate}{tzd}'
+                 rf' ({p81}, )?{r16}, {uaddr32}(, {p64q})?;'},
+    ],
+    'LDGDEPBAR': [],  # Global Load Dependency Barrier
+    'LDGSTS': [],  # Asynchronous Global to Shared Memcopy
+    'LDL': [],  # Load within Local Memory Window
+    'LDS': [  # Load within Shared Memory Window
+        {'type': 'x32', 'code': 0x984,
+         'rule': rf'LDS{tu}{tmem_type}{tzd} {r16}, {uaddr32};'},
+    ],
+    'LDSM': [],  # Load Matrix from Shared Memory with Element Size Expansion
+    'ST': [],  # Store to Generic Memory
+    'STG': [  # Store to Global Memory
+        {'type': 'x32', 'code': 0x386,
+         'rule': rf'STG{te}{tmem_cache}{tmem_type}{tmem_const}{tmem_scope}{tprivate}{tzd}'
+                 rf' {addr24}, {r32};'},
+        {'type': 'x32', 'code': 0x986,
+         'rule': rf'STG{te}{tmem_cache}{tmem_type}{tmem_const}{tmem_scope}{tprivate}{tzd}'
+                 rf' {uaddr64}, {r32};'},
+    ],
+    'STL': [],  # Store within Local or Shared Window
+    'STS': [  # Store within Local or Shared Window
+        {'type': 'x32', 'code': 0x388,
+         'rule': rf'STS{tmem_type} {addr24}, {r32};'},
+    ],
+    'MATCH': [],  # Match Register Values Across Thread Group
+    'QSPC': [],  # Query Space
+    'ATOM': [],  # Atomic Operation on Generic Memory
+    'ATOMS': [  # Atomic Operation on Shared Memory
+        {'type': 'x32', 'code': 0x38c,
+         'rule': rf'ATOMS{tatom_op}{tmem_type} {r16}, {addr24}, {r32}(, {r64})?;'},
+    ],
+    'ATOMG': [  # Atomic Operation on Global Memory
+        {'type': 'x32', 'code': 0x3a8,
+         'rule': rf'ATOMG{te}{tatom_op}{tmem_cache}{tmem_type}{tmem_const}{tmem_scope}{tprivate}'
+                 rf' ({p81}, )?{r16}, {addr24}, {r32}(, {r64})?;'},
+        {'type': 'x32', 'code': 0x9a8,
+         'rule': rf'ATOMG{te}{tatom_op}{tmem_cache}{tmem_type}{tmem_const}{tmem_scope}{tprivate}'
+                 rf' ({p81}, )?{r16}, {uaddr64}, {r32};'},
+    ],
+    'RED': [],  # Reduction Operation on Generic Memory
+    'CCTL': [],  # Cache Control
+    'CCTLL': [],  # Cache Control
+    'ERRBAR': [],  # Error Barrier
+    'MEMBAR': [],  # Memory Barrier
+    'CCTLT': [],  # Texture Cache Control
+
+    # Uniform Datapath Instructions
+    'R2UR': [],  # Move from Vector Register to a Uniform Register
+    'REDUX': [],  # Reduction of a Vector Register into a Uniform Register
+    'S2UR': [  # Move Special Register to Uniform Register
+        {'type': 'x32', 'code': 0x9c3, 'rule': rf'S2UR {ur16}, {sr};'},
+    ],
+    'UBMSK': [],  # Uniform Bitfield Mask
+    'UBREV': [],  # Uniform Bit Reverse
+    'UCLEA': [],  # Load Effective Address for a Constant
+    'UFLO': [],  # Uniform Find Leading One
+    'UIADD3': [  # Uniform Integer Addition
+        {'type': 'x32', 'code': 0x290,
+         'rule': rf'UIADD3{X} {ur16}, ({up81}, )?({up84}, )?{ur24}, {ur32}, {ur64}(, {up87})?(, {up77})?;'},
+        {'type': 'x32', 'code': 0x890,
+         'rule': rf'UIADD3{X} {ur16}, ({up81}, )?({up84}, )?{ur24}, {i32}, {ur64}(, {up87})?(, {up77})?;'},
+    ],
+    'UIMAD': [  # Uniform Integer Multiplication
+        {'type': 'x32', 'code': 0x2a4,
+         'rule': rf'IMAD{timad}{u32}{X} {ur16}, ({up81}, )?{ur24}, {ur32}, {ur64}(, {up87})?;'},
+    ],
+    'UISETP': [],  # Integer Compare and Set Uniform Predicate
+    'ULDC': [  # Load from Constant Memory into a Uniform Register
+        {'type': 'x32', 'code': 0xab9,
+         'rule': rf'ULDC{tmem_type} {ur16}, {c40};'},
+    ],
+    'ULEA': [],  # Uniform Load Effective Address
+    'ULOP': [],  # Logic Operation
+    'ULOP3': [],  # Logic Operation
+    'ULOP32I': [],  # Logic Operation
+    'UMOV': [  # Uniform Move
+        {'type': 'x32', 'code': 0x882, 'rule': rf'UMOV {ur16}, {i32};'},
+    ],
+    'UP2UR': [],  # Uniform Predicate to Uniform Register
+    'UPLOP3': [],  # Uniform Predicate Logic Operation
+    'UPOPC': [  # Uniform Population Count
+        {'type': 'x32', 'code': 0x2bf, 'rule': rf'UPOPC {ur16}, {ur32};'},
+    ],
+    'UPRMT': [],  # Uniform Byte Permute
+    'UPSETP': [],  # Uniform Predicate Logic Operation
+    'UR2UP': [],  # Uniform Register to Uniform Predicate
+    'USEL': [],  # Uniform Select
+    'USGXT': [],  # Uniform Sign Extend
+    'USHF': [  # Uniform Funnel Shift
+        {'type': 'x32', 'code': 0x899, 'rule': rf'USHF{tshf_lr}{tw}{tshf_type} {ur16}, {ur24}, {i32}, {ur64};'},
+    ],
+    'USHL': [],  # Uniform Left Shift
+    'USHR': [],  # Uniform Right Shift
+    'VOTEU': [  # Voting across SIMD Thread Group with Results in Uniform Destination
+        {'type': 'x32', 'code': 0x886, 'rule': rf'VOTEU{tvote} {ur16}, {up81}, {p87};'},
+    ],
+
+    # Texture Instructions
+    'TEX': [],  # Texture Fetch
+    'TLD': [],  # Texture Load
+    'TLD4': [],  # Texture Load 4
+    'TMML': [],  # Texture MipMap Level
+    'TXD': [],  # Texture Fetch With Derivatives
+    'TXQ': [],  # Texture Query
+
+    # Surface Instructions
+    'SUATOM': [],  # Atomic Op on Surface Memory
+    'SULD': [],  # Surface Load
+    'SURED': [],  # Reduction Op on Surface Memory
+    'SUST': [],  # Surface Store
+
+    # Control Instructions
+    'BMOV': [  # Move Convergence Barrier State
+        {'type': 'x32', 'code': 0x355, 'rule': rf'BMOV{tbmov} {r16}, {b24w5};'},
+    ],
+    'BPT': [],  # BreakPoint/Trap
+    'BRA': [  # Relative Branch
+        {'type': 'x32', 'code': 0x947, 'rule': rf'BRA ({p87}, )?{i32a4};'},
+    ],
+    'BREAK': [],  # Break out of the Specified Convergence Barrier
+    'BRX': [],  # Relative Branch Indirect
+    'BRXU': [],  # Relative Branch with Uniform Register Based Offset
+    'BSSY': [  # Barrier Set Convergence Synchronization Point
+        {'type': 'x32', 'code': 0x945, 'rule': rf'BSSY ({p87}, )?{b16}, {i32a4};'},
+    ],
+    'BSYNC': [  # Synchronize Threads on a Convergence Barrier
+        {'type': 'x32', 'code': 0x941, 'rule': rf'BSYNC ({p87}, )?{b16};'},
+    ],
+    'CALL': [  # Call Function
+        {'type': 'x32', 'code': 0x944, 'rule': rf'CALL\.REL{tnoinc}( {p87},)? {i32a4};'},
+    ],
+    'EXIT': [  # Exit Program
+        {'type': 'x32', 'code': 0x94d, 'rule': rf'EXIT( {p87}, )?;'}
+    ],
+    'JMP': [],  # Absolute Jump
+    'JMX': [],  # Absolute Jump Indirect
+    'JMXU': [],  # Absolute Jump with Uniform Register Based Offset
+    'KILL': [],  # Kill Thread
+    'NANOSLEEP': [],  # Suspend Execution
+    'RET': [  # Return From Subroutine
+        {'type': 'x32', 'code': 0x950, 'rule': rf'RET{tra}{tnodec}( {p87},)? {r24} {i32a4};'},
+    ],
+    'RPCMOV': [],  # PC Register Move
+    'RTT': [],  # Return From Trap
+    'WARPSYNC': [  # Synchronize Threads in Warp
+        {'type': 'x32', 'code': 0x948, 'rule': rf'WARPSYNC ({p87}, )?{i32};'},
+    ],
+    'YIELD': [  # Yield Control
+        {'type': 'x32', 'code': 0x946, 'rule': rf'YIELD( {p87})?;'},
+    ],
+
+    # Miscellaneous Instructions
+    'B2R': [],  # Move Barrier To Register
+    'BAR': [  # Barrier Synchronization
+        {'type': 'x32', 'code': 0xb1d, 'rule': rf'BAR\.SYNC {i54w4};'}
+    ],
+    'CS2R': [  # Move Special Register to Register
+        {'type': 'x32', 'code': 0x805, 'rule': rf'CS2R{tcs2r} {r16}, {sr};'},
+    ],
+    'DEPBAR': [  # Dependency Barrier
+        {'type': 'x32', 'code': 0x91a, 'rule': rf'DEPBAR{tle} {dbar_sb}, {i38w6}(, {dbar_db})?;'},
+    ],
+    'GETLMEMBASE': [],  # Get Local Memory Base Address
+    'LEPC': [],  # Load Effective PC
+    'NOP': [  # No Operation
+        {'type': 'x32', 'code': 0x918, 'rule': rf'NOP;'},
+    ],
+    'PMTRIG': [],  # Performance Monitor Trigger
+    'R2B': [],  # Move Register to Barrier
+    'S2R': [  # Move Special Register to Register
+        {'type': 'x32', 'code': 0x919, 'rule': rf'S2R {r16}, {sr};'},
+    ],
+    'SETCTAID': [],  # Set CTA ID
+    'SETLMEMBASE': [],  # Set Local Memory Base Address
+    'VOTE': [  # Vote Across SIMD Thread Group
+        {'type': 'x32', 'code': 0x806, 'rule': rf'VOTE{tvote} {r16}, {p81}, {p87};'},
+    ],
+
 }
 
 flags_str_61 = '''
