@@ -216,7 +216,11 @@ class Cubin(ELF):
             virtual_arch = int(m.group('compute'))
         else:
             virtual_arch = self.arch
-        self.header = Header(arch=self.arch, virtual_arch=virtual_arch)
+        if self.arch < 75:
+            e_version = 102
+        else:
+            e_version = 110
+        self.header = Header(arch=self.arch, virtual_arch=virtual_arch, e_version=e_version)
 
     def load_asm_data(self, asm):
         # load global, const3, const2

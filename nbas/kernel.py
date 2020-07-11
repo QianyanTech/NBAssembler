@@ -82,6 +82,7 @@ class Kernel:
         'CRS_STACK_SIZE': b'\x04\x1e',
         'COOP_GROUP_INSTR_OFFSETS': b'\x04\x28',
         'INT_WARP_WIDE_INSTR_OFFSETS': b'\x04\x31',
+        'INDIRECT_BRANCH_TARGETS': b'\x04\x34',  # CUDA 11.0新出现的，记录了SYNC, BRX BRA指令的跳转地址
     }
     EIATTR_STR = {val: key for (key, val) in EIATTR.items()}
 
@@ -151,6 +152,7 @@ class Kernel:
         self.exit_offsets = []
         self.coop_group_instr_offsets = []
         self.int_warp_wide_instr_offsets = []
+        self.indirect_branch_targets = []
         self.reqntid = [0, 0, 0]
         self.ctaidz_used = False
         self.explicit_caching = False
@@ -543,6 +545,15 @@ class Kernel:
             elif code == self.EIATTR['INT_WARP_WIDE_INSTR_OFFSETS']:
                 cnt = size // 4
                 self.int_warp_wide_instr_offsets = unpack(f'{cnt}I', self.info_section.data[offset:offset + size])
+            elif code == self.EIATTR['INDIRECT_BRANCH_TARGETS']:
+                off = offset
+                while off < offset + size:
+                    instr_addr, z0, z1, c = unpack(f'IHHI', self.info_section.data[off:off + 12])
+                    target_addrs = unpack(f'{c}I', self.info_section.data[off + 12:off + 12 + c * 4])
+                    self.indirect_branch_targets.append([instr_addr, z0, z1, c, *target_addrs])
+                    off += 12 + c * 4
+                    if self.indirect_branch_targets[-1][1:3] != [0, 0]:
+                        print(f'Warning: unknow INDIRECT_BRANCH_TARGETS: {self.indirect_branch_targets[-1]}')
             else:
                 print(f'Warning: unknow param code: {code.hex()}, size: {size}, '
                       f'data: {self.info_section.data[offset:offset + size].hex()}.')
@@ -622,6 +633,18 @@ class Kernel:
             code = self.EIATTR['EXIT_INSTR_OFFSETS']
             size = len(self.exit_offsets)
             data += pack(f'<2sH{size}I', code, size * 4, *self.exit_offsets)
+
+        if self.indirect_branch_targets:
+            code = self.EIATTR['INDIRECT_BRANCH_TARGETS']
+            size = 0
+            tmp_data = b''
+            for item in self.indirect_branch_targets:
+                c = len(item) - 4
+                tmp_data += pack(f'<IHHI{c}I', *item)
+                size += 12 + c * 4
+            data += pack('<2sH', code, size)
+            data += tmp_data
+
         self.info_section.data = data
         self.info_section.sh_size = len(data)
 
@@ -919,6 +942,9 @@ class Kernel:
                         self.coop_group_instr_offsets.append(line_num2addr(instr['line_num'], self.arch))
                 elif op == 'VOTE':
                     self.int_warp_wide_instr_offsets.append(line_num2addr(instr['line_num'], self.arch))
+                elif op == 'SYNC':  # todo: 将SYNC, BRX BRA指令的地址和目标地址记录到self.indirect_branch_targets
+                    # [addr, 0, 0, 1, target_addr]
+                    pass
 
             ctrl = encode_ctrls(*ctrl_group)
             codes.append(ctrl)
@@ -1014,6 +1040,9 @@ class Kernel:
                     self.coop_group_instr_offsets.append(line_num2addr(instr['line_num'], self.arch))
             elif 'VOTE' in op:
                 self.int_warp_wide_instr_offsets.append(line_num2addr(instr['line_num'], self.arch))
+            elif op == 'SYNC':  # todo: 将SYNC, BRX BRA指令的地址和目标地址记录到self.indirect_branch_targets
+                # [addr, 0, 0, 1, target_addr]
+                pass
 
             code |= ctrl << 105
             codes.append(code)
