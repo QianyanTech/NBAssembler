@@ -207,6 +207,7 @@ operands = {
     'p48q': lambda value: get_p(value, 48) ^ 0x0007000000000000,
     'p58': lambda value: get_p(value, 58),
     # Turing
+    'i16w8': lambda value: get_i(value, 16, 0xff, 0),
     'i32': lambda value: get_i(value, 32, 0xffffffff, 0x8000000000000000),
     'i32a4': lambda value: get_i(value, 32, 0x3fffffffffffc, 0x8000000000000000),
     'i40w24': lambda value: get_i(value, 40, 0xffffff, 0x8000000000000000),
@@ -214,6 +215,7 @@ operands = {
     'i38w16': lambda value: get_i(value, 38, 0xffff, 0x20000000000000),
     'i40w13': lambda value: get_i(value, 40, 0x1ffff, 0),
     'i54w4': lambda value: get_i(value, 54, 0xf, 0),
+    'i64w3s5w5': lambda value: get_i(f'{int(value, base=0) & 0x7 | ((int(value, base=0) & 0xf8) << 5)}', 64, 0x1fff, 0),
     'i72w4': lambda value: get_i(value, 72, 0xf, 0),
     'i75w5': lambda value: get_i(value, 75, 0x1f, 0),
     'i72w8': lambda value: get_i(value, 72, 0xff, 0),
@@ -234,6 +236,7 @@ operands = {
     'p81': lambda value: get_p(value, 81),
     'p84': lambda value: get_p(value, 84),
     'p87': lambda value: get_p(value, 87),
+    'up68': lambda value: get_p(value, 68),
     'up77': lambda value: get_p(value, 77),
     'up81': lambda value: get_p(value, 81),
     'up84': lambda value: get_p(value, 84),
@@ -715,13 +718,16 @@ r16 = fr'(?P<r16>{reg})'
 r24 = fr'(?P<r24neg>[\-~])?(?P<r24>{reg})(?P<reuse1>\.reuse)?'
 r32 = fr'(?P<r32neg>[\-~])?(?P<r32>{reg})(?P<reuse2>\.reuse)?'
 r64 = fr'(?P<r64neg>[\-~])?(?P<r64>{reg})(?P<reuse3>\.reuse)?'
+r64re2 = fr'(?P<r64neg>[\-~])?(?P<r64>{reg})(?P<reuse2>\.reuse)?'
 # i32
+i16w8 = fr'(?P<i16w8>{immed})'
 i32 = fr'(?P<i32>(?P<neg>\-)?{immed})'
 i32a4 = fr'(?P<i32a4>(?P<neg>\-)?{immed})'
 i40w24 = fr'(?P<i40w24>(?P<neg>\-)?{immed})'
 i38w16 = fr'(?P<i38w16>(?P<neg>\-)?{immed})'
 i38w6 = fr'(?P<i38w6>{immed})'
 i40w13 = fr'(?P<i40w13>{immed})'
+i64w3s5w5 = fr'(?P<i64w3s5w5>{immed})'
 i72w8 = fr'(?P<i72w8>{immed})'
 i72w4 = fr'(?P<i72w4>{immed})'
 i75w5 = fr'(?P<i75w5>{immed})'
@@ -731,6 +737,7 @@ c40 = fr'(?P<c40neg>\-)?(?P<c40abs>\|)?c\[((?P<c54>{hexx})|(?P<ur32>{ureg}))\]\s
 
 UP = fr'UP[0-7]'
 
+up68 = fr'(?P<up68not>\!)?(?P<up68>{P})'
 up77 = fr'(?P<up77not>\!)?(?P<up77>{UP})'
 up87 = fr'(?P<up87not>\!)?(?P<up87>{UP})'
 up81 = fr'(?P<up81>{UP})'
@@ -803,6 +810,8 @@ tp2r = rf'(?P<B>\.B1|\.B2|\.B3)?'
 tle = rf'(?P<LE>\.LE)?'
 tdbar_db = r'(\{(?P<db>[0-5])\})'
 
+tbrx = rf'(?P<op>\.INC|\.DEC)?'
+
 grammar_75 = {
     # Floating Point Instructions
     'FADD': [],  # FP32 Add
@@ -861,9 +870,9 @@ grammar_75 = {
         {'type': 'x32', 'code': 0x224,
          'rule': rf'IMAD{timad}{u32}{X} {r16}, ({p81}, )?{r24}, {r32}, {r64}(, {p87})?;'},
         {'type': 'x32', 'code': 0x424,
-         'rule': rf'IMAD(\.MOV)?{u32}{X} {r16}, ({p81}, )?{r24}, {r64}, {i32}(, {p87})?;'},
+         'rule': rf'IMAD(\.MOV)?{u32}{X} {r16}, ({p81}, )?{r24}, {r64re2}, {i32}(, {p87})?;'},
         {'type': 'x32', 'code': 0x624,
-         'rule': rf'IMAD{timad}{u32}{X} {r16}, ({p81}, )?{r24}, {r64}, {c40}(, {p87})?;'},
+         'rule': rf'IMAD{timad}{u32}{X} {r16}, ({p81}, )?{r24}, {r64re2}, {c40}(, {p87})?;'},
         {'type': 'x32', 'code': 0x824,
          'rule': rf'IMAD{timad}{u32}{X} {r16}, ({p81}, )?{r24}, {i32}, {r64}(, {p87})?;'},
         {'type': 'x32', 'code': 0xa24,
@@ -871,7 +880,7 @@ grammar_75 = {
         {'type': 'x32', 'code': 0xc24,
          'rule': rf'IMAD{timad}{u32}{X} {r16}, ({p81}, )?{r24}, {ur32}, {r64}(, {p87})?;'},
         {'type': 'x32', 'code': 0xe24,
-         'rule': rf'IMAD{timad}{u32}{X} {r16}, ({p81}, )?{r24}, {r64}, {ur32}(, {p87})?;'},
+         'rule': rf'IMAD{timad}{u32}{X} {r16}, ({p81}, )?{r24}, {r64re2}, {ur32}(, {p87})?;'},
     ],
     'IMMA': [],  # Integer Matrix Multiply and Accumulate
     'IMNMX': [  # Integer Minimum/Maximum
@@ -886,6 +895,8 @@ grammar_75 = {
          'rule': rf'ISETP{ticmp}{u32}{tbool}{tex} {p81}, {p84}, {r24}, {r32}, {p87}(, {p68})?;'},
         {'type': 'x32', 'code': 0x80c,
          'rule': rf'ISETP{ticmp}{u32}{tbool}{tex} {p81}, {p84}, {r24}, {i32}, {p87}(, {p68})?;'},
+        {'type': 'x32', 'code': 0xa0c,
+         'rule': rf'ISETP{ticmp}{u32}{tbool}{tex} {p81}, {p84}, {r24}, {c40}, {p87}(, {p68})?;'},
         {'type': 'x32', 'code': 0xc0c,
          'rule': rf'ISETP{ticmp}{u32}{tbool}{tex} {p81}, {p84}, {r24}, {ur32}, {p87}(, {p68})?;'},
     ],
@@ -956,7 +967,12 @@ grammar_75 = {
     ],
 
     # Predicate Instructions
-    'PLOP3': [],  # Predicate Logic Operation
+    'PLOP3': [  # Predicate Logic Operation
+        {'type': 'x32', 'code': 0x81c,
+         'rule': rf'LOP3\.LUT ({p81}, )?{p84}, {p87}, {p77}, {p68}, {i64w3s5w5}, {i16w8};'},
+        {'type': 'x32', 'code': 0x81c,
+         'rule': rf'LOP3\.LUT ({p81}, )?{p84}, {p87}, {p77}, {up68}, {i64w3s5w5}, {i16w8};'},
+    ],
     'PSETP': [],  # Combine Predicates and Set Predicate
     'P2R': [  # Move Predicate Register To Register
         {'type': 'x32', 'code': 0x803, 'rule': rf'P2R{tp2r} {r16}, PR, {r24}, {i32};'},
@@ -1100,8 +1116,12 @@ grammar_75 = {
     'BRA': [  # Relative Branch
         {'type': 'x32', 'code': 0x947, 'rule': rf'BRA ({p87}, )?{i32a4};'},
     ],
-    'BREAK': [],  # Break out of the Specified Convergence Barrier
-    'BRX': [],  # Relative Branch Indirect
+    'BREAK': [  # Break out of the Specified Convergence Barrier
+        {'type': 'x32', 'code': 0x942, 'rule': rf'BREAK ({p87}, )?{b16};'},
+    ],
+    'BRX': [  # Relative Branch Indirect
+        {'type': 'x32', 'code': 0x949, 'rule': rf'BRX{tbrx} ({p87}, )?{r24}( {i32a4})?;'},
+    ],
     'BRXU': [],  # Relative Branch with Uniform Register Based Offset
     'BSSY': [  # Barrier Set Convergence Synchronization Point
         {'type': 'x32', 'code': 0x945, 'rule': rf'BSSY ({p87}, )?{b16}, {i32a4};'},
@@ -1816,7 +1836,7 @@ ISETP: bool
 ISETP: EX
 0x00000000000001000000000000000000 .EX
 
-ISETP: p68not
+ISETP, PLOP3: p68not
 0x00000000000000800000000000000000 !
 
 ISETP: p68
@@ -1856,7 +1876,7 @@ UIMAD, UIADD3: ur64neg
 0x00000000000008000000000000000000 -
 0x00000000000008000000000000000000 ~
 
-IMAD, UIMAD, LEA, IADD3: c40neg
+IMAD, UIMAD, LEA, IADD3, ISETP: c40neg
 0x00000000000000008000000000000000 -
 
 IMAD, IADD3, LEA: p87
@@ -1880,10 +1900,10 @@ IADD3: p77
 IADD3: p84
 0x00000000007000000000000000000000 DEFAULT
 
-IMAD, UIMAD, LOP3, ISETP, IMNMX, SEL, WARPSYNC: p87not
+IMAD, UIMAD, LOP3, PLOP3, ISETP, IMNMX, SEL, WARPSYNC: p87not
 0x00000000040000000000000000000000 !
 
-IADD3: p77not
+IADD3, PLOP3: p77not
 0x00000000000100000000000000000000 !
 
 LDG, LDS, LDL, IMAD, UIMAD, ULDC, IADD3, FLO, POPC, UPOPC, LOP3, LEA, ISETP, MOV: ur32
@@ -1986,8 +2006,12 @@ ATOMG, ATOMS: op
 0x00000000040000000000000000000000 .EXCH
 0x00000000048000000000000000000000 .SAFEADD
 
-BSSY, BRA, BSYNC, EXIT, YIELD, CALL, RET, WARPSYNC: p87
+BSSY, BRX, BRA, BSYNC, BREAK, EXIT, YIELD, CALL, RET, WARPSYNC: p87
 0x00000000038000000000000000000000 DEFAULT
+
+BRX: op
+0x00000000002000000000000000000000 .INC
+0x00000000004000000000000000000000 .DEC
 
 BMOV: CLEAR
 0x00000000001000000000000000000000 .CLEAR
