@@ -22,7 +22,7 @@ def disassemble_nv(binary, arch, tmp_file='temp.bin'):
 
 def detect(code, begin, end, arch, tmp_file='temp.bin'):
     # prepare code
-    ctrl = encode_ctrl('--:-:-:-:1')
+    ctrl = encode_ctrl('-:--:-:-:-:1')
     code_group = []
     if arch < 70:
         ctrls = encode_ctrls(ctrl, ctrl, ctrl)

@@ -1,6 +1,6 @@
 # NB Assembler
 
-An open source SASS assembler for NVIDIA(Maxwell Pascal Volta Turing Ampere) GPUs.
+Assembler for NVIDIA(Maxwell Pascal Volta Turing Ampere) GPUs.
 
 
 ## Requirements:
@@ -206,3 +206,7 @@ out = '''
 global const3的对齐可能不同，不影响使用
 
 symbol顺序可能不同，kernel相关的各个种类的section类内顺序不同。不影响使用
+
+This project is released under the MIT License.
+
+-- Alvin Zhu

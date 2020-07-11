@@ -71,6 +71,7 @@ class Kernel:
         'EXPLICIT_CACHING': b'\x01\x21',
         'SW1850030_WAR': b'\x01\x2a',
         'SW2393858_WAR': b'\x01\x30',
+        'SW2861232_WAR': b'\x01\x35',
         'CBANK_PARAM_SIZE': b'\x03\x19',
         'MAXREG_COUNT': b'\x03\x1b',
         'MAX_THREADS': b'\x04\x05',
@@ -160,6 +161,7 @@ class Kernel:
 
         self.sw1850030_war = True
         self.sw2393858_war = True
+        self.sw2861232_war = True
 
         # Relocation info
         self.rels = []
@@ -498,6 +500,9 @@ class Kernel:
             elif code == self.EIATTR['SW2393858_WAR']:
                 self.sw2393858_war = True
                 size = 0
+            elif code == self.EIATTR['SW2861232_WAR']:
+                self.sw2861232_war = True
+                size = 0
             elif code == self.EIATTR['CBANK_PARAM_SIZE']:
                 if size != self.param_size:
                     print(f'Warning: param_size not match: {self.param_size} != {size}')
@@ -569,6 +574,10 @@ class Kernel:
 
     def store_info(self):
         data = b''
+        if self.sw2861232_war:
+            code = self.EIATTR['SW2861232_WAR']
+            size = 0
+            data += pack('<2sH', code, size)
         if self.sw2393858_war:
             code = self.EIATTR['SW2393858_WAR']
             size = 0
