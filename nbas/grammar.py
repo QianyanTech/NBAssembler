@@ -737,6 +737,7 @@ i75w5 = fr'(?P<i75w5>{immed})'
 i53w5 = fr'(?P<i53w5>{immed})'
 i54w4 = fr'(?P<i54w4>{immed})'
 # c[c54][c40]
+c38 = fr'(?P<c40neg>\-)?(?P<c40abs>\|)?c\[((?P<c54>{hexx})|(?P<ur24>{ureg}))\]\s*\[{i38w16}\]\|?'
 c40 = fr'(?P<c40neg>\-)?(?P<c40abs>\|)?c\[((?P<c54>{hexx})|(?P<ur24>{ureg}))\]\s*\[(?P<c40>{hexx})\]\|?'
 uc40 = fr'(?P<c40neg>\-)?(?P<c40abs>\|)?c\[(?P<c54>{hexx})\]\s*\[(?P<ur24>{ureg})(?:\s*\+\s*(?P<c40>{hexx}))?\]\|?'
 
@@ -872,6 +873,7 @@ grammar_75 = {
     ],
     'IABS': [  # Integer Absolute Value
         {'type': 'x32', 'code': 0x213, 'rule': rf'IABS {r16}, {r32};'},
+        {'type': 'x32', 'code': 0xa13, 'rule': rf'IABS {r16}, {c40};'},
     ],
     'IADD': [],  # Integer Addition
     'IADD3': [  # 3-input Integer Addition
@@ -1118,7 +1120,7 @@ grammar_75 = {
          'rule': rf'UISETP{ticmp}{u32}{tbool}{tex} {up81}, {up84}, {ur24}, {i32}, {up87}(, {up68})?;'},
     ],
     'ULDC': [  # Load from Constant Memory into a Uniform Register
-        {'type': 'x32', 'code': 0xab9, 'rule': rf'ULDC{tmem_type} {ur16}, {c40};'},
+        {'type': 'x32', 'code': 0xab9, 'rule': rf'ULDC{tmem_type} {ur16}, {c38};'},
         {'type': 'x32', 'code': 0xabb, 'rule': rf'ULDC{tmem_type} {ur16}, {uc40};'},
     ],
     'ULEA': [],  # Uniform Load Effective Address
