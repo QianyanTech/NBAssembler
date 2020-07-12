@@ -905,7 +905,10 @@ grammar_75 = {
         {'type': 'x32', 'code': 0xe24,
          'rule': rf'IMAD{timad}{u32}{X} {r16}, ({p81}, )?{r24}, {r64re2}, {ur32}(, {p87})?;'},
     ],
-    'IMMA': [],  # Integer Matrix Multiply and Accumulate
+    'IMMA': [  # Integer Matrix Multiply and Accumulate
+        {'type': 'x32', 'code': 0x54000000000000000237,
+         'rule': rf'IMMA\.8816\.S8\.S8 {r16}, {r24}\.ROW, {r32}\.COL, {r64}'},
+    ],
     'IMNMX': [  # Integer Minimum/Maximum
         {'type': 'x32', 'code': 0x217, 'rule': rf'IMNMX{u32} {r16}, {r24}, {r32}, {p87};'},
         {'type': 'x32', 'code': 0x817, 'rule': rf'IMNMX{u32} {r16}, {r24}, {i32}, {p87};'},
@@ -980,6 +983,7 @@ grammar_75 = {
     'MOV': [  # Move
         {'type': 'x32', 'code': 0x202, 'rule': rf'MOV {r16}, {r32}(, {i72w4})?;'},
         {'type': 'x32', 'code': 0x802, 'rule': rf'MOV {r16}, {i32}(, {i72w4})?;'},
+        {'type': 'x32', 'code': 0xa02, 'rule': rf'MOV {r16}, {c40}(, {i72w4})?;'},
         {'type': 'x32', 'code': 0xc02, 'rule': rf'MOV {r16}, {ur32}(, {i72w4})?;'},
     ],
     'MOV32I': [],  # Move
