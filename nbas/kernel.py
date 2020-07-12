@@ -70,6 +70,7 @@ class Kernel:
         # nvcc compile with "-Xptxas -dlcm=ca"
         'EXPLICIT_CACHING': b'\x01\x21',
         'SW1850030_WAR': b'\x01\x2a',
+        'WMMA_USED': b'\x01\x2b',
         'SW2393858_WAR': b'\x01\x30',
         'SW2861232_WAR': b'\x01\x35',
         'CBANK_PARAM_SIZE': b'\x03\x19',
@@ -162,6 +163,7 @@ class Kernel:
         self.sw1850030_war = True
         self.sw2393858_war = True
         self.sw2861232_war = True
+        self.wmma_used = False
 
         # Relocation info
         self.rels = []
@@ -494,6 +496,9 @@ class Kernel:
             elif code == self.EIATTR['EXPLICIT_CACHING']:
                 self.explicit_caching = True
                 size = 0
+            elif code == self.EIATTR['WMMA_USED']:
+                self.wmma_used = True
+                size = 0
             elif code == self.EIATTR['SW1850030_WAR']:
                 self.sw1850030_war = True
                 size = 0
@@ -584,6 +589,10 @@ class Kernel:
             data += pack('<2sH', code, size)
         if self.sw1850030_war:
             code = self.EIATTR['SW1850030_WAR']
+            size = 0
+            data += pack('<2sH', code, size)
+        if self.wmma_used:
+            code = self.EIATTR['WMMA_USED']
             size = 0
             data += pack('<2sH', code, size)
         if self.param_size:
@@ -1054,6 +1063,7 @@ class Kernel:
             elif op == 'SYNC':  # todo: 将SYNC, BRX BRA指令的地址和目标地址记录到self.indirect_branch_targets
                 # [addr, 0, 0, 1, target_addr]
                 pass
+            # todo: 当使用WMMA的时候，设置 EIATTR_WMMA_USED
 
             code |= ctrl << 105
             codes.append(code)
