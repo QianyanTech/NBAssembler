@@ -717,7 +717,7 @@ ur32 = fr'(?P<ur32neg>[\-~])?(?P<ur32>{ureg})'
 ur64 = fr'(?P<ur64neg>[\-~])?(?P<ur64>{ureg})'
 r16 = fr'(?P<r16>{reg})'
 r24 = fr'(?P<r24neg>[\-~])?(?P<r24>{reg})(?P<reuse1>\.reuse)?'
-r32 = fr'(?P<r32neg>[\-~])?(?P<r32>{reg})(?P<reuse2>\.reuse)?'
+r32 = fr'(?P<r32neg>[\-~])?(?P<r32abs>\|)?(?P<r32>{reg})\|?(?P<reuse2>\.reuse)?'
 r64 = fr'(?P<r64neg>[\-~])?(?P<r64>{reg})(?P<reuse3>\.reuse)?'
 r64re2 = fr'(?P<r64neg>[\-~])?(?P<r64>{reg})(?P<reuse2>\.reuse)?'
 # i32
@@ -817,6 +817,10 @@ tbrx = rf'(?P<op>\.INC|\.DEC)?'
 
 tx2x = rf'(?P<type>\.U8|\.S8|\.U16|\.S16|\.U32)?'
 trnd = fr'(?P<rnd>\.RN|\.RM|\.RP|\.RZ)?'
+tftz = fr'(?P<FTZ>\.FTZ)?'
+tround = fr'(?P<round>\.FLOOR|\.CEIL|\.TRUNC)?(?P<NTZ>\.NTZ)?'
+
+tfunc = rf'(?P<func>\.COS|\.SIN|\.EX2|\.LG2|\.RCP|\.RSQ|\.RCP64H|\.RSQ64H|\.SQRT|\.TANH)(?P<F16>\.F16)?'
 
 grammar_75 = {
     # Floating Point Instructions
@@ -832,7 +836,9 @@ grammar_75 = {
     'FSET': [],  # FP32 Compare And Set
     'FSETP': [],  # FP32 Compare And Set Predicate
     'FSWZADD': [],  # FP32 Swizzle Add
-    'MUFU': [],  # FP32 Multi Function Operation
+    'MUFU': [  # FP32 Multi Function Operation
+        {'type': 'x32', 'code': 0x308, 'rule': rf'MUFU{tfunc} {r16}, {r32};'},
+    ],
     'HADD2': [],  # FP16 Add
     'HADD2_32I': [],  # FP16 Add
     'HFMA2': [],  # FP16 Fused Mutiply Add
@@ -875,6 +881,8 @@ grammar_75 = {
     'IMAD': [  # Integer Multiply And Add
         {'type': 'x32', 'code': 0x224,
          'rule': rf'IMAD{timad}{u32}{X} {r16}, ({p81}, )?{r24}, {r32}, {r64}(, {p87})?;'},
+        {'type': 'x32', 'code': 0x227,
+         'rule': rf'IMAD\.HI{u32}{X} {r16}, ({p81}, )?{r24}, {r32}, {r64}(, {p87})?;'},
         {'type': 'x32', 'code': 0x424,
          'rule': rf'IMAD(\.MOV)?{u32}{X} {r16}, ({p81}, )?{r24}, {r64re2}, {i32}(, {p87})?;'},
         {'type': 'x32', 'code': 0x624,
@@ -948,7 +956,9 @@ grammar_75 = {
 
     # Conversion Instructions
     'F2F': [],  # Floating Point To Floating Point Conversion
-    'F2I': [],  # Floating Point To Integer Conversion
+    'F2I': [  # Floating Point To Integer Conversion
+        {'type': 'x32', 'code': 0x305, 'rule': rf'F2I{tftz}{tx2x}{tround} {r16}, {r32};'},
+    ],
     'I2F': [  # Integer To Floating Point Conversion
         {'type': 'x32', 'code': 0x306, 'rule': rf'I2F{tx2x}{trnd} {r16}, {r32};'},
         {'type': 'x32', 'code': 0xb06, 'rule': rf'I2F{tx2x}{trnd} {r16}, {c40};'},
@@ -1739,6 +1749,21 @@ R2P: r8part
 '''
 
 flags_str_75 = '''
+MUFU: func
+0x00000000000000000000000000000000 .COS
+0x00000000000004000000000000000000 .SIN
+0x00000000000008000000000000000000 .EX2
+0x0000000000000c000000000000000000 .LG2
+0x00000000000010000000000000000000 .RCP
+0x00000000000014000000000000000000 .RSQ
+0x00000000000018000000000000000000 .RCP64H
+0x0000000000001c000000000000000000 .RSQ64H
+0x00000000000020000000000000000000 .SQRT
+0x00000000000024000000000000000000 .TANH
+
+MUFU: F16
+0x00000000000002000000000000000000 .F16
+
 I2F: rnd
 0x00000000000040000000000000000000 .RM
 0x00000000000080000000000000000000 .RP
@@ -1751,6 +1776,25 @@ I2F: type
 0x00000000001014000000000000000000 .S16
 0x00000000002010000000000000000000 .U32
 0x00000000002014000000000000000000 DEFAULT
+
+F2I: FTZ
+0x00000000000100000000000000000000 .FTZ
+
+F2I: round
+0x00000000000040000000000000000000 .FLOOR
+0x00000000000080000000000000000000 .CEIL
+0x000000000000c0000000000000000000 .TRUNC
+
+F2I: NTZ
+0x00000000000020000000000000000000 .NTZ
+
+F2I: type
+0x00000000002000000000000000000000 .U8
+0x00000000002001000000000000000000 .S8
+0x00000000002008000000000000000000 .U16
+0x00000000002009000000000000000000 .S16
+0x00000000002010000000000000000000 .U32
+0x00000000002011000000000000000000 DEFAULT
 
 DEPBAR: LE
 0x00000000000000000000800000000000 .LE
@@ -1780,9 +1824,12 @@ LEA: r24neg
 0x00000000000001000000000000000000 -
 0x00000000000001000000000000000000 ~
 
-LEA: r32neg
+LEA, MUFU, F2I: r32neg
 0x00000000000000008000000000000000 -
 0x00000000000000008000000000000000 ~
+
+MUFU, F2I: r32abs
+0x00000000000000004000000000000000 |
 
 PRMT: prmt
 0x00000000000001000000000000000000 .F4E
