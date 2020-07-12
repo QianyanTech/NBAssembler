@@ -214,6 +214,7 @@ operands = {
     'i38w6': lambda value: get_i(value, 38, 0x3f, 0),
     'i38w16': lambda value: get_i(value, 38, 0xffff, 0x20000000000000),
     'i40w13': lambda value: get_i(value, 40, 0x1ffff, 0),
+    'i53w5': lambda value: get_i(value, 53, 0x1f, 0),
     'i54w4': lambda value: get_i(value, 54, 0xf, 0),
     'i64w3s5w5': lambda value: get_i(f'{int(value, base=0) & 0x7 | ((int(value, base=0) & 0xf8) << 5)}', 64, 0x1fff, 0),
     'i72w4': lambda value: get_i(value, 72, 0xf, 0),
@@ -731,9 +732,11 @@ i64w3s5w5 = fr'(?P<i64w3s5w5>{immed})'
 i72w8 = fr'(?P<i72w8>{immed})'
 i72w4 = fr'(?P<i72w4>{immed})'
 i75w5 = fr'(?P<i75w5>{immed})'
+i53w5 = fr'(?P<i53w5>{immed})'
 i54w4 = fr'(?P<i54w4>{immed})'
 # c[c54][c40]
-c40 = fr'(?P<c40neg>\-)?(?P<c40abs>\|)?c\[((?P<c54>{hexx})|(?P<ur32>{ureg}))\]\s*\[(?P<c40>{hexx})\]\|?'
+c40 = fr'(?P<c40neg>\-)?(?P<c40abs>\|)?c\[((?P<c54>{hexx})|(?P<ur24>{ureg}))\]\s*\[(?P<c40>{hexx})\]\|?'
+uc40 = fr'(?P<c40neg>\-)?(?P<c40abs>\|)?c\[(?P<c54>{hexx})\]\s*\[(?P<ur24>{ureg})(?:\s*\+\s*(?P<c40>{hexx}))?\]\|?'
 
 UP = fr'UP[0-7]'
 
@@ -812,6 +815,9 @@ tdbar_db = r'(\{(?P<db>[0-5])\})'
 
 tbrx = rf'(?P<op>\.INC|\.DEC)?'
 
+tx2x = rf'(?P<type>\.U8|\.S8|\.U16|\.S16|\.U32)?'
+trnd = fr'(?P<rnd>\.RN|\.RM|\.RP|\.RZ)?'
+
 grammar_75 = {
     # Floating Point Instructions
     'FADD': [],  # FP32 Add
@@ -877,6 +883,8 @@ grammar_75 = {
          'rule': rf'IMAD{timad}{u32}{X} {r16}, ({p81}, )?{r24}, {i32}, {r64}(, {p87})?;'},
         {'type': 'x32', 'code': 0xa24,
          'rule': rf'IMAD{timad}{u32}{X} {r16}, ({p81}, )?{r24}, {c40}, {r64}(, {p87})?;'},
+        {'type': 'x32', 'code': 0xa27,
+         'rule': rf'IMAD\.HI{u32}{X} {r16}, ({p81}, )?{r24}, {c40}, {r64}(, {p87})?;'},
         {'type': 'x32', 'code': 0xc24,
          'rule': rf'IMAD{timad}{u32}{X} {r16}, ({p81}, )?{r24}, {ur32}, {r64}(, {p87})?;'},
         {'type': 'x32', 'code': 0xe24,
@@ -885,6 +893,7 @@ grammar_75 = {
     'IMMA': [],  # Integer Matrix Multiply and Accumulate
     'IMNMX': [  # Integer Minimum/Maximum
         {'type': 'x32', 'code': 0x817, 'rule': rf'IMNMX{u32} {r16}, {r24}, {i32}, {p87};'},
+        {'type': 'x32', 'code': 0xa17, 'rule': rf'IMNMX{u32} {r16}, {r24}, {c40}, {p87};'},
     ],
     'IMUL': [],  # Integer Multiply
     'IMUL32I': [],  # Integer Multiply
@@ -928,7 +937,9 @@ grammar_75 = {
     ],
     'SHF': [  # Funnel Shift
         {'type': 'x32', 'code': 0x219, 'rule': rf'SHF{tshf_lr}{tw}{tshf_type} {r16}, {r24}, {r32}, {r64};'},
+        {'type': 'x32', 'code': 0x619, 'rule': rf'SHF{tshf_lr}{tw}{tshf_type} {r16}, {r24}, {r64re2}, {c40};'},
         {'type': 'x32', 'code': 0x819, 'rule': rf'SHF{tshf_lr}{tw}{tshf_type} {r16}, {r24}, {i32}, {r64};'},
+        {'type': 'x32', 'code': 0xa19, 'rule': rf'SHF{tshf_lr}{tw}{tshf_type} {r16}, {r24}, {c40}, {r64};'},
     ],
     'SHL': [],  # Shift Left
     'SHR': [],  # Shift Right
@@ -938,7 +949,10 @@ grammar_75 = {
     # Conversion Instructions
     'F2F': [],  # Floating Point To Floating Point Conversion
     'F2I': [],  # Floating Point To Integer Conversion
-    'I2F': [],  # Integer To Floating Point Conversion
+    'I2F': [  # Integer To Floating Point Conversion
+        {'type': 'x32', 'code': 0x306, 'rule': rf'I2F{tx2x}{trnd} {r16}, {r32};'},
+        {'type': 'x32', 'code': 0xb06, 'rule': rf'I2F{tx2x}{trnd} {r16}, {c40};'},
+    ],
     'I2I': [],  # Integer To Integer Conversion
     'I2IP': [],  # Integer To Integer Conversion and Packing
     'FRND': [],  # Round To Integer
@@ -964,6 +978,7 @@ grammar_75 = {
     'SHFL': [  # Warp Wide Register Shuffle
         {'type': 'x32', 'code': 0x389, 'rule': rf'SHFL{shfl} {p81}, {r16}, {r24}, {r32}, {r64};'},
         {'type': 'x32', 'code': 0x589, 'rule': rf'SHFL{shfl} {p81}, {r16}, {r24}, {r32}, {i40w13};'},
+        {'type': 'x32', 'code': 0xf89, 'rule': rf'SHFL{shfl} {p81}, {r16}, {r24}, {i53w5}, {i40w13};'},
     ],
 
     # Predicate Instructions
@@ -1065,8 +1080,8 @@ grammar_75 = {
     ],
     'UISETP': [],  # Integer Compare and Set Uniform Predicate
     'ULDC': [  # Load from Constant Memory into a Uniform Register
-        {'type': 'x32', 'code': 0xab9,
-         'rule': rf'ULDC{tmem_type} {ur16}, {c40};'},
+        {'type': 'x32', 'code': 0xab9, 'rule': rf'ULDC{tmem_type} {ur16}, {c40};'},
+        {'type': 'x32', 'code': 0xabb, 'rule': rf'ULDC{tmem_type} {ur16}, {uc40};'},
     ],
     'ULEA': [],  # Uniform Load Effective Address
     'ULOP': [],  # Logic Operation
@@ -1724,6 +1739,19 @@ R2P: r8part
 '''
 
 flags_str_75 = '''
+I2F: rnd
+0x00000000000040000000000000000000 .RM
+0x00000000000080000000000000000000 .RP
+0x000000000000c0000000000000000000 .RZ
+
+I2F: type
+0x00000000000010000000000000000000 .U8
+0x00000000000014000000000000000000 .S8
+0x00000000001010000000000000000000 .U16
+0x00000000001014000000000000000000 .S16
+0x00000000002010000000000000000000 .U32
+0x00000000002014000000000000000000 DEFAULT
+
 DEPBAR: LE
 0x00000000000000000000800000000000 .LE
 
@@ -1876,7 +1904,7 @@ UIMAD, UIADD3: ur64neg
 0x00000000000008000000000000000000 -
 0x00000000000008000000000000000000 ~
 
-IMAD, UIMAD, LEA, IADD3, ISETP: c40neg
+IMAD, UIMAD, LEA, IADD3, ISETP, SHF, IMNMX: c40neg
 0x00000000000000008000000000000000 -
 
 IMAD, IADD3, LEA: p87
@@ -1906,7 +1934,10 @@ IMAD, UIMAD, LOP3, PLOP3, ISETP, IMNMX, SEL, WARPSYNC: p87not
 IADD3, PLOP3: p77not
 0x00000000000100000000000000000000 !
 
-LDG, LDS, LDL, IMAD, UIMAD, ULDC, IADD3, FLO, POPC, UPOPC, LOP3, LEA, ISETP, MOV: ur32
+LDG, LDS, LDL, IMAD, UIMAD, IADD3, FLO, POPC, UPOPC, LOP3, LEA, ISETP, MOV: ur32
+0x00000000080000000000000000000000 ALL
+
+ULDC: ur24
 0x00000000080000000000000000000000 ALL
 
 IMAD, IADD3, LEA, LDG, FLO, LOP3: p81
