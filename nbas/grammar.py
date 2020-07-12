@@ -765,6 +765,7 @@ b24w5 = rf'(?P<b24w5>\S+?)'
 
 # flags
 timad = rf'((\.IADD|\.SHL|\.MOV)|(?P<wide>\.WIDE))?'
+timad = rf'(?P<type>\.WIDE|\.IADD|\.SHL|\.MOV|\.HI)?'
 
 te = fr'(?P<E>\.E)?'
 tu = fr'(?P<U>\.U)?'
@@ -881,8 +882,6 @@ grammar_75 = {
     'IMAD': [  # Integer Multiply And Add
         {'type': 'x32', 'code': 0x224,
          'rule': rf'IMAD{timad}{u32}{X} {r16}, ({p81}, )?{r24}, {r32}, {r64}(, {p87})?;'},
-        {'type': 'x32', 'code': 0x227,
-         'rule': rf'IMAD\.HI{u32}{X} {r16}, ({p81}, )?{r24}, {r32}, {r64}(, {p87})?;'},
         {'type': 'x32', 'code': 0x424,
          'rule': rf'IMAD(\.MOV)?{u32}{X} {r16}, ({p81}, )?{r24}, {r64re2}, {i32}(, {p87})?;'},
         {'type': 'x32', 'code': 0x624,
@@ -891,8 +890,6 @@ grammar_75 = {
          'rule': rf'IMAD{timad}{u32}{X} {r16}, ({p81}, )?{r24}, {i32}, {r64}(, {p87})?;'},
         {'type': 'x32', 'code': 0xa24,
          'rule': rf'IMAD{timad}{u32}{X} {r16}, ({p81}, )?{r24}, {c40}, {r64}(, {p87})?;'},
-        {'type': 'x32', 'code': 0xa27,
-         'rule': rf'IMAD\.HI{u32}{X} {r16}, ({p81}, )?{r24}, {c40}, {r64}(, {p87})?;'},
         {'type': 'x32', 'code': 0xc24,
          'rule': rf'IMAD{timad}{u32}{X} {r16}, ({p81}, )?{r24}, {ur32}, {r64}(, {p87})?;'},
         {'type': 'x32', 'code': 0xe24,
@@ -1917,8 +1914,9 @@ ISETP, PLOP3: p68not
 ISETP: p68
 0x00000000000000700000000000000000 DEFAULT
 
-IMAD, UIMAD: wide
+IMAD, UIMAD: type
 0x00000000000000000000000000000001 .WIDE
+0x00000000000000000000000000000003 .HI
 
 IMAD, UIMAD, ISETP, IMNMX, FLO, SGXT: U32
 0x00000000000000000000000000000000 .U32
