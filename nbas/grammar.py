@@ -717,7 +717,7 @@ ur24 = fr'(?P<ur24neg>[\-~])?(?P<ur24>{ureg})'
 ur32 = fr'(?P<ur32neg>[\-~])?(?P<ur32>{ureg})'
 ur64 = fr'(?P<ur64neg>[\-~])?(?P<ur64>{ureg})'
 r16 = fr'(?P<r16>{reg})'
-r24 = fr'(?P<r24neg>[\-~])?(?P<r24>{reg})(?P<reuse1>\.reuse)?'
+r24 = fr'(?P<r24neg>[\-~])?(?P<r24abs>\|)?(?P<r24>{reg})\|?(?P<reuse1>\.reuse)?'
 r32 = fr'(?P<r32neg>[\-~])?(?P<r32abs>\|)?(?P<r32>{reg})\|?(?P<reuse2>\.reuse)?'
 r64 = fr'(?P<r64neg>[\-~])?(?P<r64>{reg})(?P<reuse3>\.reuse)?'
 r64re2 = fr'(?P<r64neg>[\-~])?(?P<r64>{reg})(?P<reuse2>\.reuse)?'
@@ -836,7 +836,10 @@ grammar_75 = {
     'FMNMX': [],  # FP32 Minimum/Maximum
     'FMUL': [],  # FP32 Multiply
     'FMUL32I': [],  # FP32 Multiply
-    'FSEL': [],  # Floating Point Select
+    'FSEL': [  # Floating Point Select
+        {'type': 'x32', 'code': 0x208, 'rule': rf'FSEL{tftz} {r16}, {r24}, {r32}, {p87};'},
+        {'type': 'x32', 'code': 0x808, 'rule': rf'FSEL{tftz} {r16}, {r24}, {i32}, {p87};'},
+    ],
     'FSET': [],  # FP32 Compare And Set
     'FSETP': [],  # FP32 Compare And Set Predicate
     'FSWZADD': [],  # FP32 Swizzle Add
@@ -867,7 +870,9 @@ grammar_75 = {
         {'type': 'x32', 'code': 0x300, 'rule': rf'FLO{u32}{tsh} {r16}, ({p81}, )?{r32};'},
         {'type': 'x32', 'code': 0xd00, 'rule': rf'FLO{u32}{tsh} {r16}, ({p81}, )?{ur32};'},
     ],
-    'IABS': [],  # Integer Absolute Value
+    'IABS': [  # Integer Absolute Value
+        {'type': 'x32', 'code': 0x213, 'rule': rf'IABS {r16}, {r32};'},
+    ],
     'IADD': [],  # Integer Addition
     'IADD3': [  # 3-input Integer Addition
         {'type': 'x32', 'code': 0x210,
@@ -962,6 +967,7 @@ grammar_75 = {
     ],
     'I2F': [  # Integer To Floating Point Conversion
         {'type': 'x32', 'code': 0x306, 'rule': rf'I2F{tx2x}{trnd} {r16}, {r32};'},
+        {'type': 'x32', 'code': 0x906, 'rule': rf'I2F{tx2x}{trnd} {r16}, {i32};'},
         {'type': 'x32', 'code': 0xb06, 'rule': rf'I2F{tx2x}{trnd} {r16}, {c40};'},
     ],
     'I2I': [],  # Integer To Integer Conversion
@@ -2343,9 +2349,12 @@ IMAD, UIMAD, LEA, IADD3, ISETP, SHF, IMNMX: c40neg
 LDG, LD, STG, ST, ATOM, ATOMG, STS, STL, ATOMS, LDS, LDL: r24
 0x000000000000000000000000ff000000 DEFAULT
 
-IADD3, LEA: r24neg
+FSEL, IADD3, LEA: r24neg
 0x00000000000001000000000000000000 -
 0x00000000000001000000000000000000 ~
+
+FSEL: r24abs
+0x00000000000002000000000000000000 |
 
 STS, STL, LDS, LDL, ATOMS: r24x
 0x00000000000040000000000000000000 .X4
@@ -2362,11 +2371,11 @@ ATOM, ATOMG: r24type
 0x00000000000000400000000000000000 .64
 0x00000000000000400000000000000000 DEFAULT
 
-POPC, FLO, LEA, MUFU, F2I, IADD3: r32neg
+FSEL, POPC, FLO, LEA, MUFU, F2I, IADD3: r32neg
 0x00000000000000008000000000000000 -
 0x00000000000000008000000000000000 ~
 
-MUFU, F2I: r32abs
+FSEL, MUFU, F2I: r32abs
 0x00000000000000004000000000000000 |
 
 LEA, ATOMS, ATOM, ATOMG: r64
@@ -2424,7 +2433,7 @@ IMAD, IADD3, LEA: p87
 BSSY, BRX, BRA, BSYNC, BREAK, EXIT, YIELD, CALL, RET, WARPSYNC: p87
 0x00000000038000000000000000000000 DEFAULT
 
-IMAD, UIMAD, LOP3, PLOP3, ISETP, IMNMX, SEL, WARPSYNC, BRA: p87not
+IMAD, UIMAD, LOP3, PLOP3, ISETP, IMNMX, FSEL, SEL, WARPSYNC, BRA: p87not
 0x00000000040000000000000000000000 !
 
 UISETP: up68
