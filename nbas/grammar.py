@@ -742,7 +742,7 @@ uc40 = fr'(?P<c40neg>\-)?(?P<c40abs>\|)?c\[(?P<c54>{hexx})\]\s*\[(?P<ur24>{ureg}
 
 UP = fr'UP[0-6T]'
 
-up68 = fr'(?P<up68not>\!)?(?P<up68>{P})'
+up68 = fr'(?P<up68not>\!)?(?P<up68>{UP})'
 up77 = fr'(?P<up77not>\!)?(?P<up77>{UP})'
 up87 = fr'(?P<up87not>\!)?(?P<up87>{UP})'
 up81 = fr'(?P<up81>{UP})'
@@ -989,6 +989,7 @@ grammar_75 = {
     'SEL': [  # Select Source with Predicate
         {'type': 'x32', 'code': 0x207, 'rule': rf'SEL {r16}, {r24}, {r32}, {p87};'},
         {'type': 'x32', 'code': 0x807, 'rule': rf'SEL {r16}, {r24}, {i32}, {p87};'},
+        {'type': 'x32', 'code': 0xc07, 'rule': rf'SEL {r16}, {r24}, {ur32}, {p87};'},
     ],
     'SGXT': [  # Sign Extend
         {'type': 'x32', 'code': 0x81a, 'rule': rf'SGXT{tw}{u32} {r16}, {r24}, {i32};'},
@@ -1002,9 +1003,9 @@ grammar_75 = {
     # Predicate Instructions
     'PLOP3': [  # Predicate Logic Operation
         {'type': 'x32', 'code': 0x81c,
-         'rule': rf'LOP3\.LUT ({p81}, )?{p84}, {p87}, {p77}, {p68}, {i64w3s5w5}, {i16w8};'},
+         'rule': rf'PLOP3\.LUT ({p81}, )?{p84}, {p87}, {p77}, {p68}, {i64w3s5w5}, {i16w8};'},
         {'type': 'x32', 'code': 0x81c,
-         'rule': rf'LOP3\.LUT ({p81}, )?{p84}, {p87}, {p77}, {up68}, {i64w3s5w5}, {i16w8};'},
+         'rule': rf'PLOP3\.LUT ({p81}, )?{p84}, {p87}, {p77}, {up68}, {i64w3s5w5}, {i16w8};'},
     ],
     'PSETP': [],  # Combine Predicates and Set Predicate
     'P2R': [  # Move Predicate Register To Register
@@ -2342,11 +2343,10 @@ BMOV: b24w5
 MOV: i72w4
 0x0000000000000f000000000000000000 DEFAULT
 
-
 IMAD, UIMAD, LEA, IADD3, ISETP, SHF, IMNMX: c40neg
 0x00000000000000008000000000000000 -
 
-LDG, LD, STG, ST, ATOM, ATOMG, STS, STL, ATOMS, LDS, LDL: r24
+LDG, LD, LDC, STG, ST, ATOM, ATOMG, STS, STL, ATOMS, LDS, LDL: r24
 0x000000000000000000000000ff000000 DEFAULT
 
 FSEL, IADD3, LEA: r24neg
@@ -2392,7 +2392,7 @@ UIADD3: ur24neg
 0x00000000000001000000000000000000 -
 0x00000000000001000000000000000000 ~
 
-LDG, LD, LDS, LDL, IMAD, UIMAD, IADD3, FLO, UFLO, POPC, UPOPC, LOP3, LEA, ISETP, MOV, UMOV: ur32
+SEL, LDG, LD, LDS, LDL, IMAD, UIMAD, IADD3, FLO, UFLO, POPC, UPOPC, LOP3, LEA, ISETP, MOV, UMOV: ur32
 0x00000000080000000000000000000000 ALL
 
 IADD3, UIADD3, FLO, UFLO, UPOPC, POPC: ur32neg
@@ -2433,13 +2433,16 @@ IMAD, IADD3, LEA: p87
 BSSY, BRX, BRA, BSYNC, BREAK, EXIT, YIELD, CALL, RET, WARPSYNC: p87
 0x00000000038000000000000000000000 DEFAULT
 
-IMAD, UIMAD, LOP3, PLOP3, ISETP, IMNMX, FSEL, SEL, WARPSYNC, BRA: p87not
+IMAD, IADD3, UIMAD, LOP3, PLOP3, ISETP, IMNMX, FSEL, SEL, WARPSYNC, BRA: p87not
 0x00000000040000000000000000000000 !
+
+PLOP3: up68
+0x00000000000000080000000000000000 ALL
 
 UISETP: up68
 0x00000000000000700000000000000000 DEFAULT
 
-UISETP: up68not
+UISETP, PLOP3: up68not
 0x00000000000000800000000000000000 !
 
 UIADD3: up77
