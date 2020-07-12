@@ -210,10 +210,11 @@ operands = {
     'i16w8': lambda value: get_i(value, 16, 0xff, 0),
     'i32': lambda value: get_i(value, 32, 0xffffffff, 0x8000000000000000),
     'i32a4': lambda value: get_i(value, 32, 0x3fffffffffffc, 0x8000000000000000),
-    'i40w24': lambda value: get_i(value, 40, 0xffffff, 0x8000000000000000),
+    'i32w32': lambda value: get_i(value, 32, 0xffffffff, 0x8000000000000000),
     'i38w6': lambda value: get_i(value, 38, 0x3f, 0),
     'i38w16': lambda value: get_i(value, 38, 0xffff, 0x20000000000000),
     'i40w13': lambda value: get_i(value, 40, 0x1ffff, 0),
+    'i40w24': lambda value: get_i(value, 40, 0xffffff, 0x8000000000000000),
     'i53w5': lambda value: get_i(value, 53, 0x1f, 0),
     'i54w4': lambda value: get_i(value, 54, 0xf, 0),
     'i64w3s5w5': lambda value: get_i(f'{int(value, base=0) & 0x7 | ((int(value, base=0) & 0xf8) << 5)}', 64, 0x1fff, 0),
@@ -724,6 +725,7 @@ r64re2 = fr'(?P<r64neg>[\-~])?(?P<r64>{reg})(?P<reuse2>\.reuse)?'
 i16w8 = fr'(?P<i16w8>{immed})'
 i32 = fr'(?P<i32>(?P<neg>\-)?{immed})'
 i32a4 = fr'(?P<i32a4>(?P<neg>\-)?{immed})'
+i32w32 = fr'(?P<i32w32>(?P<neg>\-)?{immed})'
 i40w24 = fr'(?P<i40w24>(?P<neg>\-)?{immed})'
 i38w16 = fr'(?P<i38w16>(?P<neg>\-)?{immed})'
 i38w6 = fr'(?P<i38w6>{immed})'
@@ -755,6 +757,7 @@ p84 = fr'(?P<p84>{P})'
 p64q = fr'(?P<p64qnot>\!)?(?P<p64>{P})'
 
 addr24 = fr'\[(?:(?P<r24>{reg})(?P<r24x>\.X(4|8|16))?)?(?:\s*\+?\s*{i40w24})?\]'
+addr32 = fr'\[(?:(?P<r24>{reg})(?P<r24x>\.X(4|8|16))?)?(?:\s*\+?\s*{i32w32})?\]'
 uaddr32 = fr'\[(?:(?P<r24>{reg})(?P<r24x>\.X(4|8|16))?(?P<r24type>\.64|\.U32)?)?' \
           rf'(?:\s*\+?\s*(?P<ur32>{ureg}))?(?:\s*\+?\s*{i40w24})?\]'
 uaddr64 = fr'\[(?:(?P<r24>{reg})(?P<r24type>\.64|\.U32)?)?(?:\s*\+?\s*(?P<ur64>{ureg}))?(?:\s*\+?\s*{i40w24})?\]'
@@ -1004,7 +1007,11 @@ grammar_75 = {
     'R2P': [],  # Move Register To Predicate Register
 
     # Load/Store Instructions
-    'LD': [],  # Load from generic Memory
+    'LD': [  # Load from generic Memory
+        {'type': 'x32', 'code': 0x980,
+         'rule': rf'LD{te}{tmem_cache}{tmem_ltc}{tmem_type}{tmem_const}{tmem_scope}{tprivate}{tzd}'
+                 rf' ({p81}, )?{r16}, {addr32}(, {p64q})?;'},
+    ],
     'LDC': [  # Load Constant
         {'type': 'x32', 'code': 0xb82,
          'rule': rf'LDC{tmem_type}{tldc_isl} {r16}, {tldc};'},
@@ -1028,7 +1035,11 @@ grammar_75 = {
          'rule': rf'LDS{tu}{tmem_type}{tzd} {r16}, {uaddr32};'},
     ],
     'LDSM': [],  # Load Matrix from Shared Memory with Element Size Expansion
-    'ST': [],  # Store to Generic Memory
+    'ST': [
+        {'type': 'x32', 'code': 0x385,
+         'rule': rf'ST{te}{tmem_cache}{tmem_type}{tmem_const}{tmem_scope}{tprivate}{tzd}'
+                 rf' {addr32}, {r64};'},
+    ],  # Store to Generic Memory
     'STG': [  # Store to Global Memory
         {'type': 'x32', 'code': 0x386,
          'rule': rf'STG{te}{tmem_cache}{tmem_type}{tmem_const}{tmem_scope}{tprivate}{tzd}'
@@ -1047,7 +1058,11 @@ grammar_75 = {
     ],
     'MATCH': [],  # Match Register Values Across Thread Group
     'QSPC': [],  # Query Space
-    'ATOM': [],  # Atomic Operation on Generic Memory
+    'ATOM': [
+        {'type': 'x32', 'code': 0x38a,
+         'rule': rf'ATOM{te}{tatom_op}{tmem_cache}{tmem_type}{tmem_const}{tmem_scope}{tprivate}'
+                 rf' ({p81}, )?{r16}, {addr24}, {r32}(, {r64})?;'},
+    ],  # Atomic Operation on Generic Memory
     'ATOMS': [  # Atomic Operation on Shared Memory
         {'type': 'x32', 'code': 0x38c,
          'rule': rf'ATOMS{tatom_op}{tmem_type} {r16}, {addr24}, {r32}(, {r64})?;'},
@@ -1940,10 +1955,10 @@ LOP3, ULOP3: PAND
 LDS: U
 0x00000000000010000000000000000000 .U
 
-LDG, STG, ATOMG: E
+LDG, LD, STG, ST, ATOM, ATOMG: E
 0x00000000000001000000000000000000 .E
 
-LDG, STG, LDL, STL, ATOMG: cache
+LDG, LD, STG, ST, LDL, STL, ATOM, ATOMG: cache
 0x00000000000000000000000000000000 .EF
 0x00000000001000000000000000000000 DEFAULT
 0x00000000002000000000000000000000 .EL
@@ -1951,11 +1966,11 @@ LDG, STG, LDL, STL, ATOMG: cache
 0x00000000004000000000000000000000 .EU
 0x00000000005000000000000000000000 .NA
 
-LDG: ltc
+LDG, LD: ltc
 0x00000000000000100000000000000000 .LTC64B
 0x00000000000000200000000000000000 .LTC128B
 
-LDG, LDC, ULDC, STG, LDL, LDS, STS, STL: type
+LDG, LD, LDC, ULDC, STG, ST, LDL, LDS, STS, STL: type
 0x00000000000000000000000000000000 .U8
 0x00000000000002000000000000000000 .S8
 0x00000000000004000000000000000000 .U16
@@ -1970,25 +1985,25 @@ LDC: isl
 0x00000000000080000000000000000000 .IS
 0x000000000000c0000000000000000000 .ISL
 
-LDG, STG, ATOMG: const
+LDG, LD, STG, ST, ATOM, ATOMG: const
 0x00000000000000000000000000000000 .CONSTANT
 0x00000000000080000000000000000000 DEFAULT
 0x00000000000100000000000000000000 .STRONG
 0x00000000000180000000000000000000 .MMIO
 
-LDG, STG, ATOMG: scope
+LDG, LD, STG, ST, ATOM, ATOMG: scope
 0x00000000000000000000000000000000 .CTA
 0x00000000000020000000000000000000 .SM
 0x00000000000040000000000000000000 .GPU
 0x00000000000060000000000000000000 .SYS
 
-LDG, STG, ATOMG: PRIVATE
+LDG, LD, STG, ST, ATOM, ATOMG: PRIVATE
 0x00000000000010000000000000000000 .PRIVATE
 
-LDG, LDS: ZD
+LDG, LD, LDS: ZD
 0x00000000008000000000000000000000 .ZD
 
-ATOMG, ATOMS: type
+ATOM, ATOMG, ATOMS: type
 0x00000000000000000000000000000000 DEFAULT
 0x00000000000002000000000000000000 .S32
 0x00000000000004000000000000000000 .64
@@ -1997,7 +2012,7 @@ ATOMG, ATOMS: type
 0x0000000000000a000000000000000000 .S64
 0x0000000000000c000000000000000000 .F64.RN
 
-ATOMG, ATOMS: op
+ATOM, ATOMG, ATOMS: op
 0x00000000000000000000000000000000 .ADD
 0x00000000008000000000000000000000 .MIN
 0x00000000010000000000000000000000 .MAX
@@ -2325,7 +2340,7 @@ MOV: i72w4
 IMAD, UIMAD, LEA, IADD3, ISETP, SHF, IMNMX: c40neg
 0x00000000000000008000000000000000 -
 
-LDG, STG, ATOMG, STS, STL, ATOMS, LDS, LDL: r24
+LDG, LD, STG, ST, ATOM, ATOMG, STS, STL, ATOMS, LDS, LDL: r24
 0x000000000000000000000000ff000000 DEFAULT
 
 IADD3, LEA: r24neg
@@ -2337,12 +2352,12 @@ STS, STL, LDS, LDL, ATOMS: r24x
 0x00000000000080000000000000000000 .X8
 0x000000000000c0000000000000000000 .X16
 
-LDG, STG: r24type
+LDG, LD, STG, ST: r24type
 0x00000000000000000000000000000000 .U32
 0x00000000040000000000000000000000 .64
 0x00000000040000000000000000000000 DEFAULT
 
-ATOMG: r24type
+ATOM, ATOMG: r24type
 0x00000000000000000000000000000000 .U32
 0x00000000000000400000000000000000 .64
 0x00000000000000400000000000000000 DEFAULT
@@ -2354,7 +2369,7 @@ POPC, FLO, LEA, MUFU, F2I, IADD3: r32neg
 MUFU, F2I: r32abs
 0x00000000000000004000000000000000 |
 
-LEA, ATOMS, ATOMG: r64
+LEA, ATOMS, ATOM, ATOMG: r64
 0x00000000000000ff0000000000000000 DEFAULT
 
 IMAD, IADD3: r64neg
@@ -2368,21 +2383,21 @@ UIADD3: ur24neg
 0x00000000000001000000000000000000 -
 0x00000000000001000000000000000000 ~
 
-LDG, LDS, LDL, IMAD, UIMAD, IADD3, FLO, UFLO, POPC, UPOPC, LOP3, LEA, ISETP, MOV, UMOV: ur32
+LDG, LD, LDS, LDL, IMAD, UIMAD, IADD3, FLO, UFLO, POPC, UPOPC, LOP3, LEA, ISETP, MOV, UMOV: ur32
 0x00000000080000000000000000000000 ALL
 
 IADD3, UIADD3, FLO, UFLO, UPOPC, POPC: ur32neg
 0x00000000000000008000000000000000 -
 0x00000000000000008000000000000000 ~
 
-STG, ATOMG, USHF, UIADD3: ur64
+STG, ST, ATOM, ATOMG, USHF, UIADD3: ur64
 0x00000000080000000000000000000000 ALL
 
 UIMAD, UIADD3: ur64neg
 0x00000000000008000000000000000000 -
 0x00000000000008000000000000000000 ~
 
-LDG: p64qnot
+LDG, LD: p64qnot
 0x00000000000000080000000000000000 !
 
 ISETP: p68
