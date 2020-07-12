@@ -1114,7 +1114,10 @@ grammar_75 = {
     'UPRMT': [],  # Uniform Byte Permute
     'UPSETP': [],  # Uniform Predicate Logic Operation
     'UR2UP': [],  # Uniform Register to Uniform Predicate
-    'USEL': [],  # Uniform Select
+    'USEL': [  # Uniform Select
+        {'type': 'x32', 'code': 0x287, 'rule': rf'USEL {ur16}, {ur24}, {ur32}, {up87};'},
+        {'type': 'x32', 'code': 0x887, 'rule': rf'USEL {ur16}, {ur24}, {i32}, {up87};'},
+    ],
     'USGXT': [],  # Uniform Sign Extend
     'USHF': [  # Uniform Funnel Shift
         {'type': 'x32', 'code': 0x899, 'rule': rf'USHF{tshf_lr}{tw}{tshf_type} {ur16}, {ur24}, {i32}, {ur64};'},
@@ -2345,7 +2348,7 @@ IMAD, IADD3: r64neg
 0x00000000000008000000000000000000 -
 0x00000000000008000000000000000000 ~
 
-ULOP3, ULDC, UISETP: ur24
+ULOP3, ULDC, UISETP, USEL: ur24
 0x00000000080000000000000000000000 ALL
 
 UIADD3: ur24neg
@@ -2414,7 +2417,7 @@ UIADD3: up84
 UIMAD, UIADD3: up87
 0x00000000078000000000000000000000 DEFAULT
 
-ULOP3, UISETP: up87not
+ULOP3, UISETP, USEL: up87not
 0x00000000040000000000000000000000 !
 '''
 
