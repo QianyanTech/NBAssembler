@@ -814,6 +814,7 @@ tle = rf'(?P<LE>\.LE)?'
 tdbar_db = r'(\{(?P<db>[0-5])\})'
 
 tbrx = rf'(?P<op>\.INC|\.DEC)?'
+tbra = rf'(?P<mode>\.U|\.DIV|\.CONV)?'
 
 tx2x = rf'(?P<F64>\.F64)?(?P<type>\.U8|\.S8|\.U16|\.S16|\.U32|\.U64|\.S64)?'
 trnd = fr'(?P<rnd>\.RN|\.RM|\.RP|\.RZ)?'
@@ -896,6 +897,7 @@ grammar_75 = {
     ],
     'IMMA': [],  # Integer Matrix Multiply and Accumulate
     'IMNMX': [  # Integer Minimum/Maximum
+        {'type': 'x32', 'code': 0x217, 'rule': rf'IMNMX{u32} {r16}, {r24}, {r32}, {p87};'},
         {'type': 'x32', 'code': 0x817, 'rule': rf'IMNMX{u32} {r16}, {r24}, {i32}, {p87};'},
         {'type': 'x32', 'code': 0xa17, 'rule': rf'IMNMX{u32} {r16}, {r24}, {c40}, {p87};'},
     ],
@@ -1077,7 +1079,7 @@ grammar_75 = {
     'UBREV': [],  # Uniform Bit Reverse
     'UCLEA': [],  # Load Effective Address for a Constant
     'UFLO': [  # Uniform Find Leading One
-        {'type': 'x32', 'code': 0x2bd, 'rule': rf'FLO{u32}{tsh} {ur16}, ({up81}, )?{ur32};'},
+        {'type': 'x32', 'code': 0x2bd, 'rule': rf'UFLO{u32}{tsh} {ur16}, ({up81}, )?{ur32};'},
     ],
     'UIADD3': [  # Uniform Integer Addition
         {'type': 'x32', 'code': 0x290,
@@ -1087,7 +1089,7 @@ grammar_75 = {
     ],
     'UIMAD': [  # Uniform Integer Multiplication
         {'type': 'x32', 'code': 0x2a4,
-         'rule': rf'IMAD{timad}{u32}{X} {ur16}, ({up81}, )?{ur24}, {ur32}, {ur64}(, {up87})?;'},
+         'rule': rf'UIMAD{timad}{u32}{X} {ur16}, ({up81}, )?{ur24}, {ur32}, {ur64}(, {up87})?;'},
     ],
     'UISETP': [  # Integer Compare and Set Uniform Predicate
         {'type': 'x32', 'code': 0x88c,
@@ -1101,7 +1103,11 @@ grammar_75 = {
     'ULOP': [],  # Logic Operation
     'ULOP3': [  # Logic Operation
         {'type': 'x32', 'code': 0x292,
-         'rule': rf'LOP3\.LUT{tpand} ({up81}, )?{ur16}, {ur24}, {ur32}, {ur64}, {i72w8}, {up87};'},
+         'rule': rf'ULOP3\.LUT{tpand} ({up81}, )?{ur16}, {ur24}, {ur32}, {ur64}, {i72w8}, {up87};'},
+        {'type': 'x32', 'code': 0x892,
+         'rule': rf'ULOP3\.LUT{tpand} ({up81}, )?{ur16}, {ur24}, {i32}, {ur64}, {i72w8}, {up87};'},
+        {'type': 'x32', 'code': 0xa92,
+         'rule': rf'ULOP3\.LUT{tpand} ({up81}, )?{ur16}, {ur24}, {c40}, {ur64}, {i72w8}, {up87};'},
     ],
     'ULOP32I': [],  # Logic Operation
     'UMOV': [  # Uniform Move
@@ -1113,7 +1119,10 @@ grammar_75 = {
     'UPOPC': [  # Uniform Population Count
         {'type': 'x32', 'code': 0x2bf, 'rule': rf'UPOPC {ur16}, {ur32};'},
     ],
-    'UPRMT': [],  # Uniform Byte Permute
+    'UPRMT': [  # Uniform Byte Permute
+        {'type': 'x32', 'code': 0x296, 'rule': rf'UPRMT{tprmt} {ur16}, {ur24}, {ur32}, {ur64};'},
+        {'type': 'x32', 'code': 0x896, 'rule': rf'UPRMT{tprmt} {ur16}, {ur24}, {i32}, {ur64};'},
+    ],
     'UPSETP': [],  # Uniform Predicate Logic Operation
     'UR2UP': [],  # Uniform Register to Uniform Predicate
     'USEL': [  # Uniform Select
@@ -1150,7 +1159,7 @@ grammar_75 = {
     ],
     'BPT': [],  # BreakPoint/Trap
     'BRA': [  # Relative Branch
-        {'type': 'x32', 'code': 0x947, 'rule': rf'BRA ({p87}, )?{i32a4};'},
+        {'type': 'x32', 'code': 0x947, 'rule': rf'BRA{tbrx}{tbra} ({p87}, )?{i32a4};'},
     ],
     'BREAK': [  # Break out of the Specified Convergence Barrier
         {'type': 'x32', 'code': 0x942, 'rule': rf'BREAK ({p87}, )?{b16};'},
@@ -1182,6 +1191,7 @@ grammar_75 = {
     'RPCMOV': [],  # PC Register Move
     'RTT': [],  # Return From Trap
     'WARPSYNC': [  # Synchronize Threads in Warp
+        {'type': 'x32', 'code': 0x348, 'rule': rf'WARPSYNC ({p87}, )?{r32};'},
         {'type': 'x32', 'code': 0x948, 'rule': rf'WARPSYNC ({p87}, )?{i32};'},
     ],
     'YIELD': [  # Yield Control
@@ -1844,7 +1854,7 @@ P2R: B
 0x00000000000020000000000000000000 .B2
 0x00000000000030000000000000000000 .B3
 
-PRMT: prmt
+PRMT, UPRMT: prmt
 0x00000000000001000000000000000000 .F4E
 0x00000000000002000000000000000000 .B4E
 0x00000000000003000000000000000000 .RC8
@@ -1924,9 +1934,6 @@ IMAD, UIMAD, ISETP, UISETP, IMNMX, FLO, UFLO, SGXT: U32
 IMAD, UIMAD, UIADD3, IADD3, LEA: X
 0x00000000000004000000000000000000 .X
 
-UIADD3: X
-0x00000000000104000000000000000000 .X
-
 LOP3, ULOP3: PAND
 0x00000000000100000000000000000000 .PAND
 
@@ -2003,8 +2010,12 @@ ATOMG, ATOMS: op
 0x00000000048000000000000000000000 .SAFEADD
 0x00000000000000000000000000000001 .CAS
 
+BRA: mode
+0x00000000000000000000000100000000 .U
+0x00000000000000000000000200000000 .DIV
+0x00000000000000000000000300000000 .CONV
 
-BRX: op
+BRX, BRA: op
 0x00000000002000000000000000000000 .INC
 0x00000000004000000000000000000000 .DEC
 
@@ -2350,7 +2361,7 @@ IMAD, IADD3: r64neg
 0x00000000000008000000000000000000 -
 0x00000000000008000000000000000000 ~
 
-ULOP3, ULDC, UISETP, USEL: ur24
+ULOP3, ULDC, UISETP, USEL, UPRMT: ur24
 0x00000000080000000000000000000000 ALL
 
 UIADD3: ur24neg
@@ -2398,7 +2409,7 @@ IMAD, IADD3, LEA: p87
 BSSY, BRX, BRA, BSYNC, BREAK, EXIT, YIELD, CALL, RET, WARPSYNC: p87
 0x00000000038000000000000000000000 DEFAULT
 
-IMAD, UIMAD, LOP3, PLOP3, ISETP, IMNMX, SEL, WARPSYNC: p87not
+IMAD, UIMAD, LOP3, PLOP3, ISETP, IMNMX, SEL, WARPSYNC, BRA: p87not
 0x00000000040000000000000000000000 !
 
 UISETP: up68
@@ -2409,6 +2420,9 @@ UISETP: up68not
 
 UIADD3: up77
 0x000000000001e0000000000000000000 DEFAULT
+
+UIADD3, UPLOP3: up77not
+0x00000000000100000000000000000000 !
 
 UIADD3, UIMAD, ULOP3, UFLO: up81
 0x00000000000e00000000000000000000 DEFAULT
