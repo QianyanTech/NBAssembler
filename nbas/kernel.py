@@ -965,14 +965,16 @@ class Kernel:
                     print(f'Assemble ctrl failed: /*{i * 0x20:x}*/ {ctrl_test:#018x} != {ctrl:#018x}')
                     for j, (ct, c) in enumerate(zip(decode_ctrls(ctrl_test), decode_ctrls(ctrl))):
                         instr = instr_group[j]['op'] + instr_group[j]['rest']
-                        print(
-                            f"    {print_reuse(ct['reuse'])} {print_ctrl(ct)}  {print_reuse(c['reuse'])} "
-                            f"{print_ctrl(c)} {instr}")
+                        print(f'    /*{i * 0x20 + j * 0x8 + 0x8:x}*/ {instr}')
+                        print(f'    ✓ {print_reuse(ct["reuse"])} {print_ctrl(ct)} {ctrl_test>>((21*j)&0x1ffff):#08x}')
+                        print(f'    ✕ {print_reuse(c["reuse"])} {print_ctrl(c)} {ctrl((21*j)&0x1ffff):#08x}')
                     return b''
                 for j, (src, dst) in enumerate(zip(codes_test[i][1:], codes[-3:])):
                     if src != dst:
                         instr = instr_group[j]['op'] + instr_group[j]['rest']
-                        print(f'Assemble failed: /*{i * 0x20 + (j + 1) * 0x8:x}*/ {src:#018x} != {dst:#018x} {instr}')
+                        print(f'Assemble failed: /*{i * 0x20 + (j + 1) * 0x8:x}*/ {instr}')
+                        print(f'    ✓ {src:#018x}')
+                        print(f'    ✕ {dst:#018x}')
                         return b''
         if bar_set:
             self.bar_count = max(bar_set) + 1
@@ -1064,10 +1066,11 @@ class Kernel:
                         c = decode_ctrl(ctrl)
                         ct = decode_ctrl(ctrl_test)
                         print(f'Assemble ctrl failed: /*{i * 0x10:x}*/ {ctrl_test:#08x} != {ctrl:#08x}')
-                        print(
-                            f"    {print_reuse(ct['reuse'])} {print_ctrl(ct)}  {print_reuse(c['reuse'])} "
-                            f"{print_ctrl(c)} {instr}")
-                    print(f'Assemble failed: /*{i * 0x10:x}*/ {code_test:#034x} != {code:#034x} {print_instr(instr)}')
+                        print(f'    ✓ {print_reuse(ct["reuse"])} {print_ctrl(ct)} {ctrl_test:#08x}')
+                        print(f'    ✕ {print_reuse(c["reuse"])} {print_ctrl(c)} {ctrl:#08x}')
+                    print(f'Assemble failed: /*{i * 0x10:x}*/ {print_instr(instr)}')
+                    print(f'    ✓ {code_test:#034x}')
+                    print(f'    ✕ {code:#034x}')
                     return b''
         if bar_set:
             self.bar_count = max(bar_set) + 1
