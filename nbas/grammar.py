@@ -738,7 +738,7 @@ i54w4 = fr'(?P<i54w4>{immed})'
 c40 = fr'(?P<c40neg>\-)?(?P<c40abs>\|)?c\[((?P<c54>{hexx})|(?P<ur24>{ureg}))\]\s*\[(?P<c40>{hexx})\]\|?'
 uc40 = fr'(?P<c40neg>\-)?(?P<c40abs>\|)?c\[(?P<c54>{hexx})\]\s*\[(?P<ur24>{ureg})(?:\s*\+\s*(?P<c40>{hexx}))?\]\|?'
 
-UP = fr'UP[0-7]'
+UP = fr'UP[0-6T]'
 
 up68 = fr'(?P<up68not>\!)?(?P<up68>{P})'
 up77 = fr'(?P<up77not>\!)?(?P<up77>{UP})'
@@ -1096,6 +1096,7 @@ grammar_75 = {
     'ULOP32I': [],  # Logic Operation
     'UMOV': [  # Uniform Move
         {'type': 'x32', 'code': 0x882, 'rule': rf'UMOV {ur16}, {i32};'},
+        {'type': 'x32', 'code': 0xc82, 'rule': rf'UMOV {ur16}, {ur32};'},
     ],
     'UP2UR': [],  # Uniform Predicate to Uniform Register
     'UPLOP3': [],  # Uniform Predicate Logic Operation
@@ -1925,6 +1926,9 @@ IMAD, UIMAD, ISETP, IMNMX, FLO, SGXT: U32
 IMAD, UIMAD, UIADD3, IADD3, LEA: X
 0x00000000000004000000000000000000 .X
 
+UIADD3: X
+0x00000000000104000000000000000000 .X
+
 IMAD, IADD3: r64neg
 0x00000000000008000000000000000000 -
 0x00000000000008000000000000000000 ~
@@ -1979,7 +1983,7 @@ IMAD, UIMAD, LOP3, PLOP3, ISETP, IMNMX, SEL, WARPSYNC: p87not
 IADD3, PLOP3: p77not
 0x00000000000100000000000000000000 !
 
-LDG, LDS, LDL, IMAD, UIMAD, IADD3, FLO, POPC, UPOPC, LOP3, LEA, ISETP, MOV: ur32
+LDG, LDS, LDL, IMAD, UIMAD, IADD3, FLO, POPC, UPOPC, LOP3, LEA, ISETP, MOV, UMOV: ur32
 0x00000000080000000000000000000000 ALL
 
 ULDC: ur24
