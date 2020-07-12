@@ -965,6 +965,7 @@ grammar_75 = {
 
     # Movement Instructions
     'MOV': [  # Move
+        {'type': 'x32', 'code': 0x202, 'rule': rf'MOV {r16}, {r32}(, {i72w4})?;'},
         {'type': 'x32', 'code': 0x802, 'rule': rf'MOV {r16}, {i32}(, {i72w4})?;'},
         {'type': 'x32', 'code': 0xc02, 'rule': rf'MOV {r16}, {ur32}(, {i72w4})?;'},
     ],
@@ -1065,7 +1066,9 @@ grammar_75 = {
     'CCTLT': [],  # Texture Cache Control
 
     # Uniform Datapath Instructions
-    'R2UR': [],  # Move from Vector Register to a Uniform Register
+    'R2UR': [  # Move from Vector Register to a Uniform Register
+        {'type': 'x32', 'code': 0x3c2, 'rule': rf'R2UR{tbool}? ({p81}, )?{ur16}, {r24};'},
+    ],
     'REDUX': [],  # Reduction of a Vector Register into a Uniform Register
     'S2UR': [  # Move Special Register to Uniform Register
         {'type': 'x32', 'code': 0x9c3, 'rule': rf'S2UR {ur16}, {sr};'},
@@ -1749,6 +1752,9 @@ R2P: r8part
 '''
 
 flags_str_75 = '''
+R2UR: bool
+0x00000000001000000000000000000000 .OR
+
 MUFU: func
 0x00000000000000000000000000000000 .COS
 0x00000000000004000000000000000000 .SIN
@@ -2372,7 +2378,7 @@ IADD3: p77
 IADD3, PLOP3: p77not
 0x00000000000100000000000000000000 !
 
-IMAD, IADD3, LEA, LDG, FLO, LOP3: p81
+IMAD, IADD3, LEA, LDG, FLO, LOP3, R2UR: p81
 0x00000000000e00000000000000000000 DEFAULT
 
 IADD3: p84
