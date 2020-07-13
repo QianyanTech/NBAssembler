@@ -1,7 +1,7 @@
-import os
 from struct import pack
 from subprocess import getstatusoutput
 from operator import itemgetter
+from typing import List, Any, Union
 
 from .grammar import *
 
@@ -89,6 +89,8 @@ dst_reg = [
     'r16', 'p81', 'p84', 'ur16', 'up81', 'up84',  # Turing
 ]
 reg_ops = src_reg + dst_reg
+
+bad_val = ['RZ', 'PT', 'URZ', 'UPT', None]
 
 
 def count_unique_descendants(node, edges):
@@ -218,7 +220,7 @@ def schedule_61(instrs):
             if operand not in writes:
                 continue
             # Memory operations get delayed access to registers but not to the predicate
-            reg_latency = instr['rlat'] if src == instr['pred_reg'] else 0
+            reg_latency = instr['rlat'] if src != instr['pred_reg'] else 0
 
             for parent in writes[operand]:
                 # add this instruction as a child of the parent
@@ -232,7 +234,7 @@ def schedule_61(instrs):
                     break
 
         # Find Write-After-Read dependencies
-        for operand in src:
+        for operand in dst:
             if operand not in reads:
                 continue
             # Flag this instruction as dependent to any previous read
@@ -241,11 +243,11 @@ def schedule_61(instrs):
                 reader['children'].append([instr, 0])
                 instr['parents'] += 1
 
-                # Once dependence is marked we can clear out the read list (unless this write was conditional).
-                # The assumption here is that you would never want to write out a register without
-                # subsequently reading it in some way prior to writing it again.
-                if not instr['pred']:
-                    del reads[operand]
+            # Once dependence is marked we can clear out the read list (unless this write was conditional).
+            # The assumption here is that you would never want to write out a register without
+            # subsequently reading it in some way prior to writing it again.
+            if not instr['pred']:
+                del reads[operand]
 
         # Enforce instruction ordering where requested
         if instr['order']:
@@ -358,67 +360,141 @@ def schedule_61(instrs):
     return schedule
 
 
+# todo: 划分代码块
 def schedule_75(instrs):
     for instr in instrs:
         instr.update(decode_ctrl(encode_ctrl(instr['ctrl'])))
 
         # check schedule flag
         instr['schedule'] = 0 if instr['ctrl'].startswith('K') else 1
+        schedule = []
+        ordered_parent = {}
 
         instr['children'] = []
         instr['parents'] = 0
 
-        reads = {}
-        writes = {}
-        ready = []
-        schedule = []
-        ordered_parent = {}
+    reads = {}
+    writes = {}
+    ready = []
 
-        # assemble the instructions to op codes
-        for instr in instrs:
-            op = instr['op']
-            rest = instr['rest']
-            grams = grammar_75[op]
-            gram = None
-            captured_dict = None
-            for g in grams:
-                m = re.search(g['rule'], op + rest)
-                if m:
-                    gram = g
-                    captured_dict = m.groupdict()
+    # assemble the instructions to op codes
+    for instr in instrs:
+        op = instr['op']
+        rest = instr['rest']
+        grams = grammar_75[op]
+        gram = None
+        captured_dict = None
+        for g in grams:
+            m = re.search(g['rule'], op + rest)
+            if m:
+                gram = g
+                captured_dict = m.groupdict()
+                break
+        if not gram:
+            raise Exception(f'Cannot recognize instruction {op + rest}')
+
+        src = []
+        dst = []
+        # copy over instruction types for easier access
+        instr = {**instr, **instr_type_75[gram['type']]}
+
+        # A predicate prefix is treated as a source reg
+        if instr['pred']:
+            src.append(instr['pred_reg'])
+
+        # Populate our register source and destination lists, skipping any zero or true values
+        for operand in captured_dict:
+            if operand not in reg_ops:
+                continue
+            # figure out which list to populate
+            list_: list = dst if (operand in dst_reg and op not in no_dst) else src
+
+            # Filter out RZ and PT
+            if (opr := captured_dict[operand]) not in bad_val:
+                if operand in ['CC', 'X']:
+                    list_.append('CC')
+                # todo: 判断vector 和 64位addr
+                # 需要根据具体指令判断src和dst，比如LDG，SHF F2I等等
+                # elif operand in ['r16', 'ur16']:
+                #     r_num = int(captured_dict[operand].strip('UR'))
+                #     list_.append(opr)
+                #     if type_ := (captured_dict['type'] if 'type' in captured_dict else None):
+                #         if '64' in type_:
+                #             list_.append(re.sub('\d+', f'{r_num+1}', opr))
+                #         elif '128' in type_:
+                #             list_.append(re.sub('\d+', f'{r_num + 1}', opr))
+                #             list_.append(re.sub('\d+', f'{r_num + 2}', opr))
+                #             list_.append(re.sub('\d+', f'{r_num + 3}', opr))
+                #     pass
+                else:
+                    list_.append(opr)
+        instr['const'] = 1 if 'c40neg' in captured_dict else 0
+
+        # Find Read-After-Write dependencies
+        for operand in src:
+            if operand not in writes:
+                continue
+            # Memory operations get delayed access to registers but not to the predicate
+            reg_latency = instr['rlat'] if src != instr['pred_reg'] else 0
+
+            for parent in writes[operand]:
+                # add this instruction as a child of the parent
+                # set the edge to the total latency of reg source availability
+                # latency = 13 if re.match('^U?P\d', operand) else parent['lat']
+                latency = parent['lat']
+                parent['children'].append([instr, latency - reg_latency])
+                instr['parents'] += 1
+
+                # if the destination was conditionally executed, we also need to keep going back till it wasn't
+                if not parent['pred']:
                     break
-            if not gram:
-                raise Exception(f'Cannot recognize instruction {op + rest}')
 
-            src = []
-            dst = []
-            # copy over instruction types for easier access
-            instr = {**instr, **instr_type_75[gram['type']]}
+        # Find Write-After-Read dependencies
+        for operand in dst:
+            if operand not in reads:
+                continue
+            # Flag this instruction as dependent to any previous read
+            for reader in reads[operand]:
+                # no need to stall for these types of dependencies
+                reader['children'].append([instr, 0])
+                instr['parents'] += 1
 
-            # A predicate prefix is treated as a source reg
-            if instr['pred']:
-                src.append(instr['pred_reg'])
+            # Once dependence is marked we can clear out the read list (unless this write was conditional).
+            # The assumption here is that you would never want to write out a register without
+            # subsequently reading it in some way prior to writing it again.
+            if not instr['pred']:
+                del reads[operand]
 
-            # Populate our register source and destination lists, skipping any zero or true values
-            for operand in captured_dict:
-                if operand not in reg_ops:
-                    continue
-                # figure out which list to populate
-                list_ = dst if operand in dst_reg and op not in no_dst else src
+        # Enforce instruction ordering where requested
+        # todo: 允许使用schedule flag手工调度部分指令
 
-                # Filter out RZ and PT
-                bad_val = 'RZ' if 'r' in operand else 'PT'
+        # For a dest reg, push it onto the write stack
+        for operand in dst:
+            if operand not in writes:
+                writes[operand] = []
+            writes[operand].insert(0, instr)
 
-                if opr := captured_dict[operand] != bad_val:
-                    if 'r0' == operand:
-                        # todo: 判断vector
-                        pass
-                    elif 'r8' == operand:
-                        # todo: 判断addr vector
-                        pass
-                    elif operand in ['CC', 'X']:
-                        list_.append('CC')
-                    else:
-                        list_.append(opr)
-            instr['const'] = 1 if 'c20' in captured_dict or 'c39' in captured_dict else 0
-        pass
+        # For a src reg, push it into the read list
+        for operand in src:
+            if operand not in reads:
+                reads[operand] = []
+            reads[operand].append(instr)
+
+        # if this instruction has no dependencies it's ready to go
+        if not instr['parents']:
+            ready.append(instr)
+
+    if ready:
+        # update dependent counts for sorting hueristic
+        ready_parent = {
+            'children': [[x, 1] for x in ready],
+            'inst': 'root'
+        }
+
+        count_unique_descendants(ready_parent, {})
+        update_dep_counts(ready_parent, {})
+
+        ready.sort(key=itemgetter('first', 'deps', 'dual_cnt', 'line_num'))
+
+    # Process the ready list, adding new instructions to the list as we go.
+    clock = 0

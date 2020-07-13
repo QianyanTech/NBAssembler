@@ -90,7 +90,7 @@ LABEL_RE = r'(?P<label>L_[0-9a-zA-Z_]+)'
 CTRL_RE = r'(?P<ctrl>[KS\-]:[0-9a-fA-F\-]{2}:[1-6\-]:[1-6\-]:[\-yY]:[0-9a-fA-F\-])'
 
 ADDR_RE = r'(/\*(?P<addr>[0-9a-f]+)\*/)'
-PRED_RE = r'(?P<pred>@(?P<pred_not>!)?U?P(?P<pred_reg>([T\d]|_[a-zA-Z_]\w*_?\d+)))'
+PRED_RE = r'(?P<pred>@(?P<pred_not>!)?(?P<pred_reg>U?P([T\d]|_[a-zA-Z_]\w*_?\d+)))'
 INST_RE = rf'(({PRED_RE}\s+)?(?P<op>\w+)(?P<rest>[^;]*;))'
 CODE_RE = r'(/\* (?P<code>0x[0-9a-f]+) \*/)'
 REUSE_RE = r'(#\s*(?P<reuse>[1-4\-]{4}))'
@@ -376,7 +376,7 @@ rro_t = {'class': 'rro', 'lat': 2, 'blat': 0, 'rlat': 0, 'rhold': 0, 'tput': 1, 
 vote_t = {'class': 'vote', 'lat': 2, 'blat': 0, 'rlat': 0, 'rhold': 0, 'tput': 1, 'dual': 0, 'reuse': 0}
 
 instr_type_75 = {
-    'x32': {'lat': 5, 'reuse': 1, },
+    'x32': {'lat': 5, 'reuse': 1, 'rlat': 0},
 }
 
 grammar_61 = {
@@ -741,7 +741,7 @@ c38 = fr'(?P<c40neg>\-)?(?P<c40abs>\|)?c\[((?P<c54>{hexx})|(?P<ur24>{ureg}))\]\s
 c40 = fr'(?P<c40neg>\-)?(?P<c40abs>\|)?c\[((?P<c54>{hexx})|(?P<ur24>{ureg}))\]\s*\[(?P<c40>{hexx})\]\|?'
 uc40 = fr'(?P<c40neg>\-)?(?P<c40abs>\|)?c\[(?P<c54>{hexx})\]\s*\[(?P<ur24>{ureg})(?:\s*\+\s*(?P<c40>{hexx}))?\]\|?'
 
-UP = fr'UP[0-6T]'
+UP = fr'UP[0-7T]'
 
 up68 = fr'(?P<up68not>\!)?(?P<up68>{UP})'
 up77 = fr'(?P<up77not>\!)?(?P<up77>{UP})'
@@ -2538,7 +2538,7 @@ def encode_instruction(op, gram, captured_dict, instr, arch):
     # Process predicate.
     # 0xf0000是P寄存器，高位位1,是!PX，低3位表示P0-P6, 7表示不使用P寄存器
     if 'noPred' not in captured_dict:
-        p = int(instr['pred_reg']) if instr['pred_reg'] and instr['pred_reg'] != 'T' else 0x7
+        p = int(instr['pred_reg'].strip('UP')) if instr['pred_reg'] not in ['PT', 'UPT', None] else 0x7
         if instr['pred_not']:
             p |= 0x8
         if arch < 70:
