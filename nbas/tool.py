@@ -105,6 +105,8 @@ def count_unique_descendants(node, edges):
                 edges[k] += 1
                 continue
             for line_num in count_unique_descendants(child[0], edges):
+                if line_num not in node['deps']:
+                    node['deps'][line_num] = 0
                 node['deps'][line_num] += 1
         for child in children:  # WaR deps
             if child[1]:
@@ -117,8 +119,8 @@ def count_unique_descendants(node, edges):
                 continue
             count_unique_descendants(child[0], edges)
     else:
-        return node['line_num']
-    return node['line_num'], *(node['deps'].keys())
+        return [node['line_num'], ]
+    return [node['line_num'], *(node['deps'].keys())]
 
 
 def update_dep_counts(node, edges):
@@ -131,7 +133,8 @@ def update_dep_counts(node, edges):
                 edges[k] += 1
                 continue
             update_dep_counts(child[0], edges)
-    node['deps'] = len(node['deps']) if node['deps'] else 0
+    if type(node['deps']) is dict:
+        node['deps'] = len(node['deps'])
 
 
 def schedule_61(instrs):
@@ -372,6 +375,7 @@ def schedule_75(instrs):
 
         instr['children'] = []
         instr['parents'] = 0
+        instr['deps'] = {}
 
     reads = {}
     writes = {}
@@ -488,13 +492,86 @@ def schedule_75(instrs):
         # update dependent counts for sorting hueristic
         ready_parent = {
             'children': [[x, 1] for x in ready],
-            'inst': 'root'
+            'inst': 'root',
+            'line_num': '',
+            'deps': {},
         }
 
         count_unique_descendants(ready_parent, {})
         update_dep_counts(ready_parent, {})
 
-        ready.sort(key=itemgetter('first', 'deps', 'dual_cnt', 'line_num'))
+        ready.sort(key=itemgetter('line_num'))
+        ready.sort(key=itemgetter('deps'), reverse=True)
 
     # Process the ready list, adding new instructions to the list as we go.
     clock = 0
+
+    while instruct := ready.pop(0):
+        stall = instruct['stall']
+        # apply the stall to the previous instruction
+        if schedule and stall < 16:
+            prev = schedule[-1]
+
+            if prev['force_stall'] > stall:
+                stall = prev['force_stall']
+
+            # if stall is greater than 4 then also yield
+            # the yield flag is required to get stall counts 12-15 working correctly.
+            prev['ctrl'] &= 0x1ffe0 if stall > 4 else 0x1fff0
+            prev['ctrl'] |= stall
+            clock += stall
+        # For stalls bigger than 15 we assume the user is managing it with a barrier
+        else:
+            instruct['ctrl'] &= 0x1fff0
+            instruct['ctrl'] |= 1
+            clock += 1
+
+        # add a new instruction to the schedule
+        schedule.append(instruct)
+
+        # update each child with a new earliest execution time
+        if children := instruct['children']:
+            for child, latency in children:
+                # update the earliest clock value this child can safely execute
+                earliest = clock + latency
+                if child['exe_time'] < earliest:
+                    child['exe_time'] = earliest
+                # decrement parent count and add to ready queue if none remaining.
+                child['parents'] -= 1
+                if child['parents'] < 1:
+                    ready.append(child)
+            instruct['children'] = []
+
+        # update stall and mix values in the ready queue on each iteration
+        for instr in ready:
+            # calculate how many instructions this would cause the just added instruction to stall.
+            stall = instr['exe_time'] - clock
+            if stall < 1:
+                stall = 1
+
+            # if using the same compute resource as the prior instruction then limit the throughput
+            if instr['class'] == instruct['class']:
+                if stall < instr['tput']:
+                    stall = instr['tput']
+
+            # dual issue with a simple instruction (tput <= 2)
+            # can't dual issue two instructions that both load a constant
+            elif instr['dual'] and not instruct['dual'] and instruct['tput'] <= 2 and not instruct[
+                'no_dual'] and stall == 1 and instr['exe_time'] <= clock and not instr['const'] and instruct['const']:
+                stall = 0
+
+            instr['stall'] = stall
+
+            # add an instruction class mixing huristic that catches anything not handled by the stall
+            instr['mix'] = 1 if instr['class'] != instruct['class'] else 0
+            if instr['mix'] and instr['op'] == 'R2P':
+                instr['mix'] = 2
+
+        # sort the ready list by stall time, mixing huristic, dependencies and line number
+        ready.sort(key=itemgetter('first', 'stall', 'dual_cnt', 'mix', 'deps', 'line_num'))
+
+        for instr in ready:
+            if instr['dual_cnt'] and instr['stall'] == 1:
+                instr['dual_cnt'] = 0
+
+    return schedule
