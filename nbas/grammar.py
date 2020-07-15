@@ -376,7 +376,7 @@ rro_t = {'class': 'rro', 'lat': 2, 'blat': 0, 'rlat': 0, 'rhold': 0, 'tput': 1, 
 vote_t = {'class': 'vote', 'lat': 2, 'blat': 0, 'rlat': 0, 'rhold': 0, 'tput': 1, 'dual': 0, 'reuse': 0}
 
 instr_type_75 = {
-    'x32': {'lat': 5, 'reuse': 1, 'rlat': 0},
+    'x32': {'lat': 5, 'reuse': 1, 'rlat': 0, 'tput': 1},
 }
 
 grammar_61 = {

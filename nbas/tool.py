@@ -368,15 +368,17 @@ def schedule_75(instrs):
     for instr in instrs:
         instr.update(decode_ctrl(encode_ctrl(instr['ctrl'])))
 
+        instr['exe_time'] = 0
+
         # check schedule flag
         instr['schedule'] = 0 if instr['ctrl'].startswith('K') else 1
-        schedule = []
-        ordered_parent = {}
 
         instr['children'] = []
         instr['parents'] = 0
         instr['deps'] = {}
 
+    schedule = []
+    ordered_parent = {}
     reads = {}
     writes = {}
     ready = []
@@ -400,7 +402,7 @@ def schedule_75(instrs):
         src = []
         dst = []
         # copy over instruction types for easier access
-        instr = {**instr, **instr_type_75[gram['type']]}
+        instr = {**instr, **instr_type_75[gram['type']], 'class': gram['type']}
 
         # A predicate prefix is treated as a source reg
         if instr['pred']:
@@ -506,25 +508,21 @@ def schedule_75(instrs):
     # Process the ready list, adding new instructions to the list as we go.
     clock = 0
 
-    while instruct := ready.pop(0):
+    while ready:
+        instruct = ready.pop(0)
         stall = instruct['stall']
         # apply the stall to the previous instruction
         if schedule and stall < 16:
             prev = schedule[-1]
 
-            if prev['force_stall'] > stall:
-                stall = prev['force_stall']
-
             # if stall is greater than 4 then also yield
             # the yield flag is required to get stall counts 12-15 working correctly.
-            prev['ctrl'] &= 0x1ffe0 if stall > 4 else 0x1fff0
-            prev['ctrl'] |= stall
-            clock += stall
+            prev['yield'] = 0 if stall > 4 else 1
+            prev['stall'] = stall
         # For stalls bigger than 15 we assume the user is managing it with a barrier
         else:
-            instruct['ctrl'] &= 0x1fff0
-            instruct['ctrl'] |= 1
-            clock += 1
+            instruct['stall'] = 1
+        clock += stall
 
         # add a new instruction to the schedule
         schedule.append(instruct)
@@ -554,12 +552,6 @@ def schedule_75(instrs):
                 if stall < instr['tput']:
                     stall = instr['tput']
 
-            # dual issue with a simple instruction (tput <= 2)
-            # can't dual issue two instructions that both load a constant
-            elif instr['dual'] and not instruct['dual'] and instruct['tput'] <= 2 and not instruct[
-                'no_dual'] and stall == 1 and instr['exe_time'] <= clock and not instr['const'] and instruct['const']:
-                stall = 0
-
             instr['stall'] = stall
 
             # add an instruction class mixing huristic that catches anything not handled by the stall
@@ -568,10 +560,11 @@ def schedule_75(instrs):
                 instr['mix'] = 2
 
         # sort the ready list by stall time, mixing huristic, dependencies and line number
-        ready.sort(key=itemgetter('first', 'stall', 'dual_cnt', 'mix', 'deps', 'line_num'))
+        ready.sort(key=itemgetter('line_num'))
+        ready.sort(key=itemgetter('mix', 'deps'), reverse=True)
+        ready.sort(key=itemgetter('stall'))
 
-        for instr in ready:
-            if instr['dual_cnt'] and instr['stall'] == 1:
-                instr['dual_cnt'] = 0
+    for instr in schedule:
+        instr['ctrl'] = print_ctrl(instr)
 
     return schedule
