@@ -167,6 +167,7 @@ class Kernel:
 
         # Relocation info
         self.rels = []
+        self.rel_map = {}
         self.consts = set()
         self.globals = set()
 
@@ -191,7 +192,8 @@ class Kernel:
     def __repr__(self):
         linkage = Symbol.STB_STR[self.linkage]
         msg = f'Name:{self.name.decode()}, Linkage:{linkage}, Registers:{self.reg_count}, Stack:{self.frame_size}, ' \
-              f'SharedMem:{self.shared_size}, Barriers:{self.bar_count}, Size:{self.section.sh_size}, ' \
+              f'SharedMem:{self.shared_size}, Barriers:{self.bar_count}, ' \
+              f'Size:{self.section.sh_size if self.section else 0}, ' \
               f'Params:{self.params}'
         return msg
 
@@ -405,6 +407,7 @@ class Kernel:
                     rel.type = Relocation.R_TYPE_VAL_75[type_]
                 rel.sym_name = name
                 self.rels.append(rel)
+                self.rel_map[i] = rel
                 instr['rest'] = instr['rest'].replace(match, '0x0')
 
     def map_jump(self):
@@ -1166,6 +1169,13 @@ class Kernel:
             self.instrs = schedule_61(self.instrs)
         else:
             self.instrs = schedule_75(self.instrs)
+
+        # update line_num and global Relocation
+        for i, instr in enumerate(self.instrs):
+            line_num = instr['line_num']
+            if line_num in self.rel_map:
+                self.rel_map[line_num].r_offset = line_num2addr(i, self.arch)
+            instr['line_num'] = i
 
     def gen_sections(self):
         # .text section
