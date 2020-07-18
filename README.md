@@ -1,24 +1,25 @@
 # NB Assembler
 
-Assembler for NVIDIA(Maxwell Pascal Volta Turing Ampere) GPUs.
+Assembler for NVIDIA (Maxwell Pascal Volta Turing Ampere) GPUs.
 
 
 ## Requirements:
 
 * Python >= 3.8
+* CUDA >= 6.5 (Only requires `nvdisasm` for disassembly or testing) 
 
 
 ## Supported NVIDIA GPUs:
 
-Maxwell(SM50, SM52, SM53)
+Maxwell (SM50, SM52, SM53)
 
-Pascal(SM60, SM61, SM62)
+Pascal (SM60, SM61, SM62)
 
-Volta(SM70, SM72)
+Volta (SM70, SM72)
 
-Turing(SM75)
+Turing (SM75)
 
-Ampere(SM80)
+Ampere (SM80)
 
 
 ## Install
@@ -102,8 +103,8 @@ nbasm test -h
 
 # 例子
 nbasm list ethash.cubin 
-nbasm das -k Search -o ethash_saerch.s ethash.cubin
-nbasm as -D DEBUG=True -o ethash.cubin ethash_saerch.s
+nbasm das -k Search -o ethash_search.s ethash.cubin
+nbasm as -D DEBUG=True -o ethash.cubin ethash_search.s
 nbasm test -c ethash.cubin
 ```
 
@@ -188,7 +189,7 @@ out = '''
 	#	stall: 本条指令调度后，下一条指令延迟开始的周期数
 ```
 
-## Todo:
+## Todo
 
 代码分析优化：
 
@@ -199,13 +200,15 @@ out = '''
 
 生成的cubin:
 
-有些原始cubin中包含WEAK或LOCAL的FUNC符号，有些仅仅是跳转的符号，可以去掉；有些不知道干什么用的，也去掉了，目前不影响使用。
+* 有些原始cubin中包含WEAK或LOCAL的FUNC符号，有些仅仅是跳转的符号，可以去掉；有些不知道干什么用的，也去掉了，目前不影响使用。
 
-原始.shstrtab .strtab 里面有不使用的字符串。生成的cubin没有
+* 原始.shstrtab .strtab 里面有不使用的字符串。生成的cubin没有
 
-global const3的对齐可能不同，不影响使用
+* global const3的对齐可能不同，不影响使用
 
-symbol顺序可能不同，kernel相关的各个种类的section类内顺序不同。不影响使用
+* symbol顺序可能不同，kernel相关的各个种类的section类内顺序不同。不影响使用
+
+
 
 This project is released under the MIT License.
 
