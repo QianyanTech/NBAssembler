@@ -120,7 +120,7 @@ nbasm test -c ethash.cubin
 
 ## ASM Grammar
 
-```gas
+```assembly
 # 单行注释
 # 反汇编出来的其它用不到的元信息将写入文件头的注释。汇编时忽略。
 /* 多行注释 */
