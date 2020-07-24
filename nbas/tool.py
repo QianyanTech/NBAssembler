@@ -388,7 +388,7 @@ def schedule_75(instrs):
         instr['exe_time'] = 0
 
         # check schedule flag
-        # instr['schedule'] = 0 if instr['ctrl'].startswith('K') else 1
+        instr['schedule'] = 0 if instr['ctrl'].startswith('K') else 1
 
         instr['children'] = []
         instr['parents'] = 0
@@ -396,7 +396,7 @@ def schedule_75(instrs):
 
         op = instr['op']
         rest = instr['rest']
-        if (op in ordered_op) or ((op in SR_op) and ('SR_CLOCK' in rest)):
+        if (op in ordered_op) or ((op in SR_op) and ('SR_CLOCK' in rest)) or instr['schedule'] == 0:
             if block:
                 blocks.append(block)
             blocks.append([instr, ])
@@ -499,9 +499,6 @@ def schedule_75(instrs):
                 # subsequently reading it in some way prior to writing it again.
                 if not instr['pred']:
                     del reads[operand]
-
-            # Enforce instruction ordering where requested
-            # todo: 允许使用schedule flag手工调度部分指令
 
             # For a dest reg, push it onto the write stack
             for operand in dst:
