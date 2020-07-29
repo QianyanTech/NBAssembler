@@ -204,7 +204,7 @@ def preprocess(asm_path, out_asm_path, define_list, strip):
         cubin.map_constant3(kernel)
         kernel.map_global()
         kernel.map_constant0()
-        kernel.map_jump()
+        kernel.map_jump(rel=True)
         kernel.mark_const2()
         kernel_asm += '\n' + kernel.print()
         consts = consts.union(kernel.consts)

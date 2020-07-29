@@ -414,7 +414,7 @@ class Kernel:
                 self.rel_map[i] = rel
                 instr['rest'] = instr['rest'].replace(match, '0x0')
 
-    def map_jump(self):
+    def map_jump(self, rel=False):
         labels = {}
         sync_label = ''
         brk_label = ''
@@ -426,6 +426,8 @@ class Kernel:
             if op in jump_op:
                 address = get_jump_offset(rest)
                 line_num = addr2line_num(address, self.arch)
+                if rel and (op in rel_jump_op_61 + rel_jump_op_75):
+                    line_num += instr['line_num'] + 1
                 if line_num not in labels:
                     label = f'L_{len(labels)}'
                     labels[line_num] = label
