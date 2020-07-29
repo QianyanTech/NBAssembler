@@ -67,6 +67,8 @@ def disassemble(cubin_path, kernel_names, asm_path, strip):
         if Symbol.STB_STR[kernel.linkage] != 'GLOBAL':
             continue
         kernel.disassemble()
+        # kernel.schedule()
+        # kernel.sort_banks()
         cubin.map_constant3(kernel)
         kernel.map_global()
         kernel.map_constant0()
@@ -155,8 +157,8 @@ def assemble(asm_path, out_cubin_path, define_list):
         kernel.unmap_global()
         kernel.unmap_constant0()
         kernel.unmap_jump()
-        kernel.schedule()
-        kernel.sort_banks()
+        # kernel.schedule()
+        # kernel.sort_banks()
         kernel.assemble()
 
     # 生成elf数据
@@ -167,6 +169,67 @@ def assemble(asm_path, out_cubin_path, define_list):
     cubin.gen_program()
 
     cubin.write(out_cubin_path)
+
+
+def preprocess(asm_path, out_asm_path, define_list, strip):
+    cubin = Cubin()
+
+    define_dict = {}
+    for define in define_list:
+        if not define:
+            continue
+        d = define.split('=')
+        if len(d) < 2:
+            exec(f'{define} = True', define_dict)
+        else:
+            exec(f'{define}', define_dict)
+
+    cubin.load_asm(asm_path, define_dict)
+    header_asm = cubin.header.print() + '\n'
+    global_asm = ''
+    constant_asm = ''
+    kernel_asm = ''
+
+    consts = set()
+    globals_ = set()
+    for kernel in cubin.kernel_dict.values():
+        # Unmap global, const0, const3
+        cubin.unmap_constant3(kernel)
+        kernel.unmap_reg()
+        kernel.unmap_global()
+        kernel.unmap_constant0()
+        kernel.unmap_jump()
+        kernel.schedule()
+        kernel.sort_banks()
+        cubin.map_constant3(kernel)
+        kernel.map_global()
+        kernel.map_constant0()
+        kernel.map_jump()
+        kernel.mark_const2()
+        kernel_asm += '\n' + kernel.print()
+        consts = consts.union(kernel.consts)
+        globals_ = globals_.union(kernel.globals)
+
+    for global_ in cubin.global_dict.values():
+        if global_.name in globals_:
+            global_asm += global_.print() + '\n'
+    for global_ in cubin.global_init_dict.values():
+        if global_.name in globals_:
+            global_asm += global_.print() + '\n'
+    for constant in cubin.constant_dict.values():
+        if constant.name in consts or 'ALL_CONST3' in consts:
+            constant_asm += constant.print() + '\n'
+
+    asm = header_asm + global_asm + constant_asm + kernel_asm
+
+    if strip:
+        asm = strip_comment(asm)
+
+    if out_asm_path:
+        with open(out_asm_path, 'w') as f:
+            f.write(asm)
+    else:
+        print(asm, end='')
 
 
 def test_cubin(cubin_path, kernel_names, check=False):
@@ -294,11 +357,12 @@ def main():
     parser_as.add_argument('-D', '--define', metavar='DEFINE', nargs='+', type=str, default='',
                            help='define variable for embedded python code')
 
-    # parser_sched = subparsers.add_parser('sched', help='schedule asm')
-    # parser_sched.add_argument('asm', help='input asm', metavar='ASM')
-    # parser_sched.add_argument('-k', '--kernels', metavar='KERNELS', nargs='+', type=str, default='',
-    #                           help='kernel names')
-    # parser_sched.add_argument('-o', '--output', metavar='OUTPUT', type=str, default='', help='output asm file path')
+    parser_pre = subparsers.add_parser('pre', help='preprocess asm')
+    parser_pre.add_argument('asm', help='input asm', metavar='ASM')
+    parser_pre.add_argument('-D', '--define', metavar='DEFINE', nargs='+', type=str, default='',
+                            help='define variable for embedded python code')
+    parser_pre.add_argument('-o', '--output', metavar='OUTPUT', type=str, default='', help='output asm file path')
+    parser_pre.add_argument('-s', '--strip', action='store_true', help='strip comment')
 
     # parser_ptxdas = subparsers.add_parser('ptxdas', help='disassemble asm to ptx')
     # parser_ptxdas.add_argument('asm', help='input asm', metavar='ASM')
@@ -322,8 +386,8 @@ def main():
         disassemble(cubin_path=args.cubin, kernel_names=args.kernels, asm_path=args.output, strip=args.strip)
     elif args.cmd == 'as':
         assemble(asm_path=args.asm, out_cubin_path=args.output, define_list=args.define)
-    # elif args.cmd == 'sched':
-    #     schedule(asm_path=args.asm, kernel_names=args.kernels, out_asm_path=args.output)
+    elif args.cmd == 'pre':
+        preprocess(asm_path=args.asm, out_asm_path=args.output, define_list=args.define, strip=args.strip)
     # elif args.cmd == 'ptxdas':
     #     disassemble_ptx(asm_path=args.asm, ptx_path=args.output)
     elif args.cmd == 'test':

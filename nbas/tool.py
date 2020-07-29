@@ -448,19 +448,25 @@ def schedule_75(instrs):
                 if (opr := captured_dict[operand]) not in bad_val:
                     if operand in ['CC', 'X']:
                         list_.append('CC')
-                    # todo: 判断vector 和 64位addr
-                    # 需要根据具体指令判断src和dst，比如LDG，SHF F2I等等
-                    # elif operand in ['r16', 'ur16']:
-                    #     r_num = int(captured_dict[operand].strip('UR'))
-                    #     list_.append(opr)
-                    #     if type_ := (captured_dict['type'] if 'type' in captured_dict else None):
-                    #         if '64' in type_:
-                    #             list_.append(re.sub('\d+', f'{r_num+1}', opr))
-                    #         elif '128' in type_:
-                    #             list_.append(re.sub('\d+', f'{r_num + 1}', opr))
-                    #             list_.append(re.sub('\d+', f'{r_num + 2}', opr))
-                    #             list_.append(re.sub('\d+', f'{r_num + 3}', opr))
-                    #     pass
+                    elif operand in ['r16', 'ur16', 'r24', 'ur64', 'r32', 'r64']:
+                        r_num = int(captured_dict[operand].strip('UR'))
+                        list_.append(opr)
+                        if op == 'MUFU':
+                            if (type_ := (captured_dict['func'] if 'func' in captured_dict else None)) \
+                                    and '64' in type_:
+                                list_.append(re.sub('\d+', f'{r_num + 1}', opr))
+                        elif type_ := (captured_dict['type'] if 'type' in captured_dict else None):
+                            if op in ['LDS', 'LDL', 'STS', 'STL', 'ATOMS'] and operand in ['r24', 'ur32', 'ur64']:
+                                continue
+                            # if op in ['ATOM', 'ATOMS', 'ATOMG', 'RED'] and operand == 'r32':
+                            #     continue
+                            if '64' in type_:
+                                list_.append(re.sub('\d+', f'{r_num + 1}', opr))
+                            elif '128' in type_:
+                                list_.append(re.sub('\d+', f'{r_num + 1}', opr))
+                                list_.append(re.sub('\d+', f'{r_num + 2}', opr))
+                                list_.append(re.sub('\d+', f'{r_num + 3}', opr))
+                        pass
                     else:
                         list_.append(opr)
             instr['const'] = 1 if 'c40neg' in captured_dict else 0
@@ -589,7 +595,7 @@ def schedule_75(instrs):
             ready.sort(key=itemgetter('mix', 'deps'), reverse=True)
             ready.sort(key=itemgetter('stall'))
 
-    # for instr in schedule:
-    #     instr['ctrl'] = print_ctrl(instr)
+    for instr in schedule:
+        instr['ctrl'] = print_ctrl(instr)
 
     return schedule

@@ -203,7 +203,8 @@ class Kernel:
         asm += f'    # Linkage: {Symbol.STB_STR[self.linkage]}\n'
         asm += f'    # Registers: {self.reg_count}\n'
         asm += f'    # Barriers: {self.bar_count}\n'
-        asm += f'    # Size: {self.section.sh_size}\n'
+        if self.section:
+            asm += f'    # Size: {self.section.sh_size}\n'
         asm += f'    # Constant0: {self.constant0_size}\n'
         asm += f'    # min_stack_size: {self.min_stack_size}, max_stack_size: {self.max_stack_size}\n'
         if self.instrs and self.coop_group_instr_offsets:
@@ -246,8 +247,11 @@ class Kernel:
         asm = ''
         if instr['label']:
             asm += f"{instr['label']}:\n"
-        asm += f"    /*{instr['addr']}*/  {instr['ctrl']} {print_instr(instr):<56s} /* {instr['code']} */ " \
-               f"# {print_reuse(instr['reuse'])}"
+        if 'addr' in instr:
+            asm += f"    /*{instr['addr']}*/  {instr['ctrl']} {print_instr(instr):<56s} /* {instr['code']} */ " \
+                   f"# {print_reuse(instr['reuse'])}"
+        else:
+            asm += f"    {instr['ctrl']} {print_instr(instr):<56s} # {print_reuse(instr['reuse'])}"
         return asm
 
     def print_asm(self):
@@ -978,8 +982,9 @@ class Kernel:
                     for j, (ct, c) in enumerate(zip(decode_ctrls(ctrl_test), decode_ctrls(ctrl))):
                         instr = instr_group[j]['op'] + instr_group[j]['rest']
                         print(f'    /*{i * 0x20 + j * 0x8 + 0x8:x}*/ {instr}')
-                        print(f'    ✓ {print_reuse(ct["reuse"])} {print_ctrl(ct)} {ctrl_test>>((21*j)&0x1ffff):#08x}')
-                        print(f'    ✕ {print_reuse(c["reuse"])} {print_ctrl(c)} {ctrl((21*j)&0x1ffff):#08x}')
+                        print(f'    ✓ {print_reuse(ct["reuse"])} {print_ctrl(ct)} '
+                              f'{ctrl_test >> ((21 * j) & 0x1ffff):#08x}')
+                        print(f'    ✕ {print_reuse(c["reuse"])} {print_ctrl(c)} {ctrl((21 * j) & 0x1ffff):#08x}')
                     return b''
                 for j, (src, dst) in enumerate(zip(codes_test[i][1:], codes[-3:])):
                     if src != dst:
@@ -1169,6 +1174,11 @@ class Kernel:
             self.instrs = schedule_61(self.instrs)
         else:
             self.instrs = schedule_75(self.instrs)
+
+        if not self.rel_map:
+            for rel in self.rels:
+                line_num = addr2line_num(rel.r_offset, self.arch)
+                self.rel_map[line_num] = rel
 
         # update line_num and global Relocation
         for i, instr in enumerate(self.instrs):
