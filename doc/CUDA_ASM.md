@@ -230,3 +230,15 @@ R2P PR, a, b;
 ; c = a&b;
 ; if (c>>n)&1: %pn = True
 ```
+
+## IMNMX
+
+min max函数
+
+```gas
+IMNMX.U32 d, a, b, PT;
+; d = min(a, b)
+IMNMX.U32 d, a, b, !PT;
+; d = max(a, b)
+```
+

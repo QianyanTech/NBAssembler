@@ -4,11 +4,11 @@
 
 .global: result
     .align 4
-    .zero 1024
+    .zero {1024*1024}
 
 .global: duration
     .align 4
-    .zero 1024
+    .zero {1024*1024}
 
 .kernel: kTest
     .max_registers 255
@@ -20,9 +20,26 @@
     -:--:-:-:Y:5    MOV R3, UR6;
     -:01:-:-:Y:a    IMAD.WIDE.U32 R2, R5, 0x4, R2;
     -:--:-:-:-:1    S2UR UR4, SR_CLOCKLO;
+
+    // -:--:-:-:-:1    CS2R.32 R0, SR_CLOCKLO;
+    
+    -:--:-:-:-:4    IMNMX.U32 R7, RZ, 0x4, !PT;
+    // -:--:-:-:-:4    MOV R7, 0x4;
+    // -:--:-:-:-:4    IADD3 R7, RZ, 0x4, RZ;
+    // -:--:-:-:-:5    IMAD.MOV.U32 R7, RZ, RZ, 0x4;
+
+    -:--:-:-:-:1    IMNMX.U32 R8, R7, 0xff, PT;
+    // -:--:-:-:-:2    MOV R8, R7;
+    // -:--:-:-:-:1    IADD3 R8, R7, RZ, RZ;
+    // -:--:-:-:-:1    IMAD.MOV.U32 R8, RZ, RZ, R7;
+    
+    // -:--:-:-:-:5    IMNMX.U32 R7, RZ, 0x3, !PT;
+    // -:--:-:-:-:5    MOV R7, 0x3;
+    // -:--:-:-:-:5    IADD3 R7, RZ, 0x3, RZ;
     -:--:-:-:-:5    IMAD.MOV.U32 R7, RZ, RZ, 0x3;
-    -:--:-:-:-:1    STG.E.SYS [R2], R7;
+
     -:--:-:-:-:1    CS2R.32 R0, SR_CLOCKLO;
+    -:--:-:-:-:1    STG.E.SYS [R2], R8;
     -:--:-:-:-:5    BAR.SYNC 0x0;
     -:--:-:-:-:2    UMOV UR5, 32@lo(duration);
     -:--:-:-:-:1    UMOV UR6, 32@hi(duration);

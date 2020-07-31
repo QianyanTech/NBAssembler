@@ -6,7 +6,7 @@ import pycuda.tools
 import pycuda.autoinit
 import numpy as np
 
-THREADS = 256
+THREADS = 128
 
 mod = drv.module_from_file('test.cubin')
 kernel = mod.get_function("kTest")
@@ -25,7 +25,7 @@ kernel(block=(THREADS, 1, 1))
 drv.memcpy_dtoh(result, result_gpu)
 drv.memcpy_dtoh(duration, duration_gpu)
 print(f'Result = {np.unique(result)}')
-print(f'Duration = {np.mean(duration)}')
+print(f'Duration = {np.mean(duration)} (min={np.min(duration)} max={np.max(duration)})')
 
 
 # from graphviz import Digraph

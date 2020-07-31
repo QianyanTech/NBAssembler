@@ -27,7 +27,7 @@ def process_python_code(str_, define_dict):
             exec(source, define_dict)
             out_ = define_dict['out']
         else:
-            out_ = eval(source, define_dict)
+            out_ = f'{eval(source, define_dict)}'
         return out_
 
     str_ = re.sub(PYTHON_RE, run_python_code, str_)
@@ -375,8 +375,12 @@ qtr_t = {'class': 'qtr', 'lat': 8, 'blat': 0, 'rlat': 4, 'rhold': 0, 'tput': 1, 
 rro_t = {'class': 'rro', 'lat': 2, 'blat': 0, 'rlat': 0, 'rhold': 0, 'tput': 1, 'dual': 0, 'reuse': 0}
 vote_t = {'class': 'vote', 'lat': 2, 'blat': 0, 'rlat': 0, 'rhold': 0, 'tput': 1, 'dual': 0, 'reuse': 0}
 
+# 写后读：不同组指令5周期，相同组指令4周期
+# 读后写：不同组指令1周期，相同组指令2周期
+# group_1: MOV, IADD3, IMNMX
+# group_2: IMAD
 instr_type_75 = {
-    'x32': {'lat': 5, 'reuse_flag': 1, 'rlat': 0, 'tput': 1},
+    'x32': {'lat': 5, 'reuse_flag': True, 'rlat': 0, 'tput': 1},
 }
 
 grammar_61 = {
