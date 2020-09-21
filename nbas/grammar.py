@@ -871,7 +871,9 @@ grammar_75 = {
 
     # Integer Instructions
     'BMMA': [],  # Bit Matrix Multiply and Accumulate
-    'BMSK': [],  # Bitfield Mask
+    'BMSK': [  # Bitfield Mask
+        {'type': 'x32', 'code': 0x21b, 'rule': rf'BMSK{tw} {r16}, {r24}, {r32};'},
+    ],
     'BREV': [],  # Bit Reverse
     'FLO': [  # Find Leading One
         {'type': 'x32', 'code': 0x300, 'rule': rf'FLO{u32}{tsh} {r16}, ({p81}, )?{r32};'},
@@ -1918,7 +1920,7 @@ SHF, USHF: type
 SHF, USHF, LEA: HI
 0x00000000000100000000000000000000 .HI
 
-SHF, USHF, SGXT: W
+SHF, USHF, SGXT, BMSK: W
 0x00000000000008000000000000000000 .W
 
 SHF, USHF: lr
