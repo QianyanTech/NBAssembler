@@ -322,6 +322,7 @@ atom = fr'(?P<E>\.E)?(?:\.(?P<mode>ADD|MIN|MAX|INC|DEC|AND|OR|XOR|EXCH|CAS))' \
        fr'(?P<type>|\.S32|\.U64|\.F(?:16x2|32)\.FTZ\.RN|\.S64|\.64)'
 sr = fr'(?P<sr>SR\S+)'
 shf = fr'(?P<W>\.W)?(?:\.(?P<type>U64|S64))?(?P<HI>\.HI)?'
+imul = fr'\.(?P<type1>U32|S32)\.(?P<type2>U32|S32)(?P<HI>\.HI)?'
 mem_cache = fr'(?P<E>\.E)?(?P<U>\.U)?(?:\.(?P<cache>CG|CI|CS|CV|IL|WT|LU))?'
 mem_type = fr'(?:\.(?P<type>U8|S8|U16|S16|32|64|128))?'
 rnd = fr'(?:\.(?P<rnd>RN|RM|RP|RZ))?'
@@ -451,7 +452,9 @@ grammar_61 = {
         {'type': shft_t, 'code': 0x5c21000000000000, 'rule': rf'IMNMX{u32}{hilo} {r0}, {r8}, {r20}, {p39};'}
     ],  # max min
     'IMUL': [],  # Integer Multiply
-    'IMUL32I': [],  # Integer Multiply
+    'IMUL32I': [
+        {'type': qtr_t, 'code': 0x1f00000000000000, 'rule': rf'IMUL32I{imul} {r0}, {r8}, {i20w32};'}
+    ],  # Integer Multiply
     'ISCADD': [  # Scaled Integer Addition
         {'type': shft_t, 'code': 0x3818000000000000, 'rule': rf'ISCADD {r0}, {r8}, {i20}, {i39w5};'},
         {'type': shft_t, 'code': 0x4c18000000000000, 'rule': rf'ISCADD {r0}, {r8}, {c20}, {i39w5};'},
@@ -491,7 +494,7 @@ grammar_61 = {
          'rule': rf'LOP{bool_}{X}{lopz}? {r0}, (?P<INV8>~)?{r8}, (?P<INV>~)?{r20};'}
     ],  # and or xor not
     'LOP3': [  # 3-input Logic Operation
-        {'type': x32_t, 'code': 0x5be7000000000000, 'rule': rf'LOP3\.LUT {r0}, {r8}, {r20}, {r39}, {i28w8};'},
+        {'type': x32_t, 'code': 0x5be7000000000000, 'rule': rf'LOP3\.LUT(?P<NZ>\.NZ)?( {p48q},)? {r0}, {r8}, {r20}, {r39}, {i28w8};'},
         {'type': x32_t, 'code': 0x3c00000000000000, 'rule': rf'LOP3\.LUT {r0}, {r8}, {i20}, {r39}, {i48w8};'},
         {'type': x32_t, 'code': 0x0200000000000000, 'rule': rf'LOP3\.LUT {r0}, {r8}, {c20}, {r39}, {i48w8};'}
     ],  # lop3
@@ -1317,6 +1320,9 @@ MUFU: func
 FLO, IMNMX, SEL, BFI, ICMP, BFE, ISCADD, SHL, SHR, LEA, SHF, IADD, IADD3, ISET, ISETP, LOP, MOV, XMAD, LOP3: neg
 0x0100000000000000 -
 
+LOP3: NZ
+0x0000003000000000 .NZ
+
 LEA: neg37
 0x0000001000000000 -
 
@@ -1383,6 +1389,9 @@ SHF: W
 
 SHF: HI
 0x0001000000000000 .HI
+
+IMUL32I: HI
+0x0020000000000000 .HI
 
 SHF: type
 0x0000004000000000 U64
