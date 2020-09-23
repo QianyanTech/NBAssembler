@@ -451,6 +451,7 @@ grammar_61 = {
         {'type': shft_t, 'code': 0x5c21000000000000, 'rule': rf'IMNMX{u32}{hilo} {r0}, {r8}, {r20}, {p39};'}
     ],  # max min
     'IMUL': [],  # Integer Multiply
+    'IMUL32I': [],  # Integer Multiply
     'ISCADD': [  # Scaled Integer Addition
         {'type': shft_t, 'code': 0x3818000000000000, 'rule': rf'ISCADD {r0}, {r8}, {i20}, {i39w5};'},
         {'type': shft_t, 'code': 0x4c18000000000000, 'rule': rf'ISCADD {r0}, {r8}, {c20}, {i39w5};'},

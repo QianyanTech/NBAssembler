@@ -4,14 +4,14 @@
 
 import argparse
 
-from nbas.cubin import Cubin, Symbol, strip_space, strip_comment
+from nbas.cubin import Cubin, strip_space, strip_comment
 from nbas.kernel import Kernel
 from nbas.tool import detect
 
 
-def list_cubin(cubin_path, kernel_name):
+def list_cubin(cubin_path, kernel_name, global_only):
     cubin = Cubin()
-    cubin.load(cubin_path)
+    cubin.load(cubin_path, global_only)
     print(cubin.header.print())
 
     if kernel_name:
@@ -29,8 +29,8 @@ def list_cubin(cubin_path, kernel_name):
         for constant in cubin.constant_dict.values():
             print(f'    {constant.name.decode()}, Align:{constant.align}, Size:{constant.size}')
     for kernel in kernels:
-        if Symbol.STB_STR[kernel.linkage] != 'GLOBAL':
-            continue
+        # if Symbol.STB_STR[kernel.linkage] != 'GLOBAL':
+        #     continue
         if kernel.constant2:
             print('Constant:')
             name = kernel.constant2.name.decode()
@@ -40,9 +40,9 @@ def list_cubin(cubin_path, kernel_name):
         print(kernel.print_meta())
 
 
-def disassemble(cubin_path, kernel_names, asm_path, strip):
+def disassemble(cubin_path, kernel_names, asm_path, strip, global_only):
     cubin = Cubin()
-    cubin.load(cubin_path)
+    cubin.load(cubin_path, global_only)
     # 输出各种元信息
     header_asm = cubin.header.print() + '\n'
     global_asm = ''
@@ -64,8 +64,8 @@ def disassemble(cubin_path, kernel_names, asm_path, strip):
     consts = set()
     globals_ = set()
     for kernel in kernels:
-        if Symbol.STB_STR[kernel.linkage] != 'GLOBAL':
-            continue
+        # if Symbol.STB_STR[kernel.linkage] != 'GLOBAL':
+        #     continue
         kernel.disassemble()
         # kernel.schedule()
         # kernel.sort_banks()
@@ -234,11 +234,11 @@ def preprocess(asm_path, out_asm_path, define_list, strip):
         print(asm, end='')
 
 
-def test_cubin(cubin_path, kernel_names, check=False):
+def test_cubin(cubin_path, kernel_names, global_only, check=False):
     cubin = Cubin()
     cubin_new = Cubin()
 
-    cubin.load(cubin_path)
+    cubin.load(cubin_path, global_only)
 
     # header
     header_asm = cubin.header.print()
@@ -344,12 +344,14 @@ def main():
     parser_list = subparsers.add_parser('list', help='list cubin info')
     parser_list.add_argument('cubin', help='input cubin', metavar='CUBIN')
     parser_list.add_argument('-k', '--kernel', metavar='KERNEL', type=str, default='', help='kernel name')
+    parser_list.add_argument('-g', '--global_only', action='store_true', help='ignore non global FUNC')
 
     parser_das = subparsers.add_parser('das', help='disassemble cubin')
     parser_das.add_argument('cubin', help='input cubin', metavar='CUBIN')
     parser_das.add_argument('-k', '--kernels', metavar='KERNELS', nargs='+', type=str, default='', help='kernel names')
     parser_das.add_argument('-o', '--output', metavar='OUTPUT', type=str, default='', help='output asm file path')
     parser_das.add_argument('-s', '--strip', action='store_true', help='strip comment')
+    parser_das.add_argument('-g', '--global_only', action='store_true', help='ignore non global FUNC')
 
     parser_as = subparsers.add_parser('as', help='assemble asm')
     parser_as.add_argument('asm', help='input asm', metavar='ASM')
@@ -374,6 +376,7 @@ def main():
     parser_test.add_argument('cubin', help='input cubin', metavar='CUBIN')
     parser_test.add_argument('-c', '--check', action='store_true', help='Detect register bank conflicts')
     parser_test.add_argument('-k', '--kernels', metavar='KERNELS', nargs='+', type=str, default='', help='kernel names')
+    parser_test.add_argument('-g', '--global_only', action='store_true', help='ignore non global FUNC')
 
     parser_detect = subparsers.add_parser('detect', help='detect machine code bits')
     parser_detect.add_argument('code', help='input code', metavar='CODE')
@@ -383,9 +386,10 @@ def main():
     args = parser.parse_args()
 
     if args.cmd == 'list':
-        list_cubin(cubin_path=args.cubin, kernel_name=args.kernel.encode())
+        list_cubin(cubin_path=args.cubin, kernel_name=args.kernel.encode(), global_only=args.global_only)
     elif args.cmd == 'das':
-        disassemble(cubin_path=args.cubin, kernel_names=args.kernels, asm_path=args.output, strip=args.strip)
+        disassemble(cubin_path=args.cubin, kernel_names=args.kernels, asm_path=args.output, strip=args.strip,
+                    global_only=args.global_only)
     elif args.cmd == 'as':
         assemble(asm_path=args.asm, out_cubin_path=args.output, define_list=args.define)
     elif args.cmd == 'pre':
@@ -393,7 +397,7 @@ def main():
     # elif args.cmd == 'ptxdas':
     #     disassemble_ptx(asm_path=args.asm, ptx_path=args.output)
     elif args.cmd == 'test':
-        test_cubin(cubin_path=args.cubin, kernel_names=args.kernels, check=args.check)
+        test_cubin(cubin_path=args.cubin, kernel_names=args.kernels, global_only=args.global_only, check=args.check)
     elif args.cmd == 'detect':
         code = args.code
         begin, end = args.range

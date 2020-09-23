@@ -33,7 +33,7 @@ class Cubin(ELF):
         msg += f', kernels:{[n.decode() for n in self.kernel_dict.keys()]}'
         return msg
 
-    def load(self, path):
+    def load(self, path, global_only=False):
         super().load(path)
 
         self.arch = self.header.arch
@@ -42,7 +42,7 @@ class Cubin(ELF):
             section = self.sections[symbol.st_shndx]
 
             # Look for symbols tagged FUNC
-            if symbol.type == Symbol.STT_VAL['FUNC'] and symbol.bind == Symbol.STB_VAL['GLOBAL']:
+            if symbol.type == Symbol.STT_VAL['FUNC'] and (symbol.bind == Symbol.STB_VAL['GLOBAL'] or (not global_only)):
                 # create kernel dict
                 kernel = Kernel()
                 kernel.section = section
