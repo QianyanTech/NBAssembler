@@ -967,6 +967,7 @@ grammar_75 = {
         {'type': 'x32', 'code': 0x619, 'rule': rf'SHF{tshf_lr}{tw}{tshf_type} {r16}, {r24}, {r64re2}, {c40};'},
         {'type': 'x32', 'code': 0x819, 'rule': rf'SHF{tshf_lr}{tw}{tshf_type} {r16}, {r24}, {i32}, {r64};'},
         {'type': 'x32', 'code': 0xa19, 'rule': rf'SHF{tshf_lr}{tw}{tshf_type} {r16}, {r24}, {c40}, {r64};'},
+        {'type': 'x32', 'code': 0xc19, 'rule': rf'SHF{tshf_lr}{tw}{tshf_type} {r16}, {r24}, {ur32}, {r64};'},
     ],
     'SHL': [],  # Shift Left
     'SHR': [],  # Shift Right
@@ -1167,6 +1168,7 @@ grammar_75 = {
     ],
     'USGXT': [],  # Uniform Sign Extend
     'USHF': [  # Uniform Funnel Shift
+        {'type': 'x32', 'code': 0x299, 'rule': rf'USHF{tshf_lr}{tw}{tshf_type} {ur16}, {ur24}, {ur32}, {ur64};'},
         {'type': 'x32', 'code': 0x899, 'rule': rf'USHF{tshf_lr}{tw}{tshf_type} {ur16}, {ur24}, {i32}, {ur64};'},
     ],
     'USHL': [],  # Uniform Left Shift
@@ -2406,7 +2408,7 @@ UIADD3: ur24neg
 0x00000000000001000000000000000000 -
 0x00000000000001000000000000000000 ~
 
-SEL, LDG, LD, LDS, LDL, IMAD, UIMAD, IADD3, FLO, UFLO, POPC, UPOPC, LOP3, LEA, ISETP, MOV, UMOV: ur32
+SEL, LDG, LD, LDS, LDL, IMAD, UIMAD, IADD3, FLO, UFLO, POPC, UPOPC, LOP3, LEA, ISETP, MOV, UMOV, SHF: ur32
 0x00000000080000000000000000000000 ALL
 
 IADD3, UIADD3, FLO, UFLO, UPOPC, POPC: ur32neg

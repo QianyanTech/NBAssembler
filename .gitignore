@@ -34,3 +34,4 @@ kernels_ptx/
 
 kernels_cubin/
 *.ipynb
+*.pkg.tar.zst
