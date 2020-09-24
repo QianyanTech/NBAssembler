@@ -85,6 +85,7 @@ class Kernel:
         'COOP_GROUP_INSTR_OFFSETS': b'\x04\x28',
         'INT_WARP_WIDE_INSTR_OFFSETS': b'\x04\x31',
         'INDIRECT_BRANCH_TARGETS': b'\x04\x34',  # CUDA 11.0新出现的，记录了SYNC, BRX BRA指令的跳转地址
+        'SW_WAR': b'\x04\x36',  # CUDA 11.1新出现的, 不知道干啥的
         'CUDA_API_VERSION': b'\x04\x37',  # CUDA 11.1新出现的，CUDA版本 0x6F = 111
     }
     EIATTR_STR = {val: key for (key, val) in EIATTR.items()}
@@ -177,7 +178,8 @@ class Kernel:
         self.instrs = []
         self.binary = b''
         self.arch = 61
-        self.cuda_api_version = 111
+        self.cuda_api_version = 0
+        self.sw_war = 0
 
         self.section = None
         self.shared_section = None
@@ -577,6 +579,8 @@ class Kernel:
                         print(f'Warning: unknow INDIRECT_BRANCH_TARGETS: {self.indirect_branch_targets[-1]}')
             elif code == self.EIATTR['CUDA_API_VERSION']:
                 self.cuda_api_version = unpack(f'I', self.info_section.data[offset:offset + size])[0]
+            elif code == self.EIATTR['SW_WAR']:
+                self.sw_war = unpack(f'I', self.info_section.data[offset:offset + size])[0]
             else:
                 print(f'Warning: unknow param code: {code.hex()}, size: {size}, '
                       f'data: {self.info_section.data[offset:offset + size].hex()}.')
@@ -675,6 +679,16 @@ class Kernel:
                 size += 12 + c * 4
             data += pack('<2sH', code, size)
             data += tmp_data
+
+        if self.sw_war:
+            code = self.EIATTR['SW_WAR']
+            size = 4
+            data += pack('<2sHI', code, size, self.sw_war)
+
+        if self.cuda_api_version:
+            code = self.EIATTR['CUDA_API_VERSION']
+            size = 4
+            data += pack('<2sHI', code, size, self.cuda_api_version)
 
         self.info_section.data = data
         self.info_section.sh_size = len(data)
