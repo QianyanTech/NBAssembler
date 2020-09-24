@@ -352,7 +352,7 @@ class Cubin(ELF):
         section.sh_name = self.add_sh_str(section.name)
         section.sh_addralign = 4
         section.sh_link = 3
-        section.sh_type = Section.SHT_VAL['NV_INFO']
+        section.sh_type = Section.SHT_VAL['CUDA_INFO']
         self.info_section = section
         self.sections.append(section)
 

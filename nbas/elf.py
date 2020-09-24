@@ -180,7 +180,9 @@ class Header:
 
 
 class Section:
-    SHT_STR = {0: 'NULL', 1: 'PROGBITS', 2: 'SYMTAB', 3: 'STRTAB', 8: 'NOBITS', 9: 'REL', 0x70000000: 'NV_INFO'}
+    SHT_STR = {0: 'NULL', 1: 'PROGBITS', 2: 'SYMTAB', 3: 'STRTAB', 8: 'NOBITS', 9: 'REL', 0x70000000: 'CUDA_INFO',
+               0x7000000B: 'CUDA_RELOCINFO'}
+    # todo: CUDA_RELOCINFO
     SHT_VAL = {val: key for (key, val) in SHT_STR.items()}
     SHF_STR = {1: 'W', 2: 'A', 4: 'X'}
     SHF_VAL = {val: key for (key, val) in SHF_STR.items()}
@@ -250,7 +252,7 @@ class Section:
             src_data = self.data
             dst_data = other.data
 
-        # if self.SHT_STR[self.sh_type] in ['STRTAB', 'SYMTAB', 'NV_INFO']:
+        # if self.SHT_STR[self.sh_type] in ['STRTAB', 'SYMTAB', 'CUDA_INFO']:
         if self.SHT_STR[self.sh_type] == 'STRTAB':
             src_size = 0
             dst_size = 0

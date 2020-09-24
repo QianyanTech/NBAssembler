@@ -85,6 +85,7 @@ class Kernel:
         'COOP_GROUP_INSTR_OFFSETS': b'\x04\x28',
         'INT_WARP_WIDE_INSTR_OFFSETS': b'\x04\x31',
         'INDIRECT_BRANCH_TARGETS': b'\x04\x34',  # CUDA 11.0新出现的，记录了SYNC, BRX BRA指令的跳转地址
+        'CUDA_API_VERSION': b'\x04\x37',  # CUDA 11.1新出现的，CUDA版本 0x6F = 111
     }
     EIATTR_STR = {val: key for (key, val) in EIATTR.items()}
 
@@ -176,6 +177,7 @@ class Kernel:
         self.instrs = []
         self.binary = b''
         self.arch = 61
+        self.cuda_api_version = 111
 
         self.section = None
         self.shared_section = None
@@ -573,6 +575,8 @@ class Kernel:
                     off += 12 + c * 4
                     if self.indirect_branch_targets[-1][1:3] != [0, 0]:
                         print(f'Warning: unknow INDIRECT_BRANCH_TARGETS: {self.indirect_branch_targets[-1]}')
+            elif code == self.EIATTR['CUDA_API_VERSION']:
+                self.cuda_api_version = unpack(f'I', self.info_section.data[offset:offset + size])[0]
             else:
                 print(f'Warning: unknow param code: {code.hex()}, size: {size}, '
                       f'data: {self.info_section.data[offset:offset + size].hex()}.')
@@ -1249,7 +1253,7 @@ class Kernel:
         info_section.name = b'.nv.info.' + self.name
         info_section.sh_addralign = 4
         info_section.sh_link = 3
-        info_section.sh_type = Section.SHT_VAL['NV_INFO']
+        info_section.sh_type = Section.SHT_VAL['CUDA_INFO']
         self.info_section = info_section
 
     def gen_rels(self, symbol_dict):

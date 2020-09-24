@@ -19,7 +19,7 @@ Volta (SM70, SM72)
 
 Turing (SM75)
 
-Ampere (SM80)
+Ampere (SM80, SM86)
 
 
 ## Install
