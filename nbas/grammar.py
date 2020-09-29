@@ -1,5 +1,5 @@
-import re
 import os
+import re
 
 
 # include nested files
@@ -321,6 +321,7 @@ p58 = fr'(?P<p58>{P})'
 atom = fr'(?P<E>\.E)?(?:\.(?P<mode>ADD|MIN|MAX|INC|DEC|AND|OR|XOR|EXCH|CAS))' \
        fr'(?P<type>|\.S32|\.U64|\.F(?:16x2|32)\.FTZ\.RN|\.S64|\.64)'
 sr = fr'(?P<sr>SR\S+)'
+nz = rf'(?P<NZ>\.NZ)'
 shf = fr'(?P<W>\.W)?(?:\.(?P<type>U64|S64))?(?P<HI>\.HI)?'
 imul = fr'\.(?P<type1>U32|S32)\.(?P<type2>U32|S32)(?P<HI>\.HI)?'
 mem_cache = fr'(?P<E>\.E)?(?P<U>\.U)?(?:\.(?P<cache>CG|CI|CS|CV|IL|WT|LU))?'
@@ -494,7 +495,8 @@ grammar_61 = {
          'rule': rf'LOP{bool_}{X}{lopz}? {r0}, (?P<INV8>~)?{r8}, (?P<INV>~)?{r20};'}
     ],  # and or xor not
     'LOP3': [  # 3-input Logic Operation
-        {'type': x32_t, 'code': 0x5be7000000000000, 'rule': rf'LOP3\.LUT(?P<NZ>\.NZ)?( {p48q},)? {r0}, {r8}, {r20}, {r39}, {i28w8};'},
+        {'type': x32_t, 'code': 0x5be7000000000000,
+         'rule': rf'LOP3\.LUT{nz}?( {p48q},)? {r0}, {r8}, {r20}, {r39}, {i28w8};'},
         {'type': x32_t, 'code': 0x3c00000000000000, 'rule': rf'LOP3\.LUT {r0}, {r8}, {i20}, {r39}, {i48w8};'},
         {'type': x32_t, 'code': 0x0200000000000000, 'rule': rf'LOP3\.LUT {r0}, {r8}, {c20}, {r39}, {i48w8};'}
     ],  # lop3
