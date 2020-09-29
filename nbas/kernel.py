@@ -1099,6 +1099,11 @@ class Kernel:
             if test_binary:
                 code_test = codes_test[i]
                 ctrl_test = (code_test >> 105) & 0x1fffff
+                if self.arch >= 80:
+                    if op == 'LDG':
+                        code_test &= 0xffffffffffffffffffffffc0ffffffff
+                    elif op in ['STG', 'ATOMG']:
+                        code_test &= 0xffffffffffffffc0ffffffffffffffff
                 if code != code_test:
                     if ctrl != ctrl_test:
                         c = decode_ctrl(ctrl)
@@ -1109,7 +1114,6 @@ class Kernel:
                     print(f'Assemble failed: /*{i * 0x10:x}*/ {print_instr(instr)}')
                     print(f'    ✓ {code_test:#034x}')
                     print(f'    ✕ {code:#034x}')
-                    # todo: sm80+ LDG STG等指令UR某些位需要忽略
                     return b''
         if bar_set:
             self.bar_count = max(bar_set) + 1
