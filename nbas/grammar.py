@@ -1003,6 +1003,7 @@ grammar_75 = {
     'MOVM': [],  # Move Matrix with Transposition or Expansion
     'PRMT': [  # Permute Register Pair
         {'type': 'x32', 'code': 0x216, 'rule': rf'PRMT{tprmt} {r16}, {r24}, {r32}, {r64};'},
+        {'type': 'x32', 'code': 0x616, 'rule': rf'PRMT{tprmt} {r16}, {r24}, {r64}, {c40};'},
         {'type': 'x32', 'code': 0x816, 'rule': rf'PRMT{tprmt} {r16}, {r24}, {i32}, {r64};'},
     ],
     'SEL': [  # Select Source with Predicate
