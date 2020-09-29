@@ -32,7 +32,7 @@ def detect(code, begin, end, arch, tmp_file='temp.bin'):
         code |= ctrl << 105
         code |= 0x7000
 
-    codes = [{'code': code, 'info': 'O---'}]
+    codes = [{'code': code, 'info': 'O ----------'}]
 
     length = end - begin
     mask = ((1 << length) - 1) << begin
@@ -41,10 +41,10 @@ def detect(code, begin, end, arch, tmp_file='temp.bin'):
             # ignore Preg
             if (arch < 70 and 16 <= i < 20) or (arch >= 70 and 12 <= i < 16):
                 continue
-            codes.append({'code': code ^ (1 << i), 'info': f'B{i:#4d}'})
+            codes.append({'code': code ^ (1 << i), 'info': f'B{i:#10d}'})
     elif length > 0:
         for i in range(1 << length):
-            codes.append({'code': code & (~mask) | i << begin, 'info': f'N{i:#4d}'})
+            codes.append({'code': code & (~mask) | i << begin, 'info': f'N {i:#010b}'})
 
     for i, line in enumerate(codes):
         code = line['code']

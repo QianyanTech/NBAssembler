@@ -771,8 +771,8 @@ p64q = fr'(?P<p64qnot>\!)?(?P<p64>{P})'
 
 addr24 = fr'\[(?:(?P<r24>{reg})(?P<r24x>\.X(4|8|16))?)?(?:\s*\+?\s*{i40w24})?\]'
 addr32 = fr'\[(?:(?P<r24>{reg})(?P<r24x>\.X(4|8|16))?)?(?:\s*\+?\s*{i32w32})?\]'
-uaddr32 = fr'\[(?:(?P<r24>{reg})(?P<r24x>\.X(4|8|16))?(?P<r24type>\.64|\.U32)?)?' \
-          rf'(?:\s*\+?\s*(?P<ur32>{ureg}))?(?:\s*\+?\s*{i40w24})?\]'
+uaddr32 = fr'(?P<uaddr32>\[(?:(?P<r24>{reg})(?P<r24x>\.X(4|8|16))?(?P<r24type>\.64|\.U32)?)?' \
+          rf'(?:\s*\+?\s*(?P<ur32>{ureg}))?(?:\s*\+?\s*{i40w24})?\])'
 uaddr64 = fr'\[(?:(?P<r24>{reg})(?P<r24type>\.64|\.U32)?)?(?:\s*\+?\s*(?P<ur64>{ureg}))?(?:\s*\+?\s*{i40w24})?\]'
 tldc = rf'c\[(?P<c54>{hexx})\]\s*\[(?P<r24>{reg})?(?:\s*\+?\s*{i38w16})?\]'
 
@@ -787,11 +787,12 @@ tu = fr'(?P<U>\.U)?'
 tmem_ltc = fr'(?P<ltc>\.LTC(64|128)B)?'
 tmem_type = fr'(?P<type>\.U8|\.S8|\.U16|\.S16|\.64|\.128|\.U\.128)?'
 tmem_cache = fr'(?P<cache>\.EF|\.EL|\.LU|\.EU|\.NA)?'
-tmem_scope = fr'(?P<scope>\.CTA|\.SM|\.GPU|\.SYS)?'
+tmem_scope = fr'(?P<scope>\.CTA|\.SM|\.GPU|\.SYS|\.VC)?'
 tmem_const = fr'(?P<const>\.CONSTANT|\.STRONG|\.MMIO)?'
 
 tprivate = rf'(?P<PRIVATE>\.PRIVATE)?'
 tzd = rf'(?P<ZD>\.ZD)?'
+tmem_scopes = rf'(?P<scopes>{tmem_const}{tmem_scope}{tprivate})?'
 
 tbmov = rf'\.32(?P<CLEAR>\.CLEAR)?'
 
@@ -1038,7 +1039,7 @@ grammar_75 = {
     # Load/Store Instructions
     'LD': [  # Load from generic Memory
         {'type': 'x32', 'code': 0x980,
-         'rule': rf'LD{te}{tmem_cache}{tmem_ltc}{tmem_type}{tmem_const}{tmem_scope}{tprivate}{tzd}'
+         'rule': rf'LD{te}{tmem_cache}{tmem_ltc}{tmem_type}{tmem_scopes}{tzd}'
                  rf' ({p81}, )?{r16}, {addr32}(, {p64q})?;'},
     ],
     'LDC': [  # Load Constant
@@ -1047,10 +1048,10 @@ grammar_75 = {
     ],
     'LDG': [  # Load from Global Memory
         {'type': 'x32', 'code': 0x381,
-         'rule': rf'LDG{te}{tmem_cache}{tmem_ltc}{tmem_type}{tmem_const}{tmem_scope}{tprivate}{tzd}'
+         'rule': rf'LDG{te}{tmem_cache}{tmem_ltc}{tmem_type}{tmem_scopes}{tzd}'
                  rf' ({p81}, )?{r16}, {addr24}(, {p64q})?;'},
         {'type': 'x32', 'code': 0x981,
-         'rule': rf'LDG{te}{tmem_cache}{tmem_ltc}{tmem_type}{tmem_const}{tmem_scope}{tprivate}{tzd}'
+         'rule': rf'LDG{te}{tmem_cache}{tmem_ltc}{tmem_type}{tmem_scopes}{tzd}'
                  rf' ({p81}, )?{r16}, {uaddr32}(, {p64q})?;'},
     ],
     'LDGDEPBAR': [],  # Global Load Dependency Barrier
@@ -1066,15 +1067,15 @@ grammar_75 = {
     'LDSM': [],  # Load Matrix from Shared Memory with Element Size Expansion
     'ST': [
         {'type': 'x32', 'code': 0x385,
-         'rule': rf'ST{te}{tmem_cache}{tmem_type}{tmem_const}{tmem_scope}{tprivate}{tzd}'
+         'rule': rf'ST{te}{tmem_cache}{tmem_type}{tmem_scopes}{tzd}'
                  rf' {addr32}, {r64};'},
     ],  # Store to Generic Memory
     'STG': [  # Store to Global Memory
         {'type': 'x32', 'code': 0x386,
-         'rule': rf'STG{te}{tmem_cache}{tmem_type}{tmem_const}{tmem_scope}{tprivate}{tzd}'
+         'rule': rf'STG{te}{tmem_cache}{tmem_type}{tmem_scopes}{tzd}'
                  rf' {addr24}, {r32};'},
         {'type': 'x32', 'code': 0x986,
-         'rule': rf'STG{te}{tmem_cache}{tmem_type}{tmem_const}{tmem_scope}{tprivate}{tzd}'
+         'rule': rf'STG{te}{tmem_cache}{tmem_type}{tmem_scopes}{tzd}'
                  rf' {uaddr64}, {r32};'},
     ],
     'STL': [  # Store within Local or Shared Window
@@ -1089,7 +1090,7 @@ grammar_75 = {
     'QSPC': [],  # Query Space
     'ATOM': [
         {'type': 'x32', 'code': 0x38a,
-         'rule': rf'ATOM{te}{tatom_op}{tmem_cache}{tmem_type}{tmem_const}{tmem_scope}{tprivate}'
+         'rule': rf'ATOM{te}{tatom_op}{tmem_cache}{tmem_type}{tmem_scopes}'
                  rf' ({p81}, )?{r16}, {addr24}, {r32}(, {r64})?;'},
     ],  # Atomic Operation on Generic Memory
     'ATOMS': [  # Atomic Operation on Shared Memory
@@ -1098,10 +1099,10 @@ grammar_75 = {
     ],
     'ATOMG': [  # Atomic Operation on Global Memory
         {'type': 'x32', 'code': 0x3a8,
-         'rule': rf'ATOMG{te}{tatom_op}{tmem_cache}{tmem_type}{tmem_const}{tmem_scope}{tprivate}'
+         'rule': rf'ATOMG{te}{tatom_op}{tmem_cache}{tmem_type}{tmem_scopes}'
                  rf' ({p81}, )?{r16}, {addr24}, {r32}(, {r64})?;'},
         {'type': 'x32', 'code': 0x9a8,
-         'rule': rf'ATOMG{te}{tatom_op}{tmem_cache}{tmem_type}{tmem_const}{tmem_scope}{tprivate}'
+         'rule': rf'ATOMG{te}{tatom_op}{tmem_cache}{tmem_type}{tmem_scopes}'
                  rf' ({p81}, )?{r16}, {uaddr64}, {r32};'},
     ],
     'RED': [],  # Reduction Operation on Generic Memory
@@ -2493,6 +2494,41 @@ ULOP3, UISETP, USEL: up87not
 0x00000000040000000000000000000000 !
 '''
 
+flags_str_86 = flags_str_75 + '''
+LDG: ur32
+0x00000000000000000000000800000000 ALL
+
+LDG: uaddr32
+0x00000000080010000000000800000000 ALL
+
+LDG, LD, STG, ST, ATOM, ATOMG: scopes
+0x00000000000000000000000000000000 DEFAULT
+0x00000000000020000000000000000000 .CONSTANT.PRIVATE
+0x00000000000040000000000000000000 .CONSTANT.CTA
+0x00000000000060000000000000000000 .CONSTANT.CTA.PRIVATE
+0x00000000000080000000000000000000 .CONSTANT
+0x000000000000a0000000000000000000 .STRONG.SM
+0x000000000000c0000000000000000000 .STRONG.GPU.PRIVATE
+0x000000000000e0000000000000000000 .STRONG.GPU
+0x00000000000100000000000000000000 .MMIO.GPU
+0x00000000000120000000000000000000 .CONSTANT.SM
+0x00000000000140000000000000000000 .STRONG.SYS
+0x00000000000160000000000000000000 .CONSTANT.SM.PRIVATE
+0x00000000000180000000000000000000 .MMIO.SYS
+0x000000000001a0000000000000000000 .CONSTANT.VC
+0x000000000001c0000000000000000000 .CONSTANT.VC.PRIVATE
+0x000000000001e0000000000000000000 .CONSTANT.GPU
+
+LDG, LD, STG, ST, ATOM, ATOMG: const
+0x00000000000000000000000000000000 ALL
+
+LDG, LD, STG, ST, ATOM, ATOMG: scope
+0x00000000000000000000000000000000 ALL
+
+LDG, LD, STG, ST, ATOM, ATOMG: PRIVATE
+0x00000000000000000000000000000000 ALL
+'''
+
 
 def format_flags(flag_str, gram):
     flag_str = strip_space(flag_str)
@@ -2524,6 +2560,7 @@ def format_flags(flag_str, gram):
 
 flags_61: dict = format_flags(flags_str_61, grammar_61)
 flags_75: dict = format_flags(flags_str_75, grammar_75)
+flags_86: dict = format_flags(flags_str_86, grammar_75)
 
 
 def encode_ctrl(asm):
@@ -2555,8 +2592,10 @@ def encode_instruction(op, gram, captured_dict, instr, arch):
     code = gram['code']
     if arch < 70:
         flag = flags_61[op] if op in flags_61 else {}
-    else:
+    elif arch < 80:
         flag = flags_75[op] if op in flags_75 else {}
+    else:
+        flag = flags_86[op] if op in flags_86 else {}
 
     # Process predicate.
     # 0xf0000是P寄存器，高位位1,是!PX，低3位表示P0-P6, 7表示不使用P寄存器
