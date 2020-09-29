@@ -770,7 +770,9 @@ p84 = fr'(?P<p84>{P})'
 p64q = fr'(?P<p64qnot>\!)?(?P<p64>{P})'
 
 addr24 = fr'\[(?:(?P<r24>{reg})(?P<r24x>\.X(4|8|16))?)?(?:\s*\+?\s*{i40w24})?\]'
+addr2464 = fr'\[(?:(?P<r24>{reg})(?P<r24x>\.X(4|8|16))?)?(?P<r24type>\.64|\.U32)?(?:\s*\+?\s*{i40w24})?\]'
 addr32 = fr'\[(?:(?P<r24>{reg})(?P<r24x>\.X(4|8|16))?)?(?:\s*\+?\s*{i32w32})?\]'
+addr3264 = fr'\[(?:(?P<r24>{reg})(?P<r24x>\.X(4|8|16))?)?(?P<r24type>\.64|\.U32)?(?:\s*\+?\s*{i32w32})?\]'
 uaddr32 = fr'(?P<uaddr32>\[(?:(?P<r24>{reg})(?P<r24x>\.X(4|8|16))?(?P<r24type>\.64|\.U32)?)?' \
           rf'(?:\s*\+?\s*(?P<ur32>{ureg}))?(?:\s*\+?\s*{i40w24})?\])'
 uaddr64 = fr'(?P<uaddr64>\[(?:(?P<r24>{reg})(?P<r24type>\.64|\.U32)?)?' \
@@ -1041,7 +1043,7 @@ grammar_75 = {
     'LD': [  # Load from generic Memory
         {'type': 'x32', 'code': 0x980,
          'rule': rf'LD{te}{tmem_cache}{tmem_ltc}{tmem_type}{tmem_scopes}{tzd}'
-                 rf' ({p81}, )?{r16}, {addr32}(, {p64q})?;'},
+                 rf' ({p81}, )?{r16}, {addr3264}(, {p64q})?;'},
     ],
     'LDC': [  # Load Constant
         {'type': 'x32', 'code': 0xb82,
@@ -1069,7 +1071,7 @@ grammar_75 = {
     'ST': [
         {'type': 'x32', 'code': 0x385,
          'rule': rf'ST{te}{tmem_cache}{tmem_type}{tmem_scopes}{tzd}'
-                 rf' {addr32}, {r64};'},
+                 rf' {addr3264}, {r64};'},
     ],  # Store to Generic Memory
     'STG': [  # Store to Global Memory
         {'type': 'x32', 'code': 0x386,
@@ -1092,7 +1094,7 @@ grammar_75 = {
     'ATOM': [
         {'type': 'x32', 'code': 0x38a,
          'rule': rf'ATOM{te}{tatom_op}{tmem_cache}{tmem_type}{tmem_scopes}'
-                 rf' ({p81}, )?{r16}, {addr24}, {r32}(, {r64})?;'},
+                 rf' ({p81}, )?{r16}, {addr2464}, {r32}(, {r64})?;'},
     ],  # Atomic Operation on Generic Memory
     'ATOMS': [  # Atomic Operation on Shared Memory
         {'type': 'x32', 'code': 0x38c,
