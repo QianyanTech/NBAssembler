@@ -1109,6 +1109,7 @@ class Kernel:
                     print(f'Assemble failed: /*{i * 0x10:x}*/ {print_instr(instr)}')
                     print(f'    ✓ {code_test:#034x}')
                     print(f'    ✕ {code:#034x}')
+                    # todo: sm80+ LDG STG等指令UR某些位需要忽略
                     return b''
         if bar_set:
             self.bar_count = max(bar_set) + 1
