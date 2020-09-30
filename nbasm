@@ -135,7 +135,7 @@ def disassemble(cubin_path, kernel_names, asm_path, strip, global_only):
 # todo: kernel Size补齐: EXIT; BRA -0x10; NOP;
 #  sm61, 64B*n
 #  sm75, 128B*n
-def assemble(asm_path, out_cubin_path, define_list):
+def assemble(asm_path, out_cubin_path, define_list, out_asm_path):
     if not out_cubin_path:
         out_cubin_path = 'out.cubin'
     cubin = Cubin()
@@ -171,6 +171,28 @@ def assemble(asm_path, out_cubin_path, define_list):
     cubin.gen_program()
 
     cubin.write(out_cubin_path)
+
+    if out_asm_path:
+        header_asm = cubin.header.print() + '\n'
+        global_asm = ''
+        constant_asm = ''
+        kernel_asm = ''
+        for kernel in cubin.kernel_dict.values():
+            cubin.map_constant3(kernel)
+            kernel.map_global()
+            kernel.map_constant0()
+            kernel.map_jump(rel=True)
+            kernel.mark_const2()
+            kernel_asm += '\n' + kernel.print()
+        for global_ in cubin.global_dict.values():
+            global_asm += global_.print() + '\n'
+        for global_ in cubin.global_init_dict.values():
+            global_asm += global_.print() + '\n'
+        for constant in cubin.constant_dict.values():
+            constant_asm += constant.print() + '\n'
+        asm = header_asm + global_asm + constant_asm + kernel_asm
+        with open(out_asm_path, 'w') as f:
+            f.write(asm)
 
 
 def preprocess(asm_path, out_asm_path, define_list, strip):
@@ -362,6 +384,7 @@ def main():
     parser_as.add_argument('-o', '--output', metavar='OUTPUT', type=str, default='', help='output cubin path')
     parser_as.add_argument('-D', '--define', metavar='DEFINE', nargs='+', type=str, default='',
                            help='define variable for embedded python code')
+    parser_as.add_argument('-d', '--debug', metavar='OUTPUT_ASM', type=str, default='', help='output asm for debug')
 
     parser_pre = subparsers.add_parser('pre', help='preprocess asm')
     parser_pre.add_argument('asm', help='input asm', metavar='ASM')
@@ -396,7 +419,7 @@ def main():
         disassemble(cubin_path=args.cubin, kernel_names=args.kernels, asm_path=args.output, strip=args.strip,
                     global_only=args.global_only)
     elif args.cmd == 'as':
-        assemble(asm_path=args.asm, out_cubin_path=args.output, define_list=args.define)
+        assemble(asm_path=args.asm, out_cubin_path=args.output, define_list=args.define, out_asm_path=args.debug)
     elif args.cmd == 'pre':
         preprocess(asm_path=args.asm, out_asm_path=args.output, define_list=args.define, strip=args.strip)
     # elif args.cmd == 'ptxdas':

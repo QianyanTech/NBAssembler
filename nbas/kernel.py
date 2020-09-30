@@ -947,6 +947,9 @@ class Kernel:
                 ctrl, code = encode_instruction(op, gram, captured_dict, instr, self.arch)
                 ctrl_group.append(ctrl)
                 code_group.append(code)
+                instr['code'] = f'{code:#018x}'
+                instr['addr'] = f"{line_num2addr(instr['line_num'], self.arch):04x}"
+                instr['reuse'] = (ctrl >> 17) & 0xf
                 # 统计寄存器数量
                 if 'r0' in captured_dict and captured_dict['r0'] and captured_dict['r0'] != 'RZ':
                     r_num = int(captured_dict['r0'][1:])
@@ -1095,6 +1098,9 @@ class Kernel:
 
             code |= ctrl << 105
             codes.append(code)
+            instr['code'] = f'{code:#034x}'
+            instr['addr'] = f"{line_num2addr(instr['line_num'], self.arch):04x}"
+            instr['reuse'] = (ctrl >> 17) & 0xf
 
             if test_binary:
                 code_test = codes_test[i]
