@@ -338,7 +338,9 @@ def test_cubin(cubin_path, kernel_names, global_only, check=False):
 
 
 def main():
-    parser = argparse.ArgumentParser()
+    description = 'NB Assembler for NVIDIA (Maxwell Pascal Volta Turing Ampere) GPUs.'
+    parser = argparse.ArgumentParser(description=description)
+    parser.add_argument('-V', '--version', action='store_true', help='Print version information on this tool.')
     subparsers = parser.add_subparsers(dest='cmd', title='subcommands')
 
     parser_list = subparsers.add_parser('list', help='list cubin info')
@@ -385,7 +387,10 @@ def main():
                                help='detect machine code by flip [BEGIN,END] bit')
     args = parser.parse_args()
 
-    if args.cmd == 'list':
+    if args.version:
+        print(description)
+        print('version 11.1')
+    elif args.cmd == 'list':
         list_cubin(cubin_path=args.cubin, kernel_name=args.kernel.encode(), global_only=args.global_only)
     elif args.cmd == 'das':
         disassemble(cubin_path=args.cubin, kernel_names=args.kernels, asm_path=args.output, strip=args.strip,
