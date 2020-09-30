@@ -770,9 +770,7 @@ p84 = fr'(?P<p84>{P})'
 p64q = fr'(?P<p64qnot>\!)?(?P<p64>{P})'
 
 addr24 = fr'\[(?:(?P<r24>{reg})(?P<r24x>\.X(4|8|16))?)?(?:\s*\+?\s*{i40w24})?\]'
-addr2464 = fr'\[(?:(?P<r24>{reg})(?P<r24x>\.X(4|8|16))?)?(?P<r24type>\.64|\.U32)?(?:\s*\+?\s*{i40w24})?\]'
 addr32 = fr'\[(?:(?P<r24>{reg})(?P<r24x>\.X(4|8|16))?)?(?:\s*\+?\s*{i32w32})?\]'
-addr3264 = fr'\[(?:(?P<r24>{reg})(?P<r24x>\.X(4|8|16))?)?(?P<r24type>\.64|\.U32)?(?:\s*\+?\s*{i32w32})?\]'
 uaddr32 = fr'(?P<uaddr32>\[(?:(?P<r24>{reg})(?P<r24x>\.X(4|8|16))?(?P<r24type>\.64|\.U32)?)?' \
           rf'(?:\s*\+?\s*(?P<ur32>{ureg}))?(?:\s*\+?\s*{i40w24})?\])'
 uaddr64 = fr'(?P<uaddr64>\[(?:(?P<r24>{reg})(?P<r24type>\.64|\.U32)?)?' \
@@ -1042,8 +1040,9 @@ grammar_75 = {
     # Load/Store Instructions
     'LD': [  # Load from generic Memory
         {'type': 'x32', 'code': 0x980,
-         'rule': rf'LD{te}{tmem_cache}{tmem_ltc}{tmem_type}{tmem_scopes}{tzd}'
-                 rf' ({p81}, )?{r16}, {addr3264}(, {p64q})?;'},
+         'rule': rf'LD{te}{tmem_cache}{tmem_ltc}{tmem_type}{tmem_scopes}{tzd} ({p81}, )?{r16}, {addr32}(, {p64q})?;'},
+        {'type': 'x32', 'code': 0x980,
+         'rule': rf'LD{te}{tmem_cache}{tmem_ltc}{tmem_type}{tmem_scopes}{tzd} ({p81}, )?{r16}, {uaddr32}(, {p64q})?;'},
     ],
     'LDC': [  # Load Constant
         {'type': 'x32', 'code': 0xb82,
@@ -1051,11 +1050,9 @@ grammar_75 = {
     ],
     'LDG': [  # Load from Global Memory
         {'type': 'x32', 'code': 0x381,
-         'rule': rf'LDG{te}{tmem_cache}{tmem_ltc}{tmem_type}{tmem_scopes}{tzd}'
-                 rf' ({p81}, )?{r16}, {addr24}(, {p64q})?;'},
+         'rule': rf'LDG{te}{tmem_cache}{tmem_ltc}{tmem_type}{tmem_scopes}{tzd} ({p81}, )?{r16}, {addr24}(, {p64q})?;'},
         {'type': 'x32', 'code': 0x981,
-         'rule': rf'LDG{te}{tmem_cache}{tmem_ltc}{tmem_type}{tmem_scopes}{tzd}'
-                 rf' ({p81}, )?{r16}, {uaddr32}(, {p64q})?;'},
+         'rule': rf'LDG{te}{tmem_cache}{tmem_ltc}{tmem_type}{tmem_scopes}{tzd} ({p81}, )?{r16}, {uaddr32}(, {p64q})?;'},
     ],
     'LDGDEPBAR': [],  # Global Load Dependency Barrier
     'LDGSTS': [],  # Asynchronous Global to Shared Memcopy
@@ -1070,16 +1067,15 @@ grammar_75 = {
     'LDSM': [],  # Load Matrix from Shared Memory with Element Size Expansion
     'ST': [
         {'type': 'x32', 'code': 0x385,
-         'rule': rf'ST{te}{tmem_cache}{tmem_type}{tmem_scopes}{tzd}'
-                 rf' {addr3264}, {r64};'},
+         'rule': rf'ST{te}{tmem_cache}{tmem_type}{tmem_scopes}{tzd} {addr32}, {r64};'},
+        {'type': 'x32', 'code': 0x985,
+         'rule': rf'ST{te}{tmem_cache}{tmem_type}{tmem_scopes}{tzd} {uaddr64}, {r32};'},
     ],  # Store to Generic Memory
     'STG': [  # Store to Global Memory
         {'type': 'x32', 'code': 0x386,
-         'rule': rf'STG{te}{tmem_cache}{tmem_type}{tmem_scopes}{tzd}'
-                 rf' {addr24}, {r32};'},
+         'rule': rf'STG{te}{tmem_cache}{tmem_type}{tmem_scopes}{tzd} {addr24}, {r32};'},
         {'type': 'x32', 'code': 0x986,
-         'rule': rf'STG{te}{tmem_cache}{tmem_type}{tmem_scopes}{tzd}'
-                 rf' {uaddr64}, {r32};'},
+         'rule': rf'STG{te}{tmem_cache}{tmem_type}{tmem_scopes}{tzd} {uaddr64}, {r32};'},
     ],
     'STL': [  # Store within Local or Shared Window
         {'type': 'x32', 'code': 0x387,
@@ -1094,7 +1090,10 @@ grammar_75 = {
     'ATOM': [
         {'type': 'x32', 'code': 0x38a,
          'rule': rf'ATOM{te}{tatom_op}{tmem_cache}{tmem_type}{tmem_scopes}'
-                 rf' ({p81}, )?{r16}, {addr2464}, {r32}(, {r64})?;'},
+                 rf' ({p81}, )?{r16}, {addr24}, {r32}(, {r64})?;'},
+        {'type': 'x32', 'code': 0x98a,
+         'rule': rf'ATOM{te}{tatom_op}{tmem_cache}{tmem_type}{tmem_scopes}'
+                 rf' ({p81}, )?{r16}, {uaddr64}, {r32}(, {r64})?;'},
     ],  # Atomic Operation on Generic Memory
     'ATOMS': [  # Atomic Operation on Shared Memory
         {'type': 'x32', 'code': 0x38c,
@@ -2394,12 +2393,12 @@ STS, STL, LDS, LDL, ATOMS: r24x
 0x00000000000080000000000000000000 .X8
 0x000000000000c0000000000000000000 .X16
 
-LDG, LD, STG, ST: r24type
+LDG, STG: r24type
 0x00000000000000000000000000000000 .U32
 0x00000000040000000000000000000000 .64
 0x00000000040000000000000000000000 DEFAULT
 
-ATOM, ATOMG: r24type
+ATOMG: r24type
 0x00000000000000000000000000000000 .U32
 0x00000000000000400000000000000000 .64
 0x00000000000000400000000000000000 DEFAULT
@@ -2498,23 +2497,32 @@ ULOP3, UISETP, USEL: up87not
 '''
 
 flags_str_86 = flags_str_75 + '''
-LDG: ur32
+LD, LDG: ur32
 0x00000000000000000000000000000000 ALL
 
 LDG: uaddr32
 0x00000000080010000000000000000000 ALL
 
-ATOMG: ur64
+LD: uaddr32
+0x000000000c0010000000000000000000 ALL
+
+ST, ATOMG: ur64
 0x00000000000000000000000000000000 ALL
 
 ATOMG: uaddr64
 0x00000000080000800000000000000000 ALL
 
-STG: ur64
+ATOM, ST, STG: ur64
 0x00000000000000000000000000000000 ALL
 
-STG: uaddr64
+ST: uaddr64
+0x000000000c0010000000000000000000 ALL
+
+ATOM, STG: uaddr64
 0x00000000080010000000000000000000 ALL
+
+ATOM: uaddr64
+0x00000000080000c00000000000000000 ALL
 
 LDG, LD, STG, ST, ATOM, ATOMG: scopes
 0x00000000000000000000000000000000 DEFAULT

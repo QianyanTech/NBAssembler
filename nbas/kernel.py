@@ -1100,9 +1100,9 @@ class Kernel:
                 code_test = codes_test[i]
                 ctrl_test = (code_test >> 105) & 0x1fffff
                 if self.arch >= 80:
-                    if op == 'LDG':
+                    if op in ['LD', 'LDG']:
                         code_test &= 0xffffffffffffffffffffffc0ffffffff
-                    elif op in ['STG', 'ATOMG']:
+                    elif op in ['ST', 'STG', 'ATOM', 'ATOMG']:
                         code_test &= 0xffffffffffffffc0ffffffffffffffff
                 if code != code_test:
                     if ctrl != ctrl_test:
