@@ -675,7 +675,7 @@ class Kernel:
             size = len(self.coop_group_instr_offsets)
             data += pack(f'<2sH{size}I', code, size * 4, *self.coop_group_instr_offsets)
 
-        if self.ctaid_offsets:
+        if self.ctaid_offsets and self.arch < 70:
             code = self.EIATTR['S2RCTAID_INSTR_OFFSETS']
             size = len(self.ctaid_offsets)
             data += pack(f'<2sH{size}I', code, size * 4, *self.ctaid_offsets)
