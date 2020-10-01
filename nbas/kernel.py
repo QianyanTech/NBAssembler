@@ -162,9 +162,9 @@ class Kernel:
         self.explicit_caching = False
         self.crs_stack_size = 0
 
-        self.sw1850030_war = True
-        self.sw2393858_war = True
-        self.sw2861232_war = True
+        self.sw1850030_war = False
+        self.sw2393858_war = False
+        self.sw2861232_war = False
         self.wmma_used = False
 
         # Relocation info
@@ -178,7 +178,7 @@ class Kernel:
         self.instrs = []
         self.binary = b''
         self.arch = 61
-        self.cuda_api_version = 0
+        self.cuda_api_version = 111
         self.sw_war = 0
 
         self.section = None
@@ -224,6 +224,14 @@ class Kernel:
                 instr = self.instrs[addr2line_num(offset, self.arch)]
                 ops.add(instr['op'])
             asm += f'    # int_warp_wide_instr_offsets: {", ".join(ops)}\n'
+        if self.sw_war:
+            asm += f'    .sw_war {self.sw_war}\n'
+        if self.sw1850030_war:
+            asm += f'    .sw1850030_war\n'
+        if self.sw2393858_war:
+            asm += f'    .sw2393858_war\n'
+        if self.sw2861232_war:
+            asm += f'    .sw2861232_war\n'
         if self.explicit_caching:
             asm += f'    .explicit_caching\n'
         if self.crs_stack_size:
@@ -590,12 +598,20 @@ class Kernel:
         # 并且发现 frame_size == min_stack_size, max_stack_size是0
         assert (self.frame_size == self.min_stack_size)
         assert (0 == self.max_stack_size)
-        # 每个kernel都有，不知道干啥用的
-        assert self.sw1850030_war
-        assert self.sw2393858_war
 
     def store_info(self):
         data = b''
+
+        if self.sw_war:
+            code = self.EIATTR['SW_WAR']
+            size = 4
+            data += pack('<2sHI', code, size, self.sw_war)
+
+        if self.cuda_api_version:
+            code = self.EIATTR['CUDA_API_VERSION']
+            size = 4
+            data += pack('<2sHI', code, size, self.cuda_api_version)
+
         if self.sw2861232_war:
             code = self.EIATTR['SW2861232_WAR']
             size = 0
@@ -649,11 +665,6 @@ class Kernel:
             size = 0
             data += pack('<2sH', code, size)
 
-        if self.ctaid_offsets:
-            code = self.EIATTR['S2RCTAID_INSTR_OFFSETS']
-            size = len(self.ctaid_offsets)
-            data += pack(f'<2sH{size}I', code, size * 4, *self.ctaid_offsets)
-
         if self.int_warp_wide_instr_offsets:
             code = self.EIATTR['INT_WARP_WIDE_INSTR_OFFSETS']
             size = len(self.int_warp_wide_instr_offsets)
@@ -663,6 +674,11 @@ class Kernel:
             code = self.EIATTR['COOP_GROUP_INSTR_OFFSETS']
             size = len(self.coop_group_instr_offsets)
             data += pack(f'<2sH{size}I', code, size * 4, *self.coop_group_instr_offsets)
+
+        if self.ctaid_offsets:
+            code = self.EIATTR['S2RCTAID_INSTR_OFFSETS']
+            size = len(self.ctaid_offsets)
+            data += pack(f'<2sH{size}I', code, size * 4, *self.ctaid_offsets)
 
         if self.exit_offsets:
             code = self.EIATTR['EXIT_INSTR_OFFSETS']
@@ -680,15 +696,10 @@ class Kernel:
             data += pack('<2sH', code, size)
             data += tmp_data
 
-        if self.sw_war:
-            code = self.EIATTR['SW_WAR']
+        if self.crs_stack_size:
+            code = self.EIATTR['CRS_STACK_SIZE']
             size = 4
-            data += pack('<2sHI', code, size, self.sw_war)
-
-        if self.cuda_api_version:
-            code = self.EIATTR['CUDA_API_VERSION']
-            size = 4
-            data += pack('<2sHI', code, size, self.cuda_api_version)
+            data += pack('<2sHI', code, size, self.crs_stack_size)
 
         self.info_section.data = data
         self.info_section.sh_size = len(data)
@@ -699,13 +710,21 @@ class Kernel:
         lines = asm.split('\n')
         for i in range(len(lines)):
             line = lines[i]
-            m = re.search(rf'^\s*\.(?P<config>[a-zA-KM-Z_]\w*)\s+(?P<rest>.*)', line)
+            m = re.search(rf'^\s*\.(?P<config>[a-z]\w*)\s*(?P<rest>.*)', line)
             if m:
                 config = m.group('config')
                 rest = m.group('rest')
                 if config == 'stack':
                     self.frame_size = int(rest, base=0)
                     self.min_stack_size = self.frame_size
+                elif config == 'sw_war':
+                    self.sw_war = int(rest, base=0)
+                elif config == 'sw1850030_war':
+                    self.sw1850030_war = True
+                elif config == 'sw2393858_war':
+                    self.sw2393858_war = True
+                elif config == 'sw2861232_war':
+                    self.sw2861232_war = True
                 elif config == 'explicit_caching':
                     self.explicit_caching = True
                 elif config == 'crs_stack_size':
@@ -1222,7 +1241,10 @@ class Kernel:
         # .text section
         section = Section()
         section.name = b'.text.' + self.name
-        section.sh_addralign = 32
+        if self.arch < 70:
+            section.sh_addralign = 32
+        else:
+            section.sh_addralign = 128
         section.sh_flags = Section.SHF_VAL['X'] | Section.SHF_VAL['A'] | (self.bar_count << 20)
         section.sh_info = (self.reg_count << 24)
         section.sh_link = 3
@@ -1247,7 +1269,10 @@ class Kernel:
         constant0_section.sh_addralign = 4
         constant0_section.sh_flags = Section.SHF_VAL['A']
         constant0_section.sh_type = Section.SHT_VAL['PROGBITS']
-        size = 320 + self.param_size
+        if self.arch < 70:
+            size = 320 + self.param_size
+        else:
+            size = 320 + self.param_size + 32
         constant0_section.sh_size = size
         constant0_section.data = b'\0' * size
         self.constant0_section = constant0_section
