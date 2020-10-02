@@ -1124,7 +1124,7 @@ class Kernel:
             if test_binary:
                 code_test = codes_test[i]
                 ctrl_test = (code_test >> 105) & 0x1fffff
-                if self.arch >= 80:
+                if self.arch >= 80 and 'UR' not in rest:
                     if op in ['LD', 'LDG']:
                         code_test &= 0xffffffffffffffffffffffc0ffffffff
                     elif op in ['ST', 'STG', 'ATOM', 'ATOMG']:
