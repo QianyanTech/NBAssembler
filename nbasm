@@ -421,7 +421,8 @@ def main():
         disassemble(cubin_path=args.cubin, kernel_names=args.kernels, asm_path=args.output, strip=args.strip,
                     global_only=args.global_only)
     elif args.cmd == 'as':
-        assemble(asm_path=args.asm, out_cubin_path=args.output, define_list=args.define, out_asm_path=args.debug, sort_banks=args.sort)
+        assemble(asm_path=args.asm, out_cubin_path=args.output, define_list=args.define, out_asm_path=args.debug,
+                 sort_banks=args.sort)
     elif args.cmd == 'pre':
         preprocess(asm_path=args.asm, out_asm_path=args.output, define_list=args.define, strip=args.strip)
     # elif args.cmd == 'ptxdas':
