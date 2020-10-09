@@ -135,7 +135,7 @@ def disassemble(cubin_path, kernel_names, asm_path, strip, global_only):
 # todo: kernel Size补齐: EXIT; BRA -0x10; NOP;
 #  sm61, 64B*n
 #  sm75, 128B*n
-def assemble(asm_path, out_cubin_path, define_list, out_asm_path):
+def assemble(asm_path, out_cubin_path, define_list, out_asm_path, sort_banks):
     if not out_cubin_path:
         out_cubin_path = 'out.cubin'
     cubin = Cubin()
@@ -160,7 +160,8 @@ def assemble(asm_path, out_cubin_path, define_list, out_asm_path):
         kernel.unmap_constant0()
         kernel.unmap_jump()
         # kernel.schedule()
-        kernel.sort_banks()
+        if sort_banks:
+            kernel.sort_banks()
         kernel.assemble()
 
     # 生成elf数据
@@ -385,6 +386,7 @@ def main():
     parser_as.add_argument('-D', '--define', metavar='DEFINE', nargs='+', type=str, default='',
                            help='define variable for embedded python code')
     parser_as.add_argument('-d', '--debug', metavar='OUTPUT_ASM', type=str, default='', help='output asm for debug')
+    parser_as.add_argument('-s', '--sort', action='store_true', help='sort banks')
 
     parser_pre = subparsers.add_parser('pre', help='preprocess asm')
     parser_pre.add_argument('asm', help='input asm', metavar='ASM')
@@ -419,7 +421,7 @@ def main():
         disassemble(cubin_path=args.cubin, kernel_names=args.kernels, asm_path=args.output, strip=args.strip,
                     global_only=args.global_only)
     elif args.cmd == 'as':
-        assemble(asm_path=args.asm, out_cubin_path=args.output, define_list=args.define, out_asm_path=args.debug)
+        assemble(asm_path=args.asm, out_cubin_path=args.output, define_list=args.define, out_asm_path=args.debug, sort_banks=args.sort)
     elif args.cmd == 'pre':
         preprocess(asm_path=args.asm, out_asm_path=args.output, define_list=args.define, strip=args.strip)
     # elif args.cmd == 'ptxdas':
