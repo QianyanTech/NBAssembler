@@ -576,7 +576,9 @@ grammar_61 = {
     'PSETP': [  # Combine Predicates and Set Predicate
         {'type': cmp_t, 'code': 0x5090000000000000, 'rule': rf'PSETP{bool2}{bool_} {p3}, {p0}, {p12}, {p29}, {p39};'}
     ],  # setp
-    'P2R': [],  # Move Predicate Register To Register
+    'P2R': [  # Move Predicate Register To Register
+        {'type': shft_t, 'code': 0x38e8000000000000, 'rule': rf'P2R {r0}, {r2p}, {r8}, {i20};'}
+    ],
     'R2P': [  # Move Register To Predicate/CC Register
         {'type': shft_t, 'code': 0x38f0000000000000, 'rule': rf'R2P {r2p}, {r8}, {i20};'}
     ],
@@ -1818,7 +1820,7 @@ IDP: type2
 0x0000000000000000 U8
 0x0000800000000000 S8
 
-R2P: r2p
+R2P, P2R: r2p
 0x0000000000000000 PR
 0x0000010000000000 CC
 
