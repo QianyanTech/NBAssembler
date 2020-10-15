@@ -6,5 +6,7 @@ setup(
         author='Alvin Zhu @ Kignis',
         author_email='alvin.zhuge@gmail.com',
         packages=['nbas'],
-        scripts=['nbasm']
+        entry_points = {
+        "console_scripts": ['nbasm = nbas.__main__:main']
+        }
 )
