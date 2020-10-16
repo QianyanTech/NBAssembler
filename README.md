@@ -101,7 +101,7 @@ nbasm test -h
 #   -k KERNELS [KERNELS ...], --kernels KERNELS [KERNELS ...]
 #                         kernel names
 
-# 例子
+# examples
 nbasm list ethash.cubin 
 nbasm das -k Search -o ethash_search.s ethash.cubin
 nbasm as -D DEBUG=True -o ethash.cubin ethash_search.s
@@ -112,9 +112,9 @@ nbasm test -c ethash.cubin
 
 [AsFermi](https://github.com/hyqneuron/asfermi), an SASS assembler for NVIDIA Fermi GPUs. By Hou Yunqing.
 
-[MaxAs](https://github.com/NervanaSystems/maxas), an SASS assembler for NVIDIA Maxwell and Pascal. By Scott Gray.
+[KeplerAs](https://github.com/xiuxiazhang/KeplerAs), an SASS assembler for NVIDIA Kepler. By Xiuxia Zhang.
 
-[KeplerAs](https://github.com/PAA-NCIC/PPoPP2017_artifact), an SASS assembler for NVIDIA Kepler. By Xiuxia Zhang.
+[MaxAs](https://github.com/NervanaSystems/maxas), an SASS assembler for NVIDIA Maxwell and Pascal. By Scott Gray.
 
 [TuringAs](https://github.com/daadaada/turingas), an SASS assembler for NVIDIA Volta and Turing. By Da Yan.
 
