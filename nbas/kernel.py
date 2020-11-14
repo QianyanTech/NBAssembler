@@ -435,7 +435,7 @@ class Kernel:
         for instr in self.instrs:
             op = instr['op']
             rest = instr['rest']
-            if op in jump_op:
+            if op in jump_op and '0x0;' not in rest:
                 address = get_jump_offset(rest)
                 line_num = addr2line_num(address, self.arch)
                 if rel and (op in rel_jump_op_61 + rel_jump_op_75):
@@ -530,8 +530,10 @@ class Kernel:
                 self.sw2861232_war = True
                 size = 0
             elif code == self.EIATTR['CBANK_PARAM_SIZE']:
-                if size != self.param_size:
-                    print(f'Warning: param_size not match: {self.param_size} != {size}')
+                if not self.param_size:
+                    self.param_size = size
+                elif size != self.param_size:
+                    print(f'Warning: param size not match: {self.param_size} != {size}')
                 size = 0
             elif code == self.EIATTR['MAXREG_COUNT']:
                 self.maxreg_count = size
@@ -545,7 +547,10 @@ class Kernel:
                     'IHH', self.info_section.data[offset:offset + size])
                 # self.symbol_idx = symbol_idx
                 self.param_base = param_base
-                self.param_size = param_size
+                if not self.param_size:
+                    self.param_size = param_size
+                elif param_size != self.param_size:
+                    print(f'Warning: param_size not match: {self.param_size} != {param_size}')
             elif code == self.EIATTR['KPARAM_INFO']:
                 index, ordinal, param_offset, param_flag = unpack(
                     'IHHI', self.info_section.data[offset:offset + size])
@@ -553,7 +558,7 @@ class Kernel:
                 param_align = 1 << (param_flag & 0x3ff) if param_flag & 0x400 else 0
                 self.params.append({
                     'Ordinal': ordinal,
-                    'Offset': self.param_base + param_offset,
+                    'Offset': param_offset,
                     'Size': param_size,
                     'Align': param_align
                 })
@@ -594,6 +599,8 @@ class Kernel:
                       f'data: {self.info_section.data[offset:offset + size].hex()}.')
             offset += size
         self.params.reverse()
+        for param in self.params:
+            param['Offset'] += self.param_base
         # 猜测frame_size是cuobjdump里面的STACK, 因为不知道怎么编出LOCAL,暂时无法测试。
         # 并且发现 frame_size == min_stack_size, max_stack_size是0
         assert (self.frame_size == self.min_stack_size)

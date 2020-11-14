@@ -180,8 +180,8 @@ class Header:
 
 
 class Section:
-    SHT_STR = {0: 'NULL', 1: 'PROGBITS', 2: 'SYMTAB', 3: 'STRTAB', 8: 'NOBITS', 9: 'REL', 0x70000000: 'CUDA_INFO',
-               0x7000000B: 'CUDA_RELOCINFO'}
+    SHT_STR = {0: 'NULL', 1: 'PROGBITS', 2: 'SYMTAB', 3: 'STRTAB', 4: 'RELA', 8: 'NOBITS', 9: 'REL',
+               0x70000000: 'CUDA_INFO', 0x7000000B: 'CUDA_RELOCINFO'}
     # todo: CUDA_RELOCINFO
     SHT_VAL = {val: key for (key, val) in SHT_STR.items()}
     SHF_STR = {1: 'W', 2: 'A', 4: 'X'}
@@ -362,7 +362,7 @@ class Symbol:
 
 class Relocation:
     R_TYPE_61 = {43: '32@lo', 44: '32@hi'}
-    R_TYPE_75 = {56: '32@lo', 57: '32@hi'}
+    R_TYPE_75 = {56: '32@lo', 57: '32@hi', 58: '`'}
     R_TYPE = {**R_TYPE_61, **R_TYPE_75}
     R_TYPE_VAL_61 = {val: key for (key, val) in R_TYPE_61.items()}
     R_TYPE_VAL_75 = {val: key for (key, val) in R_TYPE_75.items()}

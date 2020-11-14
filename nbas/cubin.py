@@ -98,6 +98,8 @@ class Cubin(ELF):
                         kernel.rels.append(rel)
                         offset += kernel.rel_section.sh_entsize
 
+                # todo:  Attach rela section
+
                 # Extract the kernel meta data.
                 info_sec_name = b'.nv.info.' + symbol.name
                 if info_sec_name in self.section_dict:
