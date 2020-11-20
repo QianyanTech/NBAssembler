@@ -598,7 +598,7 @@ class Kernel:
                 print(f'Warning: unknow param code: {code.hex()}, size: {size}, '
                       f'data: {self.info_section.data[offset:offset + size].hex()}.')
             offset += size
-        self.params.reverse()
+        self.params.sort(key=lambda d: d['Ordinal'])
         for param in self.params:
             param['Offset'] += self.param_base
         # 猜测frame_size是cuobjdump里面的STACK, 因为不知道怎么编出LOCAL,暂时无法测试。
