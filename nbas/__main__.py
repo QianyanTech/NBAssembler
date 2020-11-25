@@ -131,9 +131,7 @@ def disassemble(cubin_path, kernel_names, asm_path, strip, global_only):
 #     else:
 #         print(ptx, end='')
 
-# todo: kernel Size补齐: EXIT; BRA -0x10; NOP;
-#  sm61, 64B*n
-#  sm75, 128B*n
+
 def assemble(asm_path, out_cubin_path, define_list, out_asm_path, sort_banks):
     if not out_cubin_path:
         out_cubin_path = 'out.cubin'

@@ -794,6 +794,18 @@ class Kernel:
                     instr['label'] = label
                     label = ''
                     instrs.append(instr)
+
+        # kernel size padding
+        if self.arch < 70:
+            m = 6
+        else:
+            m = 8
+        nop_pad = m - len(instrs) % m if len(instrs) % m else 0
+        for i in range(nop_pad):
+            line_num = len(instrs)
+            instr = process_asm_line('-:--:-:-:Y:0 NOP;', line_num)
+            instrs.append(instr)
+
         for param in self.params:
             self.param_size = max(self.param_size, param['Size'] + param['Offset'] - self.param_base)
         self.instrs = instrs
