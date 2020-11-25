@@ -267,7 +267,6 @@ abs_jump_op = ['JCAL', ]
 jump_op_61 = abs_jump_op + rel_jump_op_61
 jump_op_75 = abs_jump_op + rel_jump_op_75
 
-
 # operands
 i20w24 = fr'(?P<i20w24>\-?{immed})'
 i20w32 = fr'(?P<i20w32>\-?{immed})'
@@ -776,7 +775,7 @@ addr24 = fr'\[(?:(?P<r24>{reg})(?P<r24x>\.X(4|8|16))?)?(?:\s*\+?\s*{i40w24})?\]'
 addr32 = fr'\[(?:(?P<r24>{reg})(?P<r24x>\.X(4|8|16))?)?(?:\s*\+?\s*{i32w32})?\]'
 uaddr32 = fr'(?P<uaddr32>\[(?:(?P<r24>{reg})(?P<r24x>\.X(4|8|16))?(?P<r24type>\.64|\.U32)?)?' \
           rf'(?:\s*\+?\s*(?P<ur32>{ureg}))?(?:\s*\+?\s*{i40w24})?\])'
-uaddr64 = fr'(?P<uaddr64>\[(?:(?P<r24>{reg})(?P<r24type>\.64|\.U32)?)?' \
+uaddr64 = fr'(?P<uaddr64>\[(?:(?P<r24>{reg})(?P<r24x>\.X(4|8|16))?(?P<r24type>\.64|\.U32)?)?' \
           rf'(?:\s*\+?\s*(?P<ur64>{ureg}))?(?:\s*\+?\s*{i40w24})?\])'
 tldc = rf'c\[(?P<c54>{hexx})\]\s*\[(?P<r24>{reg})?(?:\s*\+?\s*{i38w16})?\]'
 
@@ -1087,6 +1086,8 @@ grammar_75 = {
     'STS': [  # Store within Local or Shared Window
         {'type': 'x32', 'code': 0x388,
          'rule': rf'STS{tmem_type} {addr24}, {r32};'},
+        {'type': 'x32', 'code': 0x988,
+         'rule': rf'STS{tmem_type} {uaddr64}, {r32};'},
     ],
     'MATCH': [],  # Match Register Values Across Thread Group
     'QSPC': [],  # Query Space
@@ -1231,6 +1232,7 @@ grammar_75 = {
         {'type': 'x32', 'code': 0x941, 'rule': rf'BSYNC ({p87}, )?{b16};'},
     ],
     'CALL': [  # Call Function
+        {'type': 'x32', 'code': 0x943, 'rule': rf'CALL\.ABS{tnoinc}( {p87},)? {i32a4};'},
         {'type': 'x32', 'code': 0x944, 'rule': rf'CALL\.REL{tnoinc}( {p87},)? {i32a4};'},
     ],
     'EXIT': [  # Exit Program
@@ -2445,7 +2447,7 @@ IADD3, UIADD3, FLO, UFLO, UPOPC, POPC, ULEA: ur32neg
 0x00000000000000008000000000000000 -
 0x00000000000000008000000000000000 ~
 
-STG, ST, ATOM, ATOMG, USHF, UIADD3: ur64
+STG, ST, STS, ATOM, ATOMG, USHF, UIADD3: ur64
 0x00000000080000000000000000000000 ALL
 
 ULEA: ur64
