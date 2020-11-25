@@ -1,6 +1,6 @@
 from .elf import *
-from .tool import *
 from .ptx import *
+from .tool import *
 
 
 class Data:
@@ -169,7 +169,9 @@ class Kernel:
 
         # Relocation info
         self.rels = []
+        self.relas = []
         self.rel_map = {}
+        self.rela_map = {}
         self.consts = set()
         self.globals = set()
 
@@ -189,6 +191,7 @@ class Kernel:
         self.constant2 = None
         self.info_section = None
         self.rel_section = None
+        self.rels_section = None
         self.symbol_idx = 0
 
         self.__dict__.update(iterable, **kwargs)
@@ -405,25 +408,47 @@ class Kernel:
             instr = self.instrs[line_num]
             instr['rest'] = instr['rest'].replace('0x0', f'{Relocation.R_TYPE[rel.type]}({rel.sym_name.decode()})')
             self.globals.add(rel.sym_name)
+        for rela in self.relas:
+            line_num = addr2line_num(rela.r_offset, self.arch)
+            instr = self.instrs[line_num]
+            sym = f'{RelocationAdd.R_TYPE[rela.type]}({rela.sym_name.decode()} + {rela.r_addend:#0x})'
+            instr['rest'] = instr['rest'].replace('0x0', sym)
+            self.globals.add(rela.sym_name)
 
     def unmap_global(self):
         if self.rels:
             self.rels = []
+        if self.relas:
+            self.relas = []
         for i, instr in enumerate(self.instrs):
             m = re.search(GLOBAL_NAME_RE, instr['rest'])
             if m:
                 match = m.group()
                 type_ = m.group('type')
                 name = m.group('name').encode()
-                rel = Relocation()
-                rel.r_offset = line_num2addr(i, self.arch)
-                if self.arch < 70:
-                    rel.type = Relocation.R_TYPE_VAL_61[type_]
+                addend = m.group('addend')
+                if not addend:
+                    rel = Relocation()
+                    rel.r_offset = line_num2addr(i, self.arch)
+                    if self.arch < 70:
+                        rel.type = Relocation.R_TYPE_VAL_61[type_]
+                    else:
+                        rel.type = Relocation.R_TYPE_VAL_75[type_]
+                    rel.sym_name = name
+                    self.rels.append(rel)
+                    self.rel_map[i] = rel
                 else:
-                    rel.type = Relocation.R_TYPE_VAL_75[type_]
-                rel.sym_name = name
-                self.rels.append(rel)
-                self.rel_map[i] = rel
+                    addend = int(addend, base=0)
+                    rela = RelocationAdd()
+                    rela.r_offset = line_num2addr(i, self.arch)
+                    if self.arch < 70:
+                        rela.type = RelocationAdd.R_TYPE_VAL_61[type_]
+                    else:
+                        rela.type = RelocationAdd.R_TYPE_VAL_75[type_]
+                    rela.sym_name = name
+                    rela.r_addend = addend
+                    self.relas.append(rela)
+                    self.rela_map[i] = rela
                 instr['rest'] = instr['rest'].replace(match, '0x0')
 
     def map_jump(self, rel=False):
@@ -468,9 +493,10 @@ class Kernel:
         for instr in self.instrs:
             label = instr['label']
             op = instr['op']
+            rest = instr['rest']
             if label:
                 labels[label] = instr['line_num']
-            if op in jump_op:
+            if op in jump_op and '0x0;' not in rest:
                 jump_instrs.append(instr)
             elif op == 'SYNC':
                 instr['rest'] = ';'
@@ -1249,11 +1275,18 @@ class Kernel:
                 line_num = addr2line_num(rel.r_offset, self.arch)
                 self.rel_map[line_num] = rel
 
+        if not self.rela_map:
+            for rela in self.relas:
+                line_num = addr2line_num(rela.r_offset, self.arch)
+                self.rela_map[line_num] = rela
+
         # update line_num and global Relocation
         for i, instr in enumerate(self.instrs):
             line_num = instr['line_num']
             if line_num in self.rel_map:
                 self.rel_map[line_num].r_offset = line_num2addr(i, self.arch)
+            if line_num in self.rela_map:
+                self.rela_map[line_num].r_offset = line_num2addr(i, self.arch)
             instr['line_num'] = i
 
     def gen_sections(self):
@@ -1317,6 +1350,16 @@ class Kernel:
             rel_section.sh_type = Section.SHT_VAL['REL']
             self.rel_section = rel_section
 
+        # rela_section
+        if self.relas:
+            rela_section = Section()
+            rela_section.name = b'.rela.text.' + self.name
+            rela_section.sh_addralign = 8
+            rela_section.sh_entsize = 24
+            rela_section.sh_link = 3
+            rela_section.sh_type = Section.SHT_VAL['RELA']
+            self.rela_section = rela_section
+
         # info_section
         info_section = Section()
         info_section.name = b'.nv.info.' + self.name
@@ -1332,3 +1375,9 @@ class Kernel:
             self.rel_section.data += rel.pack_entry()
         if self.rel_section:
             self.rel_section.sh_size = len(self.rel_section.data)
+        for rela in reversed(self.relas):
+            rela.sym = symbol_dict[rela.sym_name].index
+            rela.r_info = rela.type | (rela.sym << 32)
+            self.rela_section.data += rela.pack_entry()
+        if self.rela_section:
+            self.rela_section.sh_size = len(self.rela_section.data)

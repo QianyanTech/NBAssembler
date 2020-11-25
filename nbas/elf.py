@@ -362,7 +362,7 @@ class Symbol:
 
 class Relocation:
     R_TYPE_61 = {43: '32@lo', 44: '32@hi'}
-    R_TYPE_75 = {56: '32@lo', 57: '32@hi', 58: '`'}
+    R_TYPE_75 = {56: '32@lo', 57: '32@hi', 58: '32@fn'}
     R_TYPE = {**R_TYPE_61, **R_TYPE_75}
     R_TYPE_VAL_61 = {val: key for (key, val) in R_TYPE_61.items()}
     R_TYPE_VAL_75 = {val: key for (key, val) in R_TYPE_75.items()}
@@ -394,6 +394,43 @@ class Relocation:
 
     def pack_entry(self):
         return pack('<QQ', self.r_offset, self.r_info)
+
+
+class RelocationAdd:
+    R_TYPE_61 = {43: '32@lo', 44: '32@hi'}
+    R_TYPE_75 = {56: '32@lo', 57: '32@hi'}
+    R_TYPE = {**R_TYPE_61, **R_TYPE_75}
+    R_TYPE_VAL_61 = {val: key for (key, val) in R_TYPE_61.items()}
+    R_TYPE_VAL_75 = {val: key for (key, val) in R_TYPE_75.items()}
+
+    def __init__(self, iterable=(), **kwargs):
+        # the virtual address of the storage unit affected by the relocation.
+        self.r_offset = 0  # Elf32: uint32_t | Elf64: uint64_t
+        # symbol table index(Elf32: 8-16位 | Elf64: 高32位) and type(Elf32: 低8位 | Elf64: 低32位)
+        self.r_info = 0  # Elf32: uint32_t | Elf64: uint64_t
+        self.r_addend = 0  # Elf32: int32_t | Elf64: int64_t
+
+        # 其他变量
+        # Symbol表编号
+        self.sym = 0
+        # '32@lo': 43, '32@hi': 44 eg: MOV32I R2, 32@lo(test_u8)
+        self.type = 0
+        self.sym_name = b''
+
+        self.__dict__.update(iterable, **kwargs)
+
+    def __repr__(self):
+        msg = f'SymbolName:{self.sym_name}, Type:{self.type:b}, Offset:{self.r_offset:#0x}, Addend:{self.r_addend:#0x}'
+        return msg
+
+    def unpack_binary(self, data):
+        self.r_offset, self.r_info, self.r_addend = unpack('QQq', data)
+        self.sym = self.r_info >> 32
+        self.type = self.r_info & 0xffffffff
+        assert self.type in self.R_TYPE
+
+    def pack_entry(self):
+        return pack('<QQq', self.r_offset, self.r_info, self.r_addend)
 
 
 class Program:

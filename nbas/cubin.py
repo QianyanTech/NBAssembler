@@ -98,7 +98,18 @@ class Cubin(ELF):
                         kernel.rels.append(rel)
                         offset += kernel.rel_section.sh_entsize
 
-                # todo:  Attach rela section
+                # Attach relocation add section
+                rela_sec_name = b'.rela.text.' + symbol.name
+                if rel_sec_name in self.section_dict:
+                    kernel.rela_section = self.section_dict[rela_sec_name]
+                    kernel.relas = []
+                    offset = 0
+                    while offset < kernel.rela_section.sh_size:
+                        rela = RelocationAdd()
+                        rela.unpack_binary(kernel.rela_section.data[offset:offset + kernel.rela_section.sh_entsize])
+                        rela.sym_name = self.symbols[rela.sym].name
+                        kernel.relas.append(rela)
+                        offset += kernel.rela_section.sh_entsize
 
                 # Extract the kernel meta data.
                 info_sec_name = b'.nv.info.' + symbol.name
@@ -395,6 +406,8 @@ class Cubin(ELF):
             kernel.info_section.sh_name = self.add_sh_str(kernel.info_section.name)
             if kernel.rel_section:
                 kernel.rel_section.sh_name = self.add_sh_str(kernel.rel_section.name)
+            if kernel.rela_section:
+                kernel.rela_section.sh_name = self.add_sh_str(kernel.rela_section.name)
 
         for kernel in self.kernel_dict.values():
             self.sections.append(kernel.info_section)
@@ -402,6 +415,8 @@ class Cubin(ELF):
         for kernel in self.kernel_dict.values():
             if kernel.rel_section:
                 self.sections.append(kernel.rel_section)
+            if kernel.rela_section:
+                self.sections.append(kernel.rela_section)
 
         if self.constant_section:
             self.sections.append(self.constant_section)
@@ -438,6 +453,8 @@ class Cubin(ELF):
             kernel.info_section.sh_info = kernel.section.index
             if kernel.rel_section:
                 kernel.rel_section.sh_info = kernel.section.index
+            if kernel.rela_section:
+                kernel.rela_section.sh_info = kernel.section.index
 
     def gen_symbols(self):
         self.symbols = []

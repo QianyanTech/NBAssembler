@@ -70,13 +70,20 @@ def strip_space(str_):
     return str_
 
 
+hexx = fr'0[xX][0-9a-fA-F]+'
+iaddr = fr'\d+[xX]<[^>]+>'
+immed = fr'{hexx}|{iaddr}|\d+'
+# reg = fr'[a-zA-Z_]\w*'
+reg = fr'R[Z0-9]+'
+noPred = fr'(?P<noPred>)'
+
 INCLUDE_RE = rf'(?sm:^\.include\s+"(?P<file>[^"]+?)"\n?)'
 PYTHON_RE = rf'(?sm:{{(?P<code>.*?)}})'
 SCHED_RE = rf'(?sm:^\.sched.+?\.end_sched)'
 
 REG_NAME_RE = rf'(?P<type>U?[RP])_(?P<name>[a-zA-Z_]\w*)_?(?P<offset>\d+)?'
 CONST_NAME_RE = rf'c\[(?P<const>(?P<name>[a-zA-Z_]\w*)(?:\+(?P<offset>\d+))?)\]'
-GLOBAL_NAME_RE = rf'(?P<type>32@(lo|hi))\((?P<name>[a-zA-Z_]\w*)\)'
+GLOBAL_NAME_RE = rf'(?P<type>32@(lo|hi|fn))\((?P<name>[a-zA-Z_]\w*)\s*\+?\s*(?P<addend>{immed})?\)'
 
 COMPUTE_RE = rf'(?sm:^\.compute_(?P<compute>[0-9]+))'
 ARCH_RE = rf'(?sm:^\.sm_(?P<arch>[0-9]+))'
@@ -260,12 +267,6 @@ abs_jump_op = ['JCAL', ]
 jump_op_61 = abs_jump_op + rel_jump_op_61
 jump_op_75 = abs_jump_op + rel_jump_op_75
 
-hexx = fr'0[xX][0-9a-fA-F]+'
-iaddr = fr'\d+[xX]<[^>]+>'
-immed = fr'{hexx}|{iaddr}|\d+'
-# reg = fr'[a-zA-Z_]\w*'
-reg = fr'R[Z0-9]+'
-noPred = fr'(?P<noPred>)'
 
 # operands
 i20w24 = fr'(?P<i20w24>\-?{immed})'
