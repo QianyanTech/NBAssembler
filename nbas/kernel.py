@@ -191,7 +191,7 @@ class Kernel:
         self.constant2 = None
         self.info_section = None
         self.rel_section = None
-        self.rels_section = None
+        self.rela_section = None
         self.symbol_idx = 0
 
         self.__dict__.update(iterable, **kwargs)
