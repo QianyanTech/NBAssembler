@@ -181,7 +181,7 @@ class Header:
 
 class Section:
     SHT_STR = {0: 'NULL', 1: 'PROGBITS', 2: 'SYMTAB', 3: 'STRTAB', 4: 'RELA', 8: 'NOBITS', 9: 'REL',
-               0x70000000: 'CUDA_INFO', 0x7000000B: 'CUDA_RELOCINFO'}
+               0x70000000: 'CUDA_INFO', 0x70000003: 'CUDA_RESOLVED_RELA', 0x7000000B: 'CUDA_RELOCINFO'}
     # todo: CUDA_RELOCINFO
     SHT_VAL = {val: key for (key, val) in SHT_STR.items()}
     SHF_STR = {1: 'W', 2: 'A', 4: 'X'}
@@ -294,7 +294,7 @@ class Symbol:
     STT_VAL = {val: key for (key, val) in STT_STR.items()}
     STB_STR = {0: 'LOCAL', 1: 'GLOBAL', 2: 'WEAK'}
     STB_VAL = {val: key for (key, val) in STB_STR.items()}
-    STV_STR = {0: 'DEFAULT', 16: 'CUDA_FUNC'}
+    STV_STR = {0: 'DEFAULT', 1: 'INTERNAL', 16: 'CUDA_FUNC'}
     STV_VAL = {val: key for (key, val) in STV_STR.items()}
 
     def __init__(self, iterable=(), **kwargs):
