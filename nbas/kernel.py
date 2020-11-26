@@ -227,6 +227,8 @@ class Kernel:
                 instr = self.instrs[addr2line_num(offset, self.arch)]
                 ops.add(instr['op'])
             asm += f'    # int_warp_wide_instr_offsets: {", ".join(ops)}\n'
+        if self.instrs and self.indirect_branch_targets:
+            asm += f'    # indirect_branch_targets\n'
         if self.sw_war:
             asm += f'    .sw_war {self.sw_war}\n'
         if self.sw1850030_war:
@@ -1054,8 +1056,7 @@ class Kernel:
                         self.coop_group_instr_offsets.append(line_num2addr(instr['line_num'], self.arch))
                 elif op == 'VOTE':
                     self.int_warp_wide_instr_offsets.append(line_num2addr(instr['line_num'], self.arch))
-                elif op == 'SYNC':  # todo: 将SYNC, BRX BRA指令的地址和目标地址记录到self.indirect_branch_targets
-                    # [addr, 0, 0, 1, target_addr]
+                elif op == 'SYNC':
                     pass
 
             ctrl = encode_ctrls(*ctrl_group)
@@ -1155,10 +1156,12 @@ class Kernel:
                     self.coop_group_instr_offsets.append(line_num2addr(instr['line_num'], self.arch))
             elif 'VOTE' in op:
                 self.int_warp_wide_instr_offsets.append(line_num2addr(instr['line_num'], self.arch))
-            elif op == 'SYNC':  # todo: 将SYNC, BRX BRA指令的地址和目标地址记录到self.indirect_branch_targets
-                # [addr, 0, 0, 1, target_addr]
+            elif op == 'SYNC':
+                # todo: 将SYNC, BRX BRA指令的地址和目标地址记录到self.indirect_branch_targets 暂时无法做到，需要动态分析
+                # [addr, 0, 0, n, target_addr, target_addr ...]
                 pass
-            # todo: 当使用WMMA的时候，设置 EIATTR_WMMA_USED
+            elif 'MMA' in op:
+                self.wmma_used = True
 
             code |= ctrl << 105
             codes.append(code)

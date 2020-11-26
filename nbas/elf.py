@@ -182,7 +182,7 @@ class Header:
 class Section:
     SHT_STR = {0: 'NULL', 1: 'PROGBITS', 2: 'SYMTAB', 3: 'STRTAB', 4: 'RELA', 8: 'NOBITS', 9: 'REL',
                0x70000000: 'CUDA_INFO', 0x70000003: 'CUDA_RESOLVED_RELA', 0x7000000B: 'CUDA_RELOCINFO'}
-    # todo: CUDA_RELOCINFO
+    # todo: CUDA_RELOCINFO 不知道如何生成
     SHT_VAL = {val: key for (key, val) in SHT_STR.items()}
     SHF_STR = {1: 'W', 2: 'A', 4: 'X'}
     SHF_VAL = {val: key for (key, val) in SHF_STR.items()}

@@ -221,14 +221,27 @@ def schedule_61(instrs):
             bad_val = 'RZ' if 'r' in operand else 'PT'
 
             if opr := captured_dict[operand] != bad_val:
-                if 'r0' == operand:
-                    # todo: 判断vector
-                    pass
-                elif 'r8' == operand:
-                    # todo: 判断addr vector
-                    pass
-                elif operand in ['CC', 'X']:
+                if operand in ['CC', 'X']:
                     list_.append('CC')
+                elif operand in ['r16', 'ur16', 'r24', 'ur64', 'r32', 'r64']:
+                    r_num = int(captured_dict[operand].strip('UR'))
+                    list_.append(opr)
+                    if op == 'MUFU':
+                        if (type_ := (captured_dict['func'] if 'func' in captured_dict else None)) \
+                                and '64' in type_:
+                            list_.append(re.sub('\d+', f'{r_num + 1}', opr))
+                    elif type_ := (captured_dict['type'] if 'type' in captured_dict else None):
+                        if op in ['LDS', 'LDL', 'STS', 'STL', 'ATOMS'] and operand in ['r24', 'ur32', 'ur64']:
+                            continue
+                        # if op in ['ATOM', 'ATOMS', 'ATOMG', 'RED'] and operand == 'r32':
+                        #     continue
+                        if '64' in type_:
+                            list_.append(re.sub('\d+', f'{r_num + 1}', opr))
+                        elif '128' in type_:
+                            list_.append(re.sub('\d+', f'{r_num + 1}', opr))
+                            list_.append(re.sub('\d+', f'{r_num + 2}', opr))
+                            list_.append(re.sub('\d+', f'{r_num + 3}', opr))
+                    pass
                 else:
                     list_.append(opr)
         instr['const'] = 1 if 'c20' in captured_dict or 'c39' in captured_dict else 0

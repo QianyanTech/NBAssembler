@@ -100,7 +100,7 @@ class Cubin(ELF):
 
                 # Attach relocation add section
                 rela_sec_name = b'.rela.text.' + symbol.name
-                if rel_sec_name in self.section_dict:
+                if rela_sec_name in self.section_dict:
                     kernel.rela_section = self.section_dict[rela_sec_name]
                     kernel.relas = []
                     offset = 0
