@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 # coding: utf-8
 
+# 先使用nvbit，把每一条指令的输入输出数据导出
+# asm1 -> ptx : ptx中详细记录对应的ptx是由哪条指令转换而来
+# ptx -> asm2 : 逐条将ptx分别构建cubin并测试，-O0
+
 from .grammar import *
 
 
