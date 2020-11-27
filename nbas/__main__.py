@@ -99,37 +99,47 @@ def disassemble(cubin_path, kernel_names, asm_path, strip, global_only):
         print(asm, end='')
 
 
-# def disassemble_ptx(asm_path, ptx_path):
-#     cubin = Cubin()
-#
-#     cubin.load_asm(asm_path)
-#
-#     header_ptx = cubin.header.print_ptx() + '\n'
-#
-#     global_ptx = ''
-#     constant_ptx = ''
-#     for global_ in cubin.global_dict.values():
-#         global_ptx += global_.print_ptx() + '\n'
-#
-#     for global_ in cubin.global_init_dict.values():
-#         global_ptx += global_.print_ptx() + '\n'
-#
-#     for constant in cubin.constant_dict.values():
-#         constant_ptx += constant.print_ptx() + '\n'
-#
-#     kernel_ptx = ''
-#     for kernel in cubin.kernel_dict.values():
-#         kernel.mark_const2(replace=True)
-#         kernel.disassemble_ptx()
-#         kernel_ptx += '\n' + kernel.print_ptx()
-#
-#     ptx = header_ptx + global_ptx + constant_ptx + kernel_ptx
-#
-#     if ptx_path:
-#         with open(ptx_path, 'w') as f:
-#             f.write(ptx)
-#     else:
-#         print(ptx, end='')
+def disassemble_ptx(asm_path, ptx_path, define_list):
+    cubin = Cubin()
+
+    define_dict = {}
+    for define in define_list:
+        if not define:
+            continue
+        d = define.split('=')
+        if len(d) < 2:
+            exec(f'{define} = True', define_dict)
+        else:
+            exec(f'{define}', define_dict)
+
+    cubin.load_asm(asm_path, define_dict)
+
+    header_ptx = cubin.header.print_ptx() + '\n'
+
+    global_ptx = ''
+    constant_ptx = ''
+    for global_ in cubin.global_dict.values():
+        global_ptx += global_.print_ptx() + '\n'
+
+    for global_ in cubin.global_init_dict.values():
+        global_ptx += global_.print_ptx() + '\n'
+
+    for constant in cubin.constant_dict.values():
+        constant_ptx += constant.print_ptx() + '\n'
+
+    kernel_ptx = ''
+    for kernel in cubin.kernel_dict.values():
+        kernel.mark_const2(replace=True)
+        kernel.disassemble_ptx()
+        kernel_ptx += '\n' + kernel.print_ptx()
+
+    ptx = header_ptx + global_ptx + constant_ptx + kernel_ptx
+
+    if ptx_path:
+        with open(ptx_path, 'w') as f:
+            f.write(ptx)
+    else:
+        print(ptx, end='')
 
 
 def assemble(asm_path, out_cubin_path, define_list, out_asm_path, sort_banks):
@@ -392,9 +402,11 @@ def main():
     parser_pre.add_argument('-o', '--output', metavar='OUTPUT', type=str, default='', help='output asm file path')
     parser_pre.add_argument('-s', '--strip', action='store_true', help='strip comment')
 
-    # parser_ptxdas = subparsers.add_parser('ptxdas', help='disassemble asm to ptx')
-    # parser_ptxdas.add_argument('asm', help='input asm', metavar='ASM')
-    # parser_ptxdas.add_argument('-o', '--output', metavar='OUTPUT', type=str, default='', help='output ptx file path')
+    parser_ptx = subparsers.add_parser('ptx', help='disassemble asm to ptx')
+    parser_ptx.add_argument('asm', help='input asm', metavar='ASM')
+    parser_ptx.add_argument('-D', '--define', metavar='DEFINE', nargs='+', type=str, default='',
+                            help='define variable for embedded python code')
+    parser_ptx.add_argument('-o', '--output', metavar='OUTPUT', type=str, default='', help='output ptx file path')
 
     parser_test = subparsers.add_parser('test', help='test assembler by disassemble and then assemble')
     parser_test.add_argument('cubin', help='input cubin', metavar='CUBIN')
@@ -402,10 +414,10 @@ def main():
     parser_test.add_argument('-k', '--kernels', metavar='KERNELS', nargs='+', type=str, default='', help='kernel names')
     parser_test.add_argument('-g', '--global_only', action='store_true', help='ignore non global FUNC')
 
-    parser_detect = subparsers.add_parser('detect', help='detect machine code bits')
-    parser_detect.add_argument('code', help='input code', metavar='CODE')
-    parser_detect.add_argument('-a', '--arch', help='code arch', metavar='ARCH', type=int, default=61)
-    parser_detect.add_argument('-r', '--range', nargs=2, metavar=('BEGIN', 'END'), type=int,
+    parser_det = subparsers.add_parser('det', help='detect machine code bits')
+    parser_det.add_argument('code', help='input code', metavar='CODE')
+    parser_det.add_argument('-a', '--arch', help='code arch', metavar='ARCH', type=int, default=61)
+    parser_det.add_argument('-r', '--range', nargs=2, metavar=('BEGIN', 'END'), type=int,
                                help='detect machine code by flip [BEGIN,END] bit')
     args = parser.parse_args()
 
@@ -422,11 +434,11 @@ def main():
                  sort_banks=args.sort)
     elif args.cmd == 'pre':
         preprocess(asm_path=args.asm, out_asm_path=args.output, define_list=args.define, strip=args.strip)
-    # elif args.cmd == 'ptxdas':
-    #     disassemble_ptx(asm_path=args.asm, ptx_path=args.output)
+    elif args.cmd == 'ptx':
+        disassemble_ptx(asm_path=args.asm, ptx_path=args.output, define_list=args.define)
     elif args.cmd == 'test':
         test_cubin(cubin_path=args.cubin, kernel_names=args.kernels, global_only=args.global_only, check=args.check)
-    elif args.cmd == 'detect':
+    elif args.cmd == 'det':
         code = args.code
         begin, end = args.range
         arch = args.arch
