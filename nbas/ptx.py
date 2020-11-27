@@ -56,8 +56,9 @@ def ptx_cname(kernel, instrs, captured_dict, instr):
         'GRID_DIM_Y': '%nctaid.y',
         'GRID_DIM_Z': '%nctaid.z',
     }
+    const0_dict = kernel.CONST0_VAL_61.copy() if kernel.arch < 70 else kernel.CONST0_VAL_75.copy()
 
-    if name_str in kernel.CONST0_VAL:
+    if name_str in const0_dict:
         if name_str not in const0_map:
             r_str = f'[{name_str}]'
         else:

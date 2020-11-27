@@ -918,8 +918,8 @@ class Kernel:
                 label = ''
             # 处理pred
             if instr['pred']:
-                instr['pred'] = f'@{"!" if instr["pred_not"] else ""}%p{instr["pred_reg"]}'
-                self.pred_regs.add(int(instr["pred_reg"], base=0))
+                instr['pred'] = f'@{"!" if instr["pred_not"] else ""}%p{instr["pred_reg"].strip("UP")}'
+                self.pred_regs.add(int(instr["pred_reg"].strip("UP"), base=0))
             grams = grammar_ptx[op] if op in grammar_ptx else []
             gram = None
             captured_dict = None

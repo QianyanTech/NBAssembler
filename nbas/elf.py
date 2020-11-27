@@ -121,8 +121,10 @@ class Header:
     def print_ptx(self):
         cuda_version = f'{self.e_version // 10}.{self.e_version % 10}'
         ptx = f'// CUDA: {cuda_version}\n'
-
-        ptx += f'.version 6.5\n'
+        if self.e_version >= 111:
+            ptx += f'.version 7.1\n'
+        else:
+            ptx += f'.version 6.5\n'
 
         ptx += f'.target sm_{self.arch}'
         if self.e_flags & self.EF_CUDA_TEXMODE_UNIFIED:
