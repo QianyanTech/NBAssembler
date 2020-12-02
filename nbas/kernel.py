@@ -99,8 +99,9 @@ class Instruction:
 
     def print_ptx(self):
         ptx = []
-        for p in self.ptx:
-            ptx.append(f"{self.ptx_pred:>5s} {p['op']}{p['rest']}")
+        if self.ptx is not None:
+            for p in self.ptx:
+                ptx.append(f"{self.ptx_pred:>5s} {p['op']}{p['rest']}")
         return ptx
 
 
@@ -333,7 +334,7 @@ class Kernel:
         ptx = ''
         if instr.label:
             ptx += f"{instr.label}:\n"
-        if not instr.ptx and instr.op not in ptx_ignore_instrs:
+        if instr.ptx is None:
             ptx += f"  /*{instr.print_instr()}*/"
         else:
             ptx += f"  //{instr.print_instr()}"
@@ -984,7 +985,7 @@ class Kernel:
                     break
             if not gram:
                 # raise Exception(f'Cannot recognize instruction {op + rest}')
-                instr.ptx = []
+                instr.ptx = None
                 continue
             # 统计寄存器数量
             if 'rd' in captured_dict and captured_dict['rd'] and captured_dict['rd'] != 'RZ':
@@ -1027,9 +1028,10 @@ class Kernel:
                 break
 
         # 去除最后一条死循环
-        last_instr = instrs[-1]
-        if last_instr.label and last_instr.label in last_instr.rest:
-            last_instr.ptx = []
+        for instr in reversed(instrs):
+            if instr.label and instr.label in instr.rest:
+                instr.ptx = []
+                break
         self.instrs = instrs
 
     def assemble(self, test_binary: bytes = b''):

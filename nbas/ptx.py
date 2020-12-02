@@ -714,12 +714,6 @@ def ptx_brk(kernel, instrs, captured_dict, instr):
     instr['rest'] = f' {captured_dict["label"]};'
 
 
-def ptx_bra(kernel, instrs, captured_dict, instr):
-    instr['op'] = 'bra'
-    uni = '.uni' if captured_dict['U'] else ''
-    instr['rest'] = f'{uni} {captured_dict["label"]};'
-
-
 def ptx_bar(kernel, instrs, captured_dict, instr):
     instr['op'] = 'bar'
     if captured_dict['i8w8']:
@@ -920,6 +914,12 @@ def ptx_isetp(kernel, captured_dict, instr):
 
 def ptx_exit(kernel, captured_dict, instr):
     instr.ptx[-1]['op'] = 'ret'
+
+
+def ptx_bra(kernel, captured_dict, instr):
+    instr.ptx[0]['op'] = 'bra'
+    uni = '.uni' if captured_dict['U'] else ''
+    instr.ptx[0]['rest'] = f'{uni} {captured_dict["label"]};'
 
 
 grammar_ptx = {
@@ -1137,6 +1137,7 @@ grammar_ptx = {
     ],
     'BPT': [],  # BreakPoint/Trap
     'BRA': [  # Relative Branch
+        {'rule': rf'BRA(?P<U>\.U)? `\(\s*{LABEL_RE}\s*\);', 'ptx': ptx_bra}
     ],
     'BREAK': [  # Break out of the Specified Convergence Barrier
     ],
