@@ -70,12 +70,12 @@ def ptx_cname(kernel, captured_dict, instr):
             instr['label'] = ''
             kernel.reg_set.add(r_idx)
             kernel.ptx_reg_count += 1
-    elif 'mov' in instr['op'].lower() or 'ld' in instr['op'].lower():
+    elif 'mov' in instr.ptx[0]['op'].lower() or 'ld' in instr.ptx[0]['op'].lower():
         r_str = f'[{name_str}+{offset}]'
     else:
         r_idx = kernel.ptx_reg_count + 256
         r_str = f'%r{r_idx}'
-        ss_str = 'param' if 'PARAM' in name_str else 'const'
+        ss_str = 'param' if 'ARG_' in name_str else 'const'
         instr.ptx.append({
             'op': 'ld', 'rest': f'.{ss_str}.b32 {r_str}, [{name_str}+{offset}];',
         })
@@ -754,6 +754,11 @@ def ptx_r2p(kernel, instrs, captured_dict, instr):
     instr['line_num'] = None
 
 
+pp = fr'(?P<pp>{P})'
+pq = fr'(?P<pq>{P})'
+pc = fr'(?P<pc>{P})'
+ra = fr'(?P<ra>{reg})'
+rb = fr'(?P<rb>{reg})'
 rd = fr'(?P<rd>{reg})'
 urd = fr'(?P<urd>{ureg})'
 pimmed = fr'(?P<pimmed>(?P<neg>\-)?{immed})'
@@ -763,14 +768,38 @@ paddr = fr'\[(?:(?P<ra>{reg})(?P<rax>\.X(4|8|16))?(?P<ratype>\.64|\.U32)?)?' \
 
 def ptx_mov(kernel, captured_dict, instr):
     d = ptx_r(captured_dict, 'rd')
-    a = ptx_irc(kernel, captured_dict, instr, 'i20', 'r20')
+    a = ptx_irc(kernel, captured_dict, instr, 'pimmd', 'rb')
     if captured_dict['const']:
         instr.ptx[0]['op'] = 'ld'
-        ss_str = 'param' if 'PARAM' in captured_dict['name'] else 'const'
+        ss_str = 'param' if 'ARG_' in captured_dict['name'] else 'const'
         instr.ptx[0]['rest'] = f'.{ss_str}.b32 {d}, {a};'
     else:
         instr.ptx[0]['op'] = 'mov'
         instr.ptx[0]['rest'] = f'.b32 {d}, {a};'
+
+
+def ptx_uldc(kernel, captured_dict, instr):
+    d = ptx_r(captured_dict, 'urd')
+    d_idx = captured_dict['urd_ord']
+    a = ptx_cname(kernel, captured_dict, instr)
+    if captured_dict['type'] and '64' in captured_dict['type']:
+        d = f'{{%ur{d_idx}, %ur{d_idx + 1}}}'
+    elif captured_dict['type'] and '128' in captured_dict['type']:
+        d = f'{{%ur{d_idx}, %ur{d_idx + 1}, %ur{d_idx + 2}, %ur{d_idx + 3}}}'
+    instr.ptx[0]['op'] = 'ld'
+    ss_str = 'param' if 'ARG_' in captured_dict['name'] else 'const'
+    if not captured_dict['type'] or '32' in captured_dict['type']:
+        type_str = '.u32'
+        instr.ptx[0]['rest'] = f'.{ss_str}{type_str} {d}, {a};'
+    elif '64' in captured_dict['type']:
+        type_str = '.u32'
+        instr.ptx[-1]['rest'] = f'.{ss_str}.v2{type_str} {d}, {a};'
+    elif '128' in captured_dict['type']:
+        type_str = '.u32'
+        instr.ptx[-1]['rest'] = f'.{ss_str}.v4{type_str} {d}, {a};'
+    else:
+        type_str = captured_dict['type'].lower()
+        instr.ptx[-1]['rest'] = f'.{ss_str}{type_str} {d}, {a};'
 
 
 def ptx_umov(kernel, captured_dict, instr):
@@ -870,21 +899,21 @@ def ptx_ldst(kernel, captured_dict, instr):
 def ptx_isetp(kernel, captured_dict, instr):
     instr.ptx[-1]['op'] = 'setp'
     cmp_str = captured_dict['cmp'].lower()
-    bool_str = captured_dict['bool2'].lower()
-    type_str = 'u32' if captured_dict['U32'] else 's32'
-    p = ptx_p(captured_dict, 'p3')
-    q = ptx_p(captured_dict, 'p0')
-    a = ptx_r(captured_dict, 'r8')
-    b = ptx_irc(kernel, captured_dict, instr, 'i20', 'r20')
-    c = ptx_p(captured_dict, 'p39')
+    bool_str = captured_dict['bool'].lower()
+    type_str = '.u32' if captured_dict['U32'] else '.s32'
+    p = ptx_p(captured_dict, 'pp')
+    q = ptx_p(captured_dict, 'pq')
+    a = ptx_r(captured_dict, 'ra')
+    b = ptx_irc(kernel, captured_dict, instr, 'pimmd', 'rb')
+    c = ptx_p(captured_dict, 'pc')
     if 'pt' in q:
         q = ''
     else:
         q = f'|{q}'
     if '%pt' == c and 'and' == bool_str:
-        rest = f'.{cmp_str}.{type_str} {p}{q}, {a}, {b};'
+        rest = f'{cmp_str}{type_str} {p}{q}, {a}, {b};'
     else:
-        rest = f'.{cmp_str}.{bool_str}.{type_str} {p}{q}, {a}, {b}, {c};'
+        rest = f'{cmp_str}{bool_str}{type_str} {p}{q}, {a}, {b}, {c};'
     instr.ptx[-1]['rest'] = rest
 
 
@@ -952,7 +981,7 @@ grammar_ptx = {
     'ISCADD': [],  # Scaled Integer Addition
     'ISCADD32I': [],  # Scaled Integer Addition
     'ISETP': [  # Integer Compare And Set Predicate
-        {'rule': rf'ISETP{icmp}{u32}{bool2} {p3}, {p0}, {r8}, (?:{r20}|{i20}|{CONST_NAME_RE}), {p39};',
+        {'rule': rf'ISETP{ticmp}{u32}{tbool}{tex} {pp}, {pq}, {ra}, (?:{rb}|{pimmed}|{CONST_NAME_RE}), {pc};',
          'ptx': ptx_isetp}
     ],
     'LEA': [  # LOAD Effective Address
@@ -1059,6 +1088,7 @@ grammar_ptx = {
     'UISETP': [  # Integer Compare and Set Uniform Predicate
     ],
     'ULDC': [  # Load from Constant Memory into a Uniform Register
+        {'rule': rf'ULDC{tmem_type} {urd}, {CONST_NAME_RE};', 'ptx': ptx_uldc}
     ],
     'ULEA': [  # Uniform Load Effective Address
     ],
@@ -1184,9 +1214,6 @@ grammar_ptx_old = {
          'ptx': ptx_xmad}],
 
     # Comparison and Selection Instructions
-    'ISETP': [  # setp
-        {'rule': rf'ISETP{icmp}{u32}{bool2} {p3}, {p0}, {r8}, (?:{r20}|{i20}|{CONST_NAME_RE}), {p39};',
-         'ptx': ptx_isetp}],
     'ICMP': [  # slct
         {'rule': rf'ICMP{icmp}{u32} {r0}, {r8}, (?:{r20}|{i20}|{CONST_NAME_RE}), {r39};', 'ptx': ptx_icmp}],
     # Logic and Shift Instructions
@@ -1204,8 +1231,6 @@ grammar_ptx_old = {
     'SHR': [  # shr
         {'rule': rf'SHR{u32} {r0nc}, {r8}, (?:{r20}|{i20}|{CONST_NAME_RE});', 'ptx': ptx_shr}],
     # Movement Instructions
-    'MOV': [  # mov
-        {'rule': rf'MOV {r0nc}, (?:{r20}|{i20}|{CONST_NAME_RE});', 'ptx': ptx_mov}],
     'MOV32I': [  # mov
         {'rule': rf'MOV32I {r0nc}, {i20w32};', 'ptx': ptx_mov32i},
         {'rule': rf'MOV32I {r0nc}, {GLOBAL_NAME_RE};', 'ptx': ptx_mov32i}],
@@ -1219,8 +1244,6 @@ grammar_ptx_old = {
     'PSETP': [  # setp
         {'rule': rf'PSETP(?:\.(?P<bool>AND|OR|XOR)){bool2} {p3}, {p0}, {p12}, {p29}, {p39};', 'ptx': ptx_psetp}],
     # Compute Load/Store Instructions
-    'LDG': [  # ld
-        {'rule': rf'LDG{mem_cache}{mem_type} {r0nc}, {addr};', 'ptx': ptx_ldst}],
     'STG': [  # st
         {'rule': rf'STG{mem_cache}{mem_type} {addr}, {r0nc};', 'ptx': ptx_ldst}],
     'LDS': [  # ld
@@ -1240,9 +1263,6 @@ grammar_ptx_old = {
         {'rule': rf'ATOMS{atom} {r0nc}, {addr}, {r20}(?:, {r39a})?;', 'ptx': ptx_atom}],
     'RED': [  # red
         {'rule': rf'RED{atom} {addr}, {r20};', 'ptx': ptx_atom}],
-    # Control Instructions
-    'EXIT': [  # exit
-        {'rule': rf'EXIT;', 'ptx': ptx_exit}],
     'BRK': [  # bra
         {'rule': rf'BRK `\(\s*{LABEL_RE}\s*\);', 'ptx': ptx_brk}],
     'SYNC': [  # bra
