@@ -88,14 +88,20 @@ class Instruction:
         if self.label:
             msg += f'{self.label}: '
         if self.addr:
-            msg += f"    /*{self.addr}*/  {self.ctrl} {self.print_instr():<56s} /* {self.code} */ " \
+            msg += f"/*{self.addr}*/  {self.ctrl} {self.print_instr():<56s} /* {self.code} */ " \
                    f"# {print_reuse(self.reuse)}"
         else:
-            msg += f"    {self.ctrl} {self.print_instr():<56s}"
+            msg += f"{self.ctrl} {self.print_instr():<56s}"
         return msg
 
     def print_instr(self):
         return f"{self.pred:>5s} {self.op}{self.rest}"
+
+    def print_ptx(self):
+        ptx = []
+        for p in self.ptx:
+            ptx.append(f"{self.ptx_pred:>5s} {p['op']}{p['rest']}")
+        return ptx
 
 
 class Kernel:
@@ -324,16 +330,15 @@ class Kernel:
 
     @staticmethod
     def print_ptx_line(instr):
-        if instr['line_num'] is None:
-            return f"  //{print_instr(instr)}"
-
         ptx = ''
-        if instr['label']:
-            ptx += f"{instr['label']}:\n"
-        if instr['line_num'] < 0:
-            ptx += f"  /*{print_instr(instr)}*/"
+        if instr.label:
+            ptx += f"{instr.label}:\n"
+        if not instr.ptx and instr.op not in ptx_ignore_instrs:
+            ptx += f"  /*{instr.print_instr()}*/"
         else:
-            ptx += f"    {print_instr(instr)}"
+            ptx += f"  //{instr.print_instr()}"
+            for p in instr.print_ptx():
+                ptx += f"\n    {p}"
         return ptx
 
     def print_ptx(self):
@@ -943,7 +948,7 @@ class Kernel:
         instruction: dict
         for instruction in self.instrs:
             ptx_instr = Instruction(**instruction)
-            ptx_instr.ptx_pred = f'@{"!" if ptx_instr.pred_not else ""}%{ptx_instr.pred_reg}' if ptx_instr.pred else ''
+            ptx_instr.ptx_pred = f'@{"!" if ptx_instr.pred_not else ""}%{ptx_instr.pred_reg.lower()}' if ptx_instr.pred else ''
             rest = re.sub(r'\.reuse', '', ptx_instr.rest)
             ptx_instr.ptx = [{'op': ptx_instr.op, 'rest': rest}, ]
             instrs.append(ptx_instr)
@@ -978,9 +983,9 @@ class Kernel:
                     captured_dict = m.groupdict()
                     break
             if not gram:
-                raise Exception(f'Cannot recognize instruction {op + rest}')
-                # instr.ptx = []
-                # continue
+                # raise Exception(f'Cannot recognize instruction {op + rest}')
+                instr.ptx = []
+                continue
             # 统计寄存器数量
             if 'rd' in captured_dict and captured_dict['rd'] and captured_dict['rd'] != 'RZ':
                 r_num = int(captured_dict['rd'].strip('R'))

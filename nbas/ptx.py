@@ -73,15 +73,14 @@ def ptx_cname(kernel, captured_dict, instr):
     elif 'mov' in instr.ptx[0]['op'].lower() or 'ld' in instr.ptx[0]['op'].lower():
         r_str = f'[{name_str}+{offset}]'
     else:
-        r_idx = kernel.ptx_reg_count + 256
+        r_idx = kernel.reg_count + 256
         r_str = f'%r{r_idx}'
         ss_str = 'param' if 'ARG_' in name_str else 'const'
         instr.ptx.append({
             'op': 'ld', 'rest': f'.{ss_str}.b32 {r_str}, [{name_str}+{offset}];',
         })
-        instr['label'] = ''
         kernel.reg_set.add(r_idx)
-        kernel.ptx_reg_count += 1
+        kernel.reg_count += 1
     if f'c20abs' in captured_dict and captured_dict[f'c20abs']:
         r_str = f'|{r_str}|'
     if f'c20neg' in captured_dict and captured_dict[f'c20neg']:
@@ -754,6 +753,8 @@ def ptx_r2p(kernel, instrs, captured_dict, instr):
     instr['line_num'] = None
 
 
+ptx_ignore_instrs = ['NOP', 'MEMBAR', 'SSY', 'PBK']
+
 pp = fr'(?P<pp>{P})'
 pq = fr'(?P<pq>{P})'
 pc = fr'(?P<pc>{P})'
@@ -761,14 +762,14 @@ ra = fr'(?P<ra>{reg})'
 rb = fr'(?P<rb>{reg})'
 rd = fr'(?P<rd>{reg})'
 urd = fr'(?P<urd>{ureg})'
-pimmed = fr'(?P<pimmed>(?P<neg>\-)?{immed})'
+pim = fr'(?P<pim>(?P<neg>\-)?{immed})'
 paddr = fr'\[(?:(?P<ra>{reg})(?P<rax>\.X(4|8|16))?(?P<ratype>\.64|\.U32)?)?' \
-        rf'(?:\s*\+?\s*(?P<urb>{ureg}))?(?:\s*\+?\s*{pimmed})?\]'
+        rf'(?:\s*\+?\s*(?P<urb>{ureg}))?(?:\s*\+?\s*{pim})?\]'
 
 
 def ptx_mov(kernel, captured_dict, instr):
     d = ptx_r(captured_dict, 'rd')
-    a = ptx_irc(kernel, captured_dict, instr, 'pimmd', 'rb')
+    a = ptx_irc(kernel, captured_dict, instr, 'pim', 'rb')
     if captured_dict['const']:
         instr.ptx[0]['op'] = 'ld'
         ss_str = 'param' if 'ARG_' in captured_dict['name'] else 'const'
@@ -872,7 +873,7 @@ def ptx_ldst(kernel, captured_dict, instr):
             a = ''
     else:
         a = f'{a}+'
-    c = ptx_i(captured_dict, 'pimmed')
+    c = ptx_i(captured_dict, 'pim')
     c = int(c, base=0) if c else 0
 
     if 'LD' in op:
@@ -904,7 +905,7 @@ def ptx_isetp(kernel, captured_dict, instr):
     p = ptx_p(captured_dict, 'pp')
     q = ptx_p(captured_dict, 'pq')
     a = ptx_r(captured_dict, 'ra')
-    b = ptx_irc(kernel, captured_dict, instr, 'pimmd', 'rb')
+    b = ptx_irc(kernel, captured_dict, instr, 'pim', 'rb')
     c = ptx_p(captured_dict, 'pc')
     if 'pt' in q:
         q = ''
@@ -981,7 +982,7 @@ grammar_ptx = {
     'ISCADD': [],  # Scaled Integer Addition
     'ISCADD32I': [],  # Scaled Integer Addition
     'ISETP': [  # Integer Compare And Set Predicate
-        {'rule': rf'ISETP{ticmp}{u32}{tbool}{tex} {pp}, {pq}, {ra}, (?:{rb}|{pimmed}|{CONST_NAME_RE}), {pc};',
+        {'rule': rf'ISETP{ticmp}{u32}{tbool}{tex} {pp}, {pq}, {ra}, (?:{rb}|{pim}|{CONST_NAME_RE}), {pc};',
          'ptx': ptx_isetp}
     ],
     'LEA': [  # LOAD Effective Address
