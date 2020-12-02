@@ -23,8 +23,8 @@ def ptx_r(captured_dict, name):
         r_str = '0'
         r_ord = -1
     else:
-        r_ord = int(r_str[2:], base=10)
-    captured_dict[f'{name}ord'] = r_ord
+        r_ord = int(r_str.strip('%ur'), base=10)
+    captured_dict[f'{name}_ord'] = r_ord
     if f'{name}abs' in captured_dict and captured_dict[f'{name}abs']:
         r_str = f'|{r_str}|'
     if f'{name}neg' in captured_dict and captured_dict[f'{name}neg']:
@@ -44,7 +44,7 @@ def ptx_p(captured_dict, name):
     return p_str
 
 
-def ptx_cname(kernel, instrs, captured_dict, instr):
+def ptx_cname(kernel, captured_dict, instr):
     name_str = captured_dict['name']
     offset = captured_dict['offset'] if captured_dict['offset'] else 0
 
@@ -64,14 +64,8 @@ def ptx_cname(kernel, instrs, captured_dict, instr):
         else:
             r_idx = kernel.ptx_reg_count + 256
             r_str = f'%r{r_idx}'
-            instrs.append({
-                'line_num': instr['line_num'],
-                'ctrl': instr['ctrl'],
-                'pred': instr['pred'],
-                'pred_not': instr['pred_not'],
-                'op': 'mov',
-                'rest': f'.u32 {r_str}, {const0_map[name_str]};',
-                'label': instr['label'],
+            instr.ptx.append({
+                'op': 'mov', 'rest': f'.u32 {r_str}, {const0_map[name_str]};',
             })
             instr['label'] = ''
             kernel.reg_set.add(r_idx)
@@ -82,14 +76,8 @@ def ptx_cname(kernel, instrs, captured_dict, instr):
         r_idx = kernel.ptx_reg_count + 256
         r_str = f'%r{r_idx}'
         ss_str = 'param' if 'PARAM' in name_str else 'const'
-        instrs.append({
-            'line_num': instr['line_num'],
-            'ctrl': instr['ctrl'],
-            'pred': instr['pred'],
-            'pred_not': instr['pred_not'],
-            'op': 'ld',
-            'rest': f'.{ss_str}.b32 {r_str}, [{name_str}+{offset}];',
-            'label': instr['label'],
+        instr.ptx.append({
+            'op': 'ld', 'rest': f'.{ss_str}.b32 {r_str}, [{name_str}+{offset}];',
         })
         instr['label'] = ''
         kernel.reg_set.add(r_idx)
@@ -110,33 +98,28 @@ def ptx_ir(captured_dict, i_name, r_name):
     return c
 
 
-def ptx_irc(kernel, instrs, captured_dict, instr, i_name, r_name):
+def ptx_irc(kernel, captured_dict, instr, i_name, r_name):
     if i_name in captured_dict and captured_dict[i_name]:
         c = ptx_i(captured_dict, i_name)
     elif r_name in captured_dict and captured_dict[r_name]:
         c = ptx_r(captured_dict, r_name)
     else:
-        c = ptx_cname(kernel, instrs, captured_dict, instr)
+        c = ptx_cname(kernel, captured_dict, instr)
     return c
 
 
-def ptx_r2d(kernel, instrs, captured_dict, instr, name):
+def ptx_r2d(kernel, captured_dict, instr, name):
     if name not in captured_dict or not captured_dict[name]:
         return ''
-    if 'RZ' in captured_dict[name]:
+    r_str = captured_dict[name]
+    r_t = 'ur' if 'U' in r_str else 'r'
+    if 'RZ' in r_str:
         return '0'
-    r_idx = int(captured_dict[name][1:], base=0)
+    r_idx = int(captured_dict[name].strip('UR'), base=0)
     rd_idx = kernel.reg64_count
-    instrs.append({
-        'line_num': instr['line_num'],
-        'ctrl': instr['ctrl'],
-        'pred': instr['pred'],
-        'pred_not': instr['pred_not'],
-        'op': 'mov',
-        'rest': f'.b64 %rd{rd_idx}, {{%r{r_idx}, %r{r_idx + 1}}};',
-        'label': instr['label'],
+    instr.ptx.insert(0, {
+        'op': 'mov', 'rest': f'.b64 %rd{rd_idx}, {{%{r_t}{r_idx}, %{r_t}{r_idx + 1}}};',
     })
-    instr['label'] = ''
     kernel.reg64_count += 1
     return f'%rd{rd_idx}'
 
@@ -171,16 +154,12 @@ def ptx_unpack(instrs, instr, r1, r2, rd):
 
 
 def ptx_append_instr(instrs, instr, op, rest):
-    instrs.append({
-        'line_num': instr['line_num'],
-        'ctrl': instr['ctrl'],
+    ptx = {
         'pred': instr['pred'],
-        'pred_not': instr['pred_not'],
         'op': op,
         'rest': rest,
-        'label': instr['label'],
-    })
-    instr['label'] = ''
+    }
+    instr.ptx.append(ptx)
 
 
 def ptx_find_x(kernel, instr):
@@ -501,27 +480,6 @@ def ptx_xmad(kernel, instrs, captured_dict, instr):
             instr['line_num'] = -instr['line_num']
 
 
-def ptx_isetp(kernel, instrs, captured_dict, instr):
-    instr['op'] = 'setp'
-    cmp_str = captured_dict['cmp'].lower()
-    bool_str = captured_dict['bool2'].lower()
-    type_str = 'u32' if captured_dict['U32'] else 's32'
-    p = ptx_p(captured_dict, 'p3')
-    q = ptx_p(captured_dict, 'p0')
-    a = ptx_r(captured_dict, 'r8')
-    b = ptx_irc(kernel, instrs, captured_dict, instr, 'i20', 'r20')
-    c = ptx_p(captured_dict, 'p39')
-    if 'pt' in q:
-        q = ''
-    else:
-        q = f'|{q}'
-    if '%pt' == c and 'and' == bool_str:
-        rest = f'.{cmp_str}.{type_str} {p}{q}, {a}, {b};'
-    else:
-        rest = f'.{cmp_str}.{bool_str}.{type_str} {p}{q}, {a}, {b}, {c};'
-    instr['rest'] = rest
-
-
 def ptx_icmp(kernel, instrs, captured_dict, instr):
     cmp_str = captured_dict['cmp'].lower()
     type_str = 'u32' if captured_dict['U32'] else 's32'
@@ -631,18 +589,6 @@ def ptx_shr(kernel, instrs, captured_dict, instr):
     instr['rest'] = rest
 
 
-def ptx_mov(kernel, instrs, captured_dict, instr):
-    d = ptx_r(captured_dict, 'r0')
-    a = ptx_irc(kernel, instrs, captured_dict, instr, 'i20', 'r20')
-    if captured_dict['const']:
-        instr['op'] = 'ld'
-        ss_str = 'param' if 'PARAM' in captured_dict['name'] else 'const'
-        instr['rest'] = f'.{ss_str}.b32 {d}, {a};'
-    else:
-        instr['op'] = 'mov'
-        instr['rest'] = f'.b32 {d}, {a};'
-
-
 def ptx_mov32i(kernel, instrs, captured_dict, instr):
     instr['op'] = 'mov'
     d = ptx_r(captured_dict, 'r0')
@@ -707,72 +653,6 @@ def ptx_sel(kernel, instrs, captured_dict, instr):
     instr['rest'] = f'.b32 {d}, {a}, {b}, {c};'
 
 
-def ptx_ldst(kernel, instrs, captured_dict, instr):
-    if instr['op'] in ['LDL', 'STL']:
-        ss = 'local'
-    elif instr['op'] in ['LDS', 'STS']:
-        ss = 'shared'
-    elif instr['op'] == 'LDC':
-        ss = 'const'
-    else:
-        ss = 'global'
-
-    if captured_dict['cache']:
-        cache_str = f'.{captured_dict["cache"].lower()}'
-    else:
-        cache_str = ''
-    if cache_str == '.ci':
-        cache_str = '.nc'
-    elif cache_str == '.wt':
-        cache_str = '.volatile'
-
-    d = ptx_r(captured_dict, 'r0')
-    d_idx = captured_dict['r0ord']
-    if captured_dict['type'] and '64' in captured_dict['type']:
-        if d_idx == -1:
-            d = f'{{0, 0}}'
-        else:
-            d = f'{{%r{d_idx}, %r{d_idx + 1}}}'
-    elif captured_dict['type'] and '128' in captured_dict['type']:
-        if d_idx == -1:
-            d = f'{{0, 0, 0, 0}}'
-        else:
-            d = f'{{%r{d_idx}, %r{d_idx + 1}, %r{d_idx + 2}, %r{d_idx + 3}}}'
-    if ss in ['shared', 'const']:
-        a = ptx_r(captured_dict, 'r8')
-    else:
-        a = ptx_r2d(kernel, instrs, captured_dict, instr, 'r8')
-    if a in ['0', '-0', '|0|', '']:
-        if ss == 'shared':
-            a = '_shared+'
-        else:
-            a = ''
-    else:
-        a = f'{a}+'
-    b = ptx_i(captured_dict, 'i20w24')
-    b = int(b, base=0) if b else 0
-
-    if 'LD' in instr['op']:
-        instr['op'] = 'ld'
-        dab = f'{d}, [{a}{b}]'
-    else:
-        instr['op'] = 'st'
-        dab = f'[{a}{b}], {d}'
-
-    if not captured_dict['type'] or '32' in captured_dict['type']:
-        type_str = 'u32'
-        instr['rest'] = f'.{ss}{cache_str}.{type_str} {dab};'
-    elif '64' in captured_dict['type']:
-        type_str = 'u32'
-        instr['rest'] = f'.{ss}{cache_str}.v2.{type_str} {dab};'
-    elif '128' in captured_dict['type']:
-        type_str = 'u32'
-        instr['rest'] = f'.{ss}{cache_str}.v4.{type_str} {dab};'
-    else:
-        type_str = captured_dict['type'].lower()
-        instr['rest'] = f'.{ss}{cache_str}.{type_str} {dab};'
-
-
 def ptx_atom(kernel, instrs, captured_dict, instr):
     if instr['op'] == 'ATOMS':
         ss = 'shared'
@@ -825,10 +705,6 @@ def ptx_atom(kernel, instrs, captured_dict, instr):
         instr['rest'] = f'.{ss}.{op_str}.{type_str} {d}, [{a}{i}], {b}{c};'
 
 
-def ptx_exit(kernel, instrs, captured_dict, instr):
-    instr['op'] = 'ret'
-
-
 def ptx_sync(kernel, instrs, captured_dict, instr):
     instr['op'] = 'bra'
     instr['rest'] = f' {captured_dict["label"]};'
@@ -878,7 +754,411 @@ def ptx_r2p(kernel, instrs, captured_dict, instr):
     instr['line_num'] = None
 
 
+rd = fr'(?P<rd>{reg})'
+urd = fr'(?P<urd>{ureg})'
+pimmed = fr'(?P<pimmed>(?P<neg>\-)?{immed})'
+paddr = fr'\[(?:(?P<ra>{reg})(?P<rax>\.X(4|8|16))?(?P<ratype>\.64|\.U32)?)?' \
+        rf'(?:\s*\+?\s*(?P<urb>{ureg}))?(?:\s*\+?\s*{pimmed})?\]'
+
+
+def ptx_mov(kernel, captured_dict, instr):
+    d = ptx_r(captured_dict, 'rd')
+    a = ptx_irc(kernel, captured_dict, instr, 'i20', 'r20')
+    if captured_dict['const']:
+        instr.ptx[0]['op'] = 'ld'
+        ss_str = 'param' if 'PARAM' in captured_dict['name'] else 'const'
+        instr.ptx[0]['rest'] = f'.{ss_str}.b32 {d}, {a};'
+    else:
+        instr.ptx[0]['op'] = 'mov'
+        instr.ptx[0]['rest'] = f'.b32 {d}, {a};'
+
+
+def ptx_umov(kernel, captured_dict, instr):
+    instr.ptx[0]['op'] = 'mov'
+    d = ptx_r(captured_dict, 'urd')
+    if 'i20w32' in captured_dict:
+        a = ptx_i(captured_dict, 'i20w32')
+        instr.ptx[0]['rest'] = f'.b32 {d}, {a};'
+    else:
+        type_str = captured_dict['type']
+        if '32@' in type_str:
+            rd_idx = kernel.reg64_count
+            global_name = captured_dict['name']
+            instr.ptx[0]['rest'] = f'.u64 %rd{rd_idx}, {global_name};'
+            kernel.reg64_count += 1
+            d_idx = captured_dict['urd_ord']
+            if '32@lo' in type_str:
+                d = f'{{%r{d_idx}, %r{d_idx + 1}}}'
+            else:
+                d = f'{{%r{d_idx - 1}, %r{d_idx}}}'
+            instr.ptx.append({
+                'op': 'mov', 'rest': f'.b64 {d}, %rd{rd_idx};',
+            })
+        else:
+            instr.ptx = []
+
+
+def ptx_ldst(kernel, captured_dict, instr):
+    op = instr.ptx[0]['op']
+    if op in ['LDL', 'STL']:
+        ss = 'local'
+    elif op in ['LDS', 'STS']:
+        ss = 'shared'
+    elif op == 'LDC':
+        ss = 'const'
+    else:
+        ss = 'global'
+
+    if captured_dict['cache']:
+        cache_str = f'.{captured_dict["cache"].lower()}'
+    else:
+        cache_str = ''
+    if cache_str == '.ci':
+        cache_str = '.nc'
+    elif cache_str == '.wt':
+        cache_str = '.volatile'
+
+    d = ptx_r(captured_dict, 'rd')
+    d_idx = captured_dict['rd_ord']
+    if captured_dict['type'] and '64' in captured_dict['type']:
+        if d_idx == -1:
+            d = f'{{0, 0}}'
+        else:
+            d = f'{{%r{d_idx}, %r{d_idx + 1}}}'
+    elif captured_dict['type'] and '128' in captured_dict['type']:
+        if d_idx == -1:
+            d = f'{{0, 0, 0, 0}}'
+        else:
+            d = f'{{%r{d_idx}, %r{d_idx + 1}, %r{d_idx + 2}, %r{d_idx + 3}}}'
+    if ss in ['shared', 'const']:
+        a = ptx_r(captured_dict, 'ra')
+        b = ptx_r(captured_dict, 'urb')
+    else:
+        a = ptx_r2d(kernel, captured_dict, instr, 'ra')
+        b = ptx_r2d(kernel, captured_dict, instr, 'urb')
+    if a in ['0', '-0', '|0|', '']:
+        if ss == 'shared':
+            a = '_shared+'
+        else:
+            a = ''
+    else:
+        a = f'{a}+'
+    c = ptx_i(captured_dict, 'pimmed')
+    c = int(c, base=0) if c else 0
+
+    if 'LD' in op:
+        instr.ptx[-1]['op'] = 'ld'
+        dabc = f'{d}, [{a}{b}]'
+    else:
+        instr.ptx[-1]['op'] = 'st'
+        dabc = f'[{a}{b}], {d}'
+
+    if not captured_dict['type'] or '32' in captured_dict['type']:
+        type_str = '.u32'
+        instr.ptx[-1]['rest'] = f'.{ss}{cache_str}{type_str} {dabc};'
+    elif '64' in captured_dict['type']:
+        type_str = '.u32'
+        instr.ptx[-1]['rest'] = f'.{ss}{cache_str}.v2{type_str} {dabc};'
+    elif '128' in captured_dict['type']:
+        type_str = '.u32'
+        instr.ptx[-1]['rest'] = f'.{ss}{cache_str}.v4{type_str} {dabc};'
+    else:
+        type_str = captured_dict['type'].lower()
+        instr.ptx[-1]['rest'] = f'.{ss}{cache_str}{type_str} {dabc};'
+
+
+def ptx_isetp(kernel, captured_dict, instr):
+    instr.ptx[-1]['op'] = 'setp'
+    cmp_str = captured_dict['cmp'].lower()
+    bool_str = captured_dict['bool2'].lower()
+    type_str = 'u32' if captured_dict['U32'] else 's32'
+    p = ptx_p(captured_dict, 'p3')
+    q = ptx_p(captured_dict, 'p0')
+    a = ptx_r(captured_dict, 'r8')
+    b = ptx_irc(kernel, captured_dict, instr, 'i20', 'r20')
+    c = ptx_p(captured_dict, 'p39')
+    if 'pt' in q:
+        q = ''
+    else:
+        q = f'|{q}'
+    if '%pt' == c and 'and' == bool_str:
+        rest = f'.{cmp_str}.{type_str} {p}{q}, {a}, {b};'
+    else:
+        rest = f'.{cmp_str}.{bool_str}.{type_str} {p}{q}, {a}, {b}, {c};'
+    instr.ptx[-1]['rest'] = rest
+
+
+def ptx_exit(kernel, captured_dict, instr):
+    instr.ptx[-1]['op'] = 'ret'
+
+
 grammar_ptx = {
+    # Floating Point Instructions
+    'FADD': [],  # FP32 Add
+    'FADD32I': [],  # FP32 Add
+    'FCHK': [],  # Floating-point Range Check
+    'FFMA32I': [],  # FP32 Fused Multiply and Add
+    'FFMA': [],  # FP32 Fused Multiply and Add
+    'FMNMX': [],  # FP32 Minimum/Maximum
+    'FMUL': [],  # FP32 Multiply
+    'FMUL32I': [],  # FP32 Multiply
+    'FSEL': [  # Floating Point Select
+    ],
+    'FSET': [],  # FP32 Compare And Set
+    'FSETP': [],  # FP32 Compare And Set Predicate
+    'FSWZADD': [],  # FP32 Swizzle Add
+    'MUFU': [  # FP32 Multi Function Operation
+    ],
+    'HADD2': [],  # FP16 Add
+    'HADD2_32I': [],  # FP16 Add
+    'HFMA2': [],  # FP16 Fused Mutiply Add
+    'HFMA2_32I': [],  # FP16 Fused Mutiply Add
+    'HMMA': [],  # Matrix Multiply and Accumulate
+    'HMNMX2': [],  # FP16 Minimum / Maximum
+    'HMUL2': [],  # FP16 Multiply
+    'HMUL2_32I': [],  # FP16 Multiply
+    'HSET2': [],  # FP16 Compare And Set
+    'HSETP2': [],  # FP16 Compare And Set Predicate
+    'DADD': [],  # FP64 Add
+    'DFMA': [],  # FP64 Fused Mutiply Add
+    'DMMA': [],  # Matrix Multiply and Accumulate
+    'DMUL': [],  # FP64 Multiply
+    'DSETP': [],  # FP64 Compare And Set Predicate
+
+    # Integer Instructions
+    'BMMA': [],  # Bit Matrix Multiply and Accumulate
+    'BMSK': [  # Bitfield Mask
+    ],
+    'BREV': [],  # Bit Reverse
+    'FLO': [  # Find Leading One
+    ],
+    'IABS': [  # Integer Absolute Value
+    ],
+    'IADD': [],  # Integer Addition
+    'IADD3': [  # 3-input Integer Addition
+    ],
+    'IADD32I': [],  # Integer Addition
+    'IDP': [],  # Integer Dot Product and Accumulate
+    'IDP4A': [],  # Integer Dot Product and Accumulate
+    'IMAD': [  # Integer Multiply And Add
+        {'rule': rf'IMAD\.MOV{u32} {rd}, RZ, RZ, {CONST_NAME_RE};', 'ptx': ptx_mov},
+    ],
+    'IMMA': [  # Integer Matrix Multiply and Accumulate
+    ],
+    'IMNMX': [  # Integer Minimum/Maximum
+    ],
+    'IMUL': [],  # Integer Multiply
+    'IMUL32I': [],  # Integer Multiply
+    'ISCADD': [],  # Scaled Integer Addition
+    'ISCADD32I': [],  # Scaled Integer Addition
+    'ISETP': [  # Integer Compare And Set Predicate
+        {'rule': rf'ISETP{icmp}{u32}{bool2} {p3}, {p0}, {r8}, (?:{r20}|{i20}|{CONST_NAME_RE}), {p39};',
+         'ptx': ptx_isetp}
+    ],
+    'LEA': [  # LOAD Effective Address
+    ],
+    'LOP': [],  # Logic Operation
+    'LOP3': [  # Logic Operation
+    ],
+    'LOP32I': [],  # Logic Operation
+    'POPC': [  # Population count
+    ],
+    'SHF': [  # Funnel Shift
+    ],
+    'SHL': [],  # Shift Left
+    'SHR': [],  # Shift Right
+    'VABSDIFF': [],  # Absolute Difference
+    'VABSDIFF4': [],  # Absolute Difference
+
+    # Conversion Instructions
+    'F2F': [],  # Floating Point To Floating Point Conversion
+    'F2I': [  # Floating Point To Integer Conversion
+    ],
+    'I2F': [  # Integer To Floating Point Conversion
+    ],
+    'I2I': [],  # Integer To Integer Conversion
+    'I2IP': [],  # Integer To Integer Conversion and Packing
+    'FRND': [],  # Round To Integer
+
+    # Movement Instructions
+    'MOV': [  # Move
+    ],
+    'MOV32I': [],  # Move
+    'MOVM': [],  # Move Matrix with Transposition or Expansion
+    'PRMT': [  # Permute Register Pair
+    ],
+    'SEL': [  # Select Source with Predicate
+    ],
+    'SGXT': [  # Sign Extend
+    ],
+    'SHFL': [  # Warp Wide Register Shuffle
+    ],
+
+    # Predicate Instructions
+    'PLOP3': [  # Predicate Logic Operation
+    ],
+    'PSETP': [],  # Combine Predicates and Set Predicate
+    'P2R': [  # Move Predicate Register To Register
+    ],
+    'R2P': [],  # Move Register To Predicate Register
+
+    # Load/Store Instructions
+    'LD': [  # Load from generic Memory
+    ],
+    'LDC': [  # Load Constant
+    ],
+    'LDG': [  # Load from Global Memory
+        {'rule': rf'LDG{te}{tmem_cache}{tmem_ltc}{tmem_type}{tmem_scopes}{tzd} {rd}, {paddr};', 'ptx': ptx_ldst}
+    ],
+    'LDGDEPBAR': [],  # Global Load Dependency Barrier
+    'LDGSTS': [],  # Asynchronous Global to Shared Memcopy
+    'LDL': [  # Load within Local Memory Window
+    ],
+    'LDS': [  # Load within Shared Memory Window
+    ],
+    'LDSM': [],  # Load Matrix from Shared Memory with Element Size Expansion
+    'ST': [
+    ],  # Store to Generic Memory
+    'STG': [  # Store to Global Memory
+    ],
+    'STL': [  # Store within Local or Shared Window
+    ],
+    'STS': [  # Store within Local or Shared Window
+    ],
+    'MATCH': [],  # Match Register Values Across Thread Group
+    'QSPC': [],  # Query Space
+    'ATOM': [
+    ],  # Atomic Operation on Generic Memory
+    'ATOMS': [  # Atomic Operation on Shared Memory
+    ],
+    'ATOMG': [  # Atomic Operation on Global Memory
+    ],
+    'RED': [  # Reduction Operation on Generic Memory
+    ],
+    'CCTL': [],  # Cache Control
+    'CCTLL': [],  # Cache Control
+    'ERRBAR': [],  # Error Barrier
+    'MEMBAR': [],  # Memory Barrier
+    'CCTLT': [],  # Texture Cache Control
+
+    # Uniform Datapath Instructions
+    'R2UR': [  # Move from Vector Register to a Uniform Register
+    ],
+    'REDUX': [],  # Reduction of a Vector Register into a Uniform Register
+    'S2UR': [  # Move Special Register to Uniform Register
+    ],
+    'UBMSK': [],  # Uniform Bitfield Mask
+    'UBREV': [],  # Uniform Bit Reverse
+    'UCLEA': [],  # Load Effective Address for a Constant
+    'UFLO': [  # Uniform Find Leading One
+    ],
+    'UIADD3': [  # Uniform Integer Addition
+    ],
+    'UIMAD': [  # Uniform Integer Multiplication
+    ],
+    'UISETP': [  # Integer Compare and Set Uniform Predicate
+    ],
+    'ULDC': [  # Load from Constant Memory into a Uniform Register
+    ],
+    'ULEA': [  # Uniform Load Effective Address
+    ],
+    'ULOP': [],  # Logic Operation
+    'ULOP3': [  # Logic Operation
+    ],
+    'ULOP32I': [],  # Logic Operation
+    'UMOV': [  # Uniform Move
+        {'rule': rf'UMOV {urd}, {GLOBAL_NAME_RE};', 'ptx': ptx_umov},
+    ],
+    'UP2UR': [],  # Uniform Predicate to Uniform Register
+    'UPLOP3': [],  # Uniform Predicate Logic Operation
+    'UPOPC': [  # Uniform Population Count
+    ],
+    'UPRMT': [  # Uniform Byte Permute
+    ],
+    'UPSETP': [],  # Uniform Predicate Logic Operation
+    'UR2UP': [],  # Uniform Register to Uniform Predicate
+    'USEL': [  # Uniform Select
+    ],
+    'USGXT': [],  # Uniform Sign Extend
+    'USHF': [  # Uniform Funnel Shift
+    ],
+    'USHL': [],  # Uniform Left Shift
+    'USHR': [],  # Uniform Right Shift
+    'VOTEU': [  # Voting across SIMD Thread Group with Results in Uniform Destination
+    ],
+
+    # Texture Instructions
+    'TEX': [],  # Texture Fetch
+    'TLD': [],  # Texture Load
+    'TLD4': [],  # Texture Load 4
+    'TMML': [],  # Texture MipMap Level
+    'TXD': [],  # Texture Fetch With Derivatives
+    'TXQ': [],  # Texture Query
+
+    # Surface Instructions
+    'SUATOM': [],  # Atomic Op on Surface Memory
+    'SULD': [],  # Surface Load
+    'SURED': [],  # Reduction Op on Surface Memory
+    'SUST': [],  # Surface Store
+
+    # Control Instructions
+    'BMOV': [  # Move Convergence Barrier State
+    ],
+    'BPT': [],  # BreakPoint/Trap
+    'BRA': [  # Relative Branch
+    ],
+    'BREAK': [  # Break out of the Specified Convergence Barrier
+    ],
+    'BRX': [  # Relative Branch Indirect
+    ],
+    'BRXU': [],  # Relative Branch with Uniform Register Based Offset
+    'BSSY': [  # Barrier Set Convergence Synchronization Point
+    ],
+    'BSYNC': [  # Synchronize Threads on a Convergence Barrier
+    ],
+    'CALL': [  # Call Function
+    ],
+    'EXIT': [  # Exit Program
+        {'rule': rf'EXIT;', 'ptx': ptx_exit}
+    ],
+    'JMP': [],  # Absolute Jump
+    'JMX': [],  # Absolute Jump Indirect
+    'JMXU': [],  # Absolute Jump with Uniform Register Based Offset
+    'KILL': [],  # Kill Thread
+    'NANOSLEEP': [],  # Suspend Execution
+    'RET': [  # Return From Subroutine
+    ],
+    'RPCMOV': [],  # PC Register Move
+    'RTT': [],  # Return From Trap
+    'WARPSYNC': [  # Synchronize Threads in Warp
+    ],
+    'YIELD': [  # Yield Control
+    ],
+
+    # Miscellaneous Instructions
+    'B2R': [],  # Move Barrier To Register
+    'BAR': [  # Barrier Synchronization
+    ],
+    'CS2R': [  # Move Special Register to Register
+    ],
+    'DEPBAR': [  # Dependency Barrier
+    ],
+    'GETLMEMBASE': [],  # Get Local Memory Base Address
+    'LEPC': [],  # Load Effective PC
+    'NOP': [  # No Operation
+    ],
+    'PMTRIG': [],  # Performance Monitor Trigger
+    'R2B': [],  # Move Register to Barrier
+    'S2R': [  # Move Special Register to Register
+    ],
+    'SETCTAID': [],  # Set CTA ID
+    'SETLMEMBASE': [],  # Set Local Memory Base Address
+    'VOTE': [  # Vote Across SIMD Thread Group
+    ],
+
+}
+
+grammar_ptx_old = {
     # Integer Instructions
     'BFE': [
         {'rule': rf'BFE{u32} {r0nc}, {r8}, (?:{r20}|{i20}|{CONST_NAME_RE});', 'ptx': ptx_bfe}],

@@ -64,6 +64,40 @@ class Data:
         return ptx
 
 
+class Instruction:
+    def __init__(self, iterable=(), **kwargs):
+        self.label = ''
+        self.line_num = 0
+        # global constant constant2
+        self.ctrl = '-:--:-:-:Y:0'
+        self.reuse = 0
+        self.pred = ''
+        self.pred_not = None
+        self.pred_reg = None
+        self.op = 'NOP'
+        self.rest = ';'
+        self.ptx = []
+        self.ptx_pred = ''
+        self.code = '0x00000000000000000000000000000000'
+        self.addr = None
+
+        self.__dict__.update(iterable, **kwargs)
+
+    def __repr__(self):
+        msg = ''
+        if self.label:
+            msg += f'{self.label}: '
+        if self.addr:
+            msg += f"    /*{self.addr}*/  {self.ctrl} {self.print_instr():<56s} /* {self.code} */ " \
+                   f"# {print_reuse(self.reuse)}"
+        else:
+            msg += f"    {self.ctrl} {self.print_instr():<56s}"
+        return msg
+
+    def print_instr(self):
+        return f"{self.pred:>5s} {self.op}{self.rest}"
+
+
 class Kernel:
     EIATTR = {
         'CTAIDZ_USED': b'\x01\x04',
@@ -132,12 +166,14 @@ class Kernel:
         self.linkage = 0
         self.bar_count = 0
         self.reg_count = 0
+        self.ureg_count = 0
         self.reg_map = {}
-        self.ptx_reg_count = 0
-        self.ptx_pred_reg_count = 0
         self.reg_set = set()
+        self.ureg_set = set()
         self.pred_regs = set()
+        self.upred_regs = set()
         self.pred_reg_count = 0
+        self.upred_reg_count = 0
         self.reg64_count = 0
         # 以下3个size和stack, lobal用量有关
         self.frame_size = 0
@@ -316,8 +352,12 @@ class Kernel:
         ptx += '{\n'
         if self.pred_reg_count:
             ptx += f'    .reg .pred  %p<{self.pred_reg_count}>;\n'
+        if self.upred_reg_count:
+            ptx += f'    .reg .pred  %up<{self.upred_reg_count}>;\n'
         if self.reg_count:
             ptx += f'    .reg .b32   %r<{self.reg_count}>;\n'
+        if self.ureg_count:
+            ptx += f'    .reg .b32   %ur<{self.ureg_count}>;\n'
         if self.reg64_count:
             ptx += f'    .reg .b64   %rd<{self.reg64_count}>;\n'
         if self.shared_size:
@@ -331,12 +371,12 @@ class Kernel:
         return ptx
 
     def unmap_reg(self):
-        def unmap_regs(x):
-            reg_str = x.group()
-            if reg_str in self.reg_map:
-                return self.reg_map[reg_str]
+        def unmap_regs(r):
+            r_str = r.group()
+            if r_str in self.reg_map:
+                return self.reg_map[r_str]
             else:
-                return reg_str
+                return r_str
 
         for instr in self.instrs:
             instr['rest'] = re.sub(REG_NAME_RE, unmap_regs, instr['rest'])
@@ -358,7 +398,7 @@ class Kernel:
                 return f'c[0x2][{offset:#0x}]'
 
         for instr in self.instrs:
-            instr['rest'] = re.sub(rf'(?P<c>c\[0x2\]\s*\[(?P<offset>{hexx})\])',
+            instr['rest'] = re.sub(rf'(?P<c>c\[0x2]\s*\[(?P<offset>{hexx})])',
                                    map_const2, instr['rest'])
 
     def map_constant0(self):
@@ -378,7 +418,7 @@ class Kernel:
                 return f'c[0x0][{offset:#0x}]'
 
         for instr in self.instrs:
-            instr['rest'] = re.sub(rf'(?P<c>c\[0x0\]\s*\[(?P<offset>{hexx})\])',
+            instr['rest'] = re.sub(rf'(?P<c>c\[0x0]\s*\[(?P<offset>{hexx})])',
                                    map_constants, instr['rest'])
 
     def unmap_constant0(self):
@@ -782,7 +822,7 @@ class Kernel:
                     self.shared_size = int(rest, base=0)
                 elif config == 'param':
                     m = re.search(
-                        rf'(?P<ordinal>\d+)\s*,\s*(?P<name>[a-zA-Z_]\w*)\s*,\s*c\[0x0\]\s*\[(?P<offset>{hexx})\]\s*,'
+                        rf'(?P<ordinal>\d+)\s*,\s*(?P<name>[a-zA-Z_]\w*)\s*,\s*c\[0x0]\s*\[(?P<offset>{hexx})]\s*,'
                         rf'\s*(?P<size>\d+|{hexx})',
                         rest)
                     assert m
@@ -890,36 +930,44 @@ class Kernel:
         # 无用指令
         ignore_instrs = ['NOP', 'MEMBAR', 'SSY', 'PBK']
         self.pred_regs = set()
+        self.upred_regs = set()
         self.reg_set = set()
-        self.ptx_reg_count = 0
-        self.ptx_pred_reg_count = 0
+        self.reg_count = 0
+        self.ureg_set = set()
+        self.ureg_count = 0
+        self.pred_reg_count = 0
         self.reg64_count = 0
         stack_cnt = 0
         instrs = []
         label = ''
-        for instr in self.instrs:
-            instr['rest'] = re.sub(r'\.reuse', '', instr['rest'])
-        for instr in self.instrs:
-            op = instr['op']
-            rest = instr['rest']
-            if instr['line_num'] is None:
-                instrs.append(instr)
-                continue
+        instruction: dict
+        for instruction in self.instrs:
+            ptx_instr = Instruction(**instruction)
+            ptx_instr.ptx_pred = f'@{"!" if ptx_instr.pred_not else ""}%{ptx_instr.pred_reg}' if ptx_instr.pred else ''
+            rest = re.sub(r'\.reuse', '', ptx_instr.rest)
+            ptx_instr.ptx = [{'op': ptx_instr.op, 'rest': rest}, ]
+            instrs.append(ptx_instr)
+        for instr in instrs:
+            op = instr.ptx[0]['op']
+            rest = instr.ptx[0]['rest']
             # 忽略无用指令
             if op in ignore_instrs:
-                if instr['label']:
-                    label = instr['label']
+                instr.ptx = []
+                if instr.label:
+                    label = instr.label
                 continue
             if 'R1,' in rest:
                 stack_cnt += 1
             # 如果label位于无用指令上，向后调整label位置
             if label:
-                instr['label'] = label
+                instr.label = label
                 label = ''
             # 处理pred
-            if instr['pred']:
-                instr['pred'] = f'@{"!" if instr["pred_not"] else ""}%p{instr["pred_reg"].strip("UP")}'
-                self.pred_regs.add(int(instr["pred_reg"].strip("UP"), base=0))
+            if instr.pred:
+                if 'UP' in instr.pred_reg:
+                    self.upred_regs.add(int(instr.pred_reg.strip("UP"), base=0))
+                else:
+                    self.pred_regs.add(int(instr.pred_reg.strip("P"), base=0))
             grams = grammar_ptx[op] if op in grammar_ptx else []
             gram = None
             captured_dict = None
@@ -930,17 +978,12 @@ class Kernel:
                     captured_dict = m.groupdict()
                     break
             if not gram:
-                #     raise Exception(f'Cannot recognize instruction {op + rest}')
-                instr['line_num'] = -instr['line_num']
-                instrs.append(instr)
-                continue
-            else:
-                c_instr = instr.copy()
-                c_instr['line_num'] = None
-                instrs.append(c_instr)
+                raise Exception(f'Cannot recognize instruction {op + rest}')
+                # instr.ptx = []
+                # continue
             # 统计寄存器数量
-            if 'r0' in captured_dict and captured_dict['r0'] and captured_dict['r0'] != 'RZ':
-                r_num = int(captured_dict['r0'][1:])
+            if 'rd' in captured_dict and captured_dict['rd'] and captured_dict['rd'] != 'RZ':
+                r_num = int(captured_dict['rd'].strip('R'))
                 self.reg_set.add(r_num)
                 if 'type' in captured_dict:
                     c_type = captured_dict['type']
@@ -951,25 +994,37 @@ class Kernel:
                             self.reg_set.add(r_num + 1)
                             self.reg_set.add(r_num + 2)
                             self.reg_set.add(r_num + 3)
-
+            if 'urd' in captured_dict and captured_dict['urd'] and captured_dict['urd'] != 'URZ':
+                r_num = int(captured_dict['urd'].strip('UR'))
+                self.ureg_set.add(r_num)
+                if 'type' in captured_dict:
+                    c_type = captured_dict['type']
+                    if c_type:
+                        if '64' in c_type:
+                            self.ureg_set.add(r_num + 1)
+                        if '128' in c_type:
+                            self.ureg_set.add(r_num + 1)
+                            self.ureg_set.add(r_num + 2)
+                            self.ureg_set.add(r_num + 3)
             ptx_func = gram['ptx']
-            ptx_func(self, instrs, captured_dict, instr)
-            if instr['line_num'] is not None:
-                instrs.append(instr)
+            ptx_func(self, captured_dict, instr)
         if self.pred_regs:
             self.pred_reg_count = max(self.pred_regs) + 1
+        if self.upred_regs:
+            self.upred_reg_count = max(self.upred_regs) + 1
         self.reg_count = max(self.reg_set) + 1
+        self.ureg_count = max(self.ureg_set) + 1
 
         # 不使用STACK时，去掉第一条 MOV R1, c[0x0][0x20]
         for instr in instrs:
-            if 'ld' in instr['op'].lower() and 'r1' in instr['rest'].lower() and stack_cnt == 1:
-                instrs.remove(instr)
+            if 'c[STACK]' in instr.rest and 'R1' in instr.rest and stack_cnt == 1:
+                instr.ptx = []
                 break
 
         # 去除最后一条死循环
         last_instr = instrs[-1]
-        if last_instr['label'] and last_instr['label'] in last_instr['rest']:
-            instrs = instrs[:-1]
+        if last_instr.label and last_instr.label in last_instr.rest:
+            last_instr.ptx = []
         self.instrs = instrs
 
     def assemble(self, test_binary: bytes = b''):
@@ -1157,7 +1212,7 @@ class Kernel:
             elif 'VOTE' in op:
                 self.int_warp_wide_instr_offsets.append(line_num2addr(instr['line_num'], self.arch))
             elif op == 'SYNC':
-                # todo: 将SYNC, BRX BRA指令的地址和目标地址记录到self.indirect_branch_targets 暂时无法做到，需要动态分析
+                # 将SYNC, BRX BRA指令的地址和目标地址记录到self.indirect_branch_targets 暂时无法做到，需要动态分析
                 # [addr, 0, 0, n, target_addr, target_addr ...]
                 pass
             elif 'MMA' in op:
