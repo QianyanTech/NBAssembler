@@ -332,7 +332,7 @@ class Kernel:
     @staticmethod
     def print_ptx_line(instr):
         ptx = ''
-        if instr.label:
+        if instr.label and instr.ptx != []:
             ptx += f"{instr.label}:\n"
         if instr.ptx is None:
             ptx += f"  /*{instr.print_instr()}*/"
