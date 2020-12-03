@@ -64,19 +64,19 @@ def ptx_cname(kernel, captured_dict, instr):
         else:
             r_idx = kernel.ptx_reg_count + 256
             r_str = f'%r{r_idx}'
-            instr.ptx.append({
+            instr.ptx.insert(0, {
                 'op': 'mov', 'rest': f'.u32 {r_str}, {const0_map[name_str]};',
             })
             instr['label'] = ''
             kernel.reg_set.add(r_idx)
             kernel.ptx_reg_count += 1
-    elif 'mov' in instr.ptx[0]['op'].lower() or 'ld' in instr.ptx[0]['op'].lower():
+    elif 'mov' in instr.ptx[-1]['op'].lower() or 'ld' in instr.ptx[-1]['op'].lower():
         r_str = f'[{name_str}+{offset}]'
     else:
         r_idx = kernel.reg_count + 256
         r_str = f'%r{r_idx}'
         ss_str = 'param' if 'ARG_' in name_str else 'const'
-        instr.ptx.append({
+        instr.ptx.insert(0, {
             'op': 'ld', 'rest': f'.{ss_str}.b32 {r_str}, [{name_str}+{offset}];',
         })
         kernel.reg_set.add(r_idx)
@@ -102,6 +102,18 @@ def ptx_irc(kernel, captured_dict, instr, i_name, r_name):
         c = ptx_i(captured_dict, i_name)
     elif r_name in captured_dict and captured_dict[r_name]:
         c = ptx_r(captured_dict, r_name)
+    else:
+        c = ptx_cname(kernel, captured_dict, instr)
+    return c
+
+
+def ptx_iurc(kernel, captured_dict, instr, i_name, r_name, ur_name):
+    if i_name in captured_dict and captured_dict[i_name]:
+        c = ptx_i(captured_dict, i_name)
+    elif r_name in captured_dict and captured_dict[r_name]:
+        c = ptx_r(captured_dict, r_name)
+    elif ur_name in captured_dict and captured_dict[ur_name]:
+        c = ptx_r(captured_dict, ur_name)
     else:
         c = ptx_cname(kernel, captured_dict, instr)
     return c
@@ -545,29 +557,6 @@ def ptx_lop32i(kernel, instrs, captured_dict, instr):
     instr['rest'] = rest
 
 
-def ptx_lop3(kernel, instrs, captured_dict, instr):
-    instr['op'] = 'lop3'
-    d = ptx_r(captured_dict, 'r0')
-    a = ptx_r(captured_dict, 'r8')
-    b = ptx_irc(kernel, instrs, captured_dict, instr, 'i20', 'r20')
-    c = ptx_r(captured_dict, 'r39')
-    lut = ptx_i(captured_dict, 'i28w8')
-    rest = f'.b32 {d}, {a}, {b}, {c}, {lut};'
-    instr['rest'] = rest
-
-
-def ptx_shf(kernel, instrs, captured_dict, instr):
-    instr['op'] = 'shf'
-    lr = captured_dict['lr'].lower()
-    mode = 'wrap' if captured_dict['W'] else 'clamp'
-    d = ptx_r(captured_dict, 'r0')
-    a = ptx_r(captured_dict, 'r8')
-    b = ptx_ir(captured_dict, 'i20', 'r20')
-    c = ptx_r(captured_dict, 'r39')
-    rest = f'.{lr}.{mode}.b32 {d}, {a}, {c}, {b};'
-    instr['rest'] = rest
-
-
 def ptx_shl(kernel, instrs, captured_dict, instr):
     instr['op'] = 'shl'
     type_str = '.b32'
@@ -724,13 +713,6 @@ def ptx_bar(kernel, instrs, captured_dict, instr):
     pass
 
 
-def ptx_s2r(kernel, instrs, captured_dict, instr):
-    instr['op'] = 'mov'
-    r_str = ptx_r(captured_dict, 'r0')
-    sr_str = f"%{captured_dict['sr'][3:].lower()}"
-    instr['rest'] = f'.b32 {r_str}, {sr_str};'
-
-
 def ptx_r2p(kernel, instrs, captured_dict, instr):
     a = ptx_r(captured_dict, 'r8')
     b = ptx_i(captured_dict, 'i20')
@@ -751,26 +733,30 @@ ptx_ignore_instrs = ['NOP', 'MEMBAR', 'SSY', 'PBK']
 
 pp = fr'(?P<pp>{P})'
 pq = fr'(?P<pq>{P})'
-pc = fr'(?P<pc>{P})'
+pc = fr'(?P<pcnot>\!)?(?P<pc>{P})'
 ra = fr'(?P<ra>{reg})'
 rb = fr'(?P<rb>{reg})'
+rc = fr'(?P<rc>{reg})'
 rd = fr'(?P<rd>{reg})'
 urd = fr'(?P<urd>{ureg})'
+ura = fr'(?P<ura>{ureg})'
+urb = fr'(?P<urb>{ureg})'
 pim = fr'(?P<pim>(?P<neg>\-)?{immed})'
+imlut = fr'(?P<imlut>{immed})'
 paddr = fr'\[(?:(?P<ra>{reg})(?P<rax>\.X(4|8|16))?(?P<ratype>\.64|\.U32)?)?' \
         rf'(?:\s*\+?\s*(?P<urb>{ureg}))?(?:\s*\+?\s*{pim})?\]'
 
 
 def ptx_mov(kernel, captured_dict, instr):
     d = ptx_r(captured_dict, 'rd')
-    a = ptx_irc(kernel, captured_dict, instr, 'pim', 'rb')
+    a = ptx_irc(kernel, captured_dict, instr, 'pim', 'ra')
     if captured_dict['const']:
-        instr.ptx[0]['op'] = 'ld'
+        instr.ptx[-1]['op'] = 'ld'
         ss_str = 'param' if 'ARG_' in captured_dict['name'] else 'const'
-        instr.ptx[0]['rest'] = f'.{ss_str}.b32 {d}, {a};'
+        instr.ptx[-1]['rest'] = f'.{ss_str}.b32 {d}, {a};'
     else:
-        instr.ptx[0]['op'] = 'mov'
-        instr.ptx[0]['rest'] = f'.b32 {d}, {a};'
+        instr.ptx[-1]['op'] = 'mov'
+        instr.ptx[-1]['rest'] = f'.b32 {d}, {a};'
 
 
 def ptx_uldc(kernel, captured_dict, instr):
@@ -800,8 +786,8 @@ def ptx_uldc(kernel, captured_dict, instr):
 def ptx_umov(kernel, captured_dict, instr):
     instr.ptx[0]['op'] = 'mov'
     d = ptx_r(captured_dict, 'urd')
-    if 'i20w32' in captured_dict:
-        a = ptx_i(captured_dict, 'i20w32')
+    a = ptx_ir(captured_dict, 'pim', 'ura')
+    if a:
         instr.ptx[0]['rest'] = f'.b32 {d}, {a};'
     else:
         type_str = captured_dict['type']
@@ -922,6 +908,40 @@ def ptx_bra(kernel, captured_dict, instr):
     instr.ptx[0]['rest'] = f'{uni} {captured_dict["label"]};'
 
 
+def ptx_s2r(kernel, captured_dict, instr):
+    instr.ptx[0]['op'] = 'mov'
+    r_str = ptx_r(captured_dict, 'rd')
+    sr_str = captured_dict['sr']
+    if 'SRZ' == sr_str:
+        sr_str = '0'
+    else:
+        sr_str = f"%{sr_str[3:].lower()}"
+    instr.ptx[0]['rest'] = f'.b32 {r_str}, {sr_str};'
+
+
+def ptx_lop3(kernel, captured_dict, instr):
+    instr.ptx[-1]['op'] = 'lop3'
+    d = ptx_r(captured_dict, 'rd')
+    a = ptx_r(captured_dict, 'ra')
+    b = ptx_iurc(kernel, captured_dict, instr, 'pim', 'rb', 'urb')
+    c = ptx_r(captured_dict, 'rc')
+    lut = ptx_i(captured_dict, 'imlut')
+    rest = f'.b32 {d}, {a}, {b}, {c}, {lut};'
+    instr.ptx[-1]['rest'] = rest
+
+
+def ptx_shf(kernel, captured_dict, instr):
+    instr.ptx[-1]['op'] = 'shf'
+    lr = captured_dict['lr'].lower()
+    mode = '.wrap' if captured_dict['W'] else '.clamp'
+    d = ptx_r(captured_dict, 'rd')
+    a = ptx_r(captured_dict, 'ra')
+    b = ptx_iurc(kernel, captured_dict, instr, 'pim', 'rb', 'urb')
+    c = ptx_r(captured_dict, 'rc')
+    rest = f'{lr}{mode}.b32 {d}, {a}, {c}, {b};'
+    instr.ptx[-1]['rest'] = rest
+
+
 grammar_ptx = {
     # Floating Point Instructions
     'FADD': [],  # FP32 Add
@@ -971,7 +991,7 @@ grammar_ptx = {
     'IDP': [],  # Integer Dot Product and Accumulate
     'IDP4A': [],  # Integer Dot Product and Accumulate
     'IMAD': [  # Integer Multiply And Add
-        {'rule': rf'IMAD\.MOV{u32} {rd}, RZ, RZ, {CONST_NAME_RE};', 'ptx': ptx_mov},
+        {'rule': rf'IMAD\.MOV{u32} {rd}, RZ, RZ, (?:{pim}|{ra}|{CONST_NAME_RE});', 'ptx': ptx_mov},
     ],
     'IMMA': [  # Integer Matrix Multiply and Accumulate
     ],
@@ -989,11 +1009,15 @@ grammar_ptx = {
     ],
     'LOP': [],  # Logic Operation
     'LOP3': [  # Logic Operation
+        {'rule': rf'LOP3\.LUT{tpand} ({pp}, )?{rd}, {ra}, (?:{rb}|{urb}|{pim}|{CONST_NAME_RE}), {rc}, {imlut}, {pc};',
+         'ptx': ptx_lop3},
     ],
     'LOP32I': [],  # Logic Operation
     'POPC': [  # Population count
     ],
     'SHF': [  # Funnel Shift
+        {'rule': rf'SHF{tshf_lr}{tw}{tshf_type} {rd}, {ra}, (?:{rb}|{urb}|{pim}|{CONST_NAME_RE}), {rc};',
+         'ptx': ptx_shf},
     ],
     'SHL': [],  # Shift Left
     'SHR': [],  # Shift Right
@@ -1098,7 +1122,7 @@ grammar_ptx = {
     ],
     'ULOP32I': [],  # Logic Operation
     'UMOV': [  # Uniform Move
-        {'rule': rf'UMOV {urd}, {GLOBAL_NAME_RE};', 'ptx': ptx_umov},
+        {'rule': rf'UMOV {urd}, (?:{pim}|{ura}|{GLOBAL_NAME_RE});', 'ptx': ptx_umov},
     ],
     'UP2UR': [],  # Uniform Predicate to Uniform Register
     'UPLOP3': [],  # Uniform Predicate Logic Operation
@@ -1172,6 +1196,7 @@ grammar_ptx = {
     'BAR': [  # Barrier Synchronization
     ],
     'CS2R': [  # Move Special Register to Register
+        {'rule': rf'CS2R{tcs2r} {rd}, {sr};', 'ptx': ptx_s2r}
     ],
     'DEPBAR': [  # Dependency Barrier
     ],
@@ -1182,6 +1207,7 @@ grammar_ptx = {
     'PMTRIG': [],  # Performance Monitor Trigger
     'R2B': [],  # Move Register to Barrier
     'S2R': [  # Move Special Register to Register
+        {'rule': rf'S2R {rd}, {sr};', 'ptx': ptx_s2r}
     ],
     'SETCTAID': [],  # Set CTA ID
     'SETLMEMBASE': [],  # Set Local Memory Base Address
