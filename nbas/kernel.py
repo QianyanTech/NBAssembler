@@ -884,8 +884,8 @@ class Kernel:
             self.param_size = max(self.param_size, param['Size'] + param['Offset'] - self.param_base)
         self.instrs = instrs
 
-    def disassemble(self, tmp_file='temp.bin'):
-        sass = disassemble_nv(self.binary, self.arch, tmp_file)
+    def disassemble(self):
+        sass = disassemble_nv(self.binary, self.arch)
 
         # read sass lines
         instrs = []
@@ -984,9 +984,9 @@ class Kernel:
                     captured_dict = m.groupdict()
                     break
             if not gram:
-                # raise Exception(f'Cannot recognize instruction {op + rest}')
-                instr.ptx = None
-                continue
+                raise Exception(f'Cannot recognize instruction {op + rest}')
+                # instr.ptx = None
+                # continue
             # 统计寄存器数量
             if 'rd' in captured_dict and captured_dict['rd'] and captured_dict['rd'] != 'RZ':
                 r_num = int(captured_dict['rd'].strip('R'))

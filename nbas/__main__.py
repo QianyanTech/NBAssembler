@@ -418,7 +418,7 @@ def main():
     parser_det.add_argument('code', help='input code', metavar='CODE')
     parser_det.add_argument('-a', '--arch', help='code arch', metavar='ARCH', type=int, default=61)
     parser_det.add_argument('-r', '--range', nargs=2, metavar=('BEGIN', 'END'), type=int,
-                               help='detect machine code by flip [BEGIN,END] bit')
+                            help='detect machine code by flip [BEGIN,END] bit')
     args = parser.parse_args()
 
     if args.version:

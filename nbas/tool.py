@@ -1,13 +1,15 @@
 from struct import pack
 from subprocess import getstatusoutput
 from operator import itemgetter
-from typing import List, Any, Union
+from tempfile import mkstemp
 
 from .grammar import *
 
 
-def disassemble_nv(binary, arch, tmp_file='temp.bin'):
+def disassemble_nv(binary, arch):
     # 使用nvdisasm 反汇编
+    fd, tmp_file = mkstemp()
+    os.close(fd)
     with open(tmp_file, 'wb') as f:
         f.write(binary)
     ret, sass = getstatusoutput(f'nvdisasm -b SM{arch} -hex -novliw {tmp_file}')
@@ -20,7 +22,7 @@ def disassemble_nv(binary, arch, tmp_file='temp.bin'):
     return sass
 
 
-def detect(code, begin, end, arch, tmp_file='temp.bin'):
+def detect(code, begin, end, arch):
     # prepare code
     ctrl = encode_ctrl('-:--:-:-:-:1')
     code_group = []
@@ -56,7 +58,7 @@ def detect(code, begin, end, arch, tmp_file='temp.bin'):
             binary = pack(f'<QQ', code & 0xFFFFFFFFFFFFFFFF, code >> 64)
 
         try:
-            sass = disassemble_nv(binary, arch, tmp_file)
+            sass = disassemble_nv(binary, arch)
             if arch < 70:
                 instr = process_sass_line(sass[2])
             else:
@@ -218,9 +220,9 @@ def schedule_61(instrs):
             list_ = dst if operand in dst_reg and op not in no_dst else src
 
             # Filter out RZ and PT
-            bad_val = 'RZ' if 'r' in operand else 'PT'
+            bad_v = 'RZ' if 'r' in operand else 'PT'
 
-            if opr := captured_dict[operand] != bad_val:
+            if opr := captured_dict[operand] != bad_v:
                 if operand in ['CC', 'X']:
                     list_.append('CC')
                 elif operand in ['r16', 'ur16', 'r24', 'ur64', 'r32', 'r64']:
@@ -229,18 +231,18 @@ def schedule_61(instrs):
                     if op == 'MUFU':
                         if (type_ := (captured_dict['func'] if 'func' in captured_dict else None)) \
                                 and '64' in type_:
-                            list_.append(re.sub('\d+', f'{r_num + 1}', opr))
+                            list_.append(re.sub(r'\d+', f'{r_num + 1}', opr))
                     elif type_ := (captured_dict['type'] if 'type' in captured_dict else None):
                         if op in ['LDS', 'LDL', 'STS', 'STL', 'ATOMS'] and operand in ['r24', 'ur32', 'ur64']:
                             continue
                         # if op in ['ATOM', 'ATOMS', 'ATOMG', 'RED'] and operand == 'r32':
                         #     continue
                         if '64' in type_:
-                            list_.append(re.sub('\d+', f'{r_num + 1}', opr))
+                            list_.append(re.sub(r'\d+', f'{r_num + 1}', opr))
                         elif '128' in type_:
-                            list_.append(re.sub('\d+', f'{r_num + 1}', opr))
-                            list_.append(re.sub('\d+', f'{r_num + 2}', opr))
-                            list_.append(re.sub('\d+', f'{r_num + 3}', opr))
+                            list_.append(re.sub(r'\d+', f'{r_num + 1}', opr))
+                            list_.append(re.sub(r'\d+', f'{r_num + 2}', opr))
+                            list_.append(re.sub(r'\d+', f'{r_num + 3}', opr))
                     pass
                 else:
                     list_.append(opr)
@@ -256,7 +258,7 @@ def schedule_61(instrs):
             for parent in writes[operand]:
                 # add this instruction as a child of the parent
                 # set the edge to the total latency of reg source availability
-                latency = 13 if re.match('^P\d', operand) else parent['lat']
+                latency = 13 if re.match(r'^P\d', operand) else parent['lat']
                 parent['children'].append([instr, latency - reg_latency])
                 instr['parents'] += 1
 
@@ -370,8 +372,9 @@ def schedule_61(instrs):
 
             # dual issue with a simple instruction (tput <= 2)
             # can't dual issue two instructions that both load a constant
-            elif instr['dual'] and not instruct['dual'] and instruct['tput'] <= 2 and not instruct[
-                'no_dual'] and stall == 1 and instr['exe_time'] <= clock and not instr['const'] and instruct['const']:
+            elif instr['dual'] and (not instruct['dual']) and (instruct['tput'] <= 2) and (
+                    not instruct['no_dual']) and (stall == 1) and (instr['exe_time'] <= clock) and (
+                    not instr['const']) and (instruct['const']):
                 stall = 0
 
             instr['stall'] = stall
@@ -467,18 +470,18 @@ def schedule_75(instrs):
                         if op == 'MUFU':
                             if (type_ := (captured_dict['func'] if 'func' in captured_dict else None)) \
                                     and '64' in type_:
-                                list_.append(re.sub('\d+', f'{r_num + 1}', opr))
+                                list_.append(re.sub(r'\d+', f'{r_num + 1}', opr))
                         elif type_ := (captured_dict['type'] if 'type' in captured_dict else None):
                             if op in ['LDS', 'LDL', 'STS', 'STL', 'ATOMS'] and operand in ['r24', 'ur32', 'ur64']:
                                 continue
                             # if op in ['ATOM', 'ATOMS', 'ATOMG', 'RED'] and operand == 'r32':
                             #     continue
                             if '64' in type_:
-                                list_.append(re.sub('\d+', f'{r_num + 1}', opr))
+                                list_.append(re.sub(r'\d+', f'{r_num + 1}', opr))
                             elif '128' in type_:
-                                list_.append(re.sub('\d+', f'{r_num + 1}', opr))
-                                list_.append(re.sub('\d+', f'{r_num + 2}', opr))
-                                list_.append(re.sub('\d+', f'{r_num + 3}', opr))
+                                list_.append(re.sub(r'\d+', f'{r_num + 1}', opr))
+                                list_.append(re.sub(r'\d+', f'{r_num + 2}', opr))
+                                list_.append(re.sub(r'\d+', f'{r_num + 3}', opr))
                         pass
                     else:
                         list_.append(opr)
