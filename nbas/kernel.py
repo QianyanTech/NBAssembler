@@ -104,6 +104,9 @@ class Instruction:
                 ptx.append(f"{self.ptx_pred:>5s} {p['op']}{p['rest']}")
         return ptx
 
+    def add_ptx(self, op, rest):
+        self.ptx.append({'op': op, 'rest': rest})
+
 
 class Kernel:
     EIATTR = {
@@ -360,6 +363,10 @@ class Kernel:
             ptx += f'    .reg .pred  %p<{self.pred_reg_count}>;\n'
         if self.upred_reg_count:
             ptx += f'    .reg .pred  %up<{self.upred_reg_count}>;\n'
+        if self.pred_reg_count:
+            ptx += f'    .reg .b32  %cc<{self.pred_reg_count}>;\n'
+        if self.upred_reg_count:
+            ptx += f'    .reg .b32  %ucc<{self.upred_reg_count}>;\n'
         if self.reg_count:
             ptx += f'    .reg .b32   %r<{self.reg_count}>;\n'
         if self.ureg_count:
@@ -948,14 +955,13 @@ class Kernel:
         label = ''
         instruction: dict
         for instruction in self.instrs:
-            ptx_instr = Instruction(**instruction)
-            ptx_instr.ptx_pred = f'@{"!" if ptx_instr.pred_not else ""}%{ptx_instr.pred_reg.lower()}' if ptx_instr.pred else ''
-            rest = re.sub(r'\.reuse', '', ptx_instr.rest)
-            ptx_instr.ptx = [{'op': ptx_instr.op, 'rest': rest}, ]
-            instrs.append(ptx_instr)
-        for instr in instrs:
-            op = instr.ptx[0]['op']
-            rest = instr.ptx[0]['rest']
+            instr = Instruction(**instruction)
+            instr.ptx_pred = f'@{"!" if instr.pred_not else ""}%{instr.pred_reg.lower()}' if instr.pred else ''
+            op = instr.op
+            rest = re.sub(r'\.reuse', '', instr.rest)
+            instr.ptx = []
+            instrs.append(instr)
+
             # 忽略无用指令
             if op in ignore_instrs:
                 instr.ptx = []
@@ -984,9 +990,9 @@ class Kernel:
                     captured_dict = m.groupdict()
                     break
             if not gram:
-                raise Exception(f'Cannot recognize instruction {op + rest}')
-                # instr.ptx = None
-                # continue
+                # raise Exception(f'Cannot recognize instruction {op + rest}')
+                instr.ptx = None
+                continue
             # 统计寄存器数量
             if 'rd' in captured_dict and captured_dict['rd'] and captured_dict['rd'] != 'RZ':
                 r_num = int(captured_dict['rd'].strip('R'))

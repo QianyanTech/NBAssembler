@@ -402,11 +402,11 @@ def main():
     parser_pre.add_argument('-o', '--output', metavar='OUTPUT', type=str, default='', help='output asm file path')
     parser_pre.add_argument('-s', '--strip', action='store_true', help='strip comment')
 
-    parser_ptx = subparsers.add_parser('ptx', help='disassemble asm to ptx')
-    parser_ptx.add_argument('asm', help='input asm', metavar='ASM')
-    parser_ptx.add_argument('-D', '--define', metavar='DEFINE', nargs='+', type=str, default='',
-                            help='define variable for embedded python code')
-    parser_ptx.add_argument('-o', '--output', metavar='OUTPUT', type=str, default='', help='output ptx file path')
+    parser_pdas = subparsers.add_parser('pdas', help='disassemble asm to ptx')
+    parser_pdas.add_argument('asm', help='input asm', metavar='ASM')
+    parser_pdas.add_argument('-D', '--define', metavar='DEFINE', nargs='+', type=str, default='',
+                             help='define variable for embedded python code')
+    parser_pdas.add_argument('-o', '--output', metavar='OUTPUT', type=str, default='', help='output ptx file path')
 
     parser_test = subparsers.add_parser('test', help='test assembler by disassemble and then assemble')
     parser_test.add_argument('cubin', help='input cubin', metavar='CUBIN')
@@ -434,7 +434,7 @@ def main():
                  sort_banks=args.sort)
     elif args.cmd == 'pre':
         preprocess(asm_path=args.asm, out_asm_path=args.output, define_list=args.define, strip=args.strip)
-    elif args.cmd == 'ptx':
+    elif args.cmd == 'pdas':
         disassemble_ptx(asm_path=args.asm, ptx_path=args.output, define_list=args.define)
     elif args.cmd == 'test':
         test_cubin(cubin_path=args.cubin, kernel_names=args.kernels, global_only=args.global_only, check=args.check)
