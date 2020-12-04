@@ -24,6 +24,8 @@ class Cubin(ELF):
         self.global_section = None
         self.global_init_section = None
 
+        self.ptx = []
+
         self.arch = 61
 
         self.__dict__.update(iterable, **kwargs)
@@ -49,6 +51,8 @@ class Cubin(ELF):
                 kernel.binary = kernel.section.data
                 kernel.name = symbol.name
                 kernel.arch = self.arch
+                kernel.cubin = self
+                kernel.symbol_idx = symbol.index
                 self.kernel_dict[symbol.name] = kernel
 
                 # Extract local/global/weak binding info
@@ -166,6 +170,10 @@ class Cubin(ELF):
             global_init_section: Section = self.section_dict[global_init_section_name]
             self.global_init_section = global_init_section
             self.global_init_dict = self.load_data(global_init_section, 'global')
+
+        if (ptx_section_name := b'.nv_debug_ptx_txt') in self.section_dict:
+            ptx = self.section_dict[ptx_section_name].data.decode().split('\x00')
+            self.ptx = ptx
 
     @staticmethod
     def load_data(section, type_):

@@ -1236,8 +1236,6 @@ grammar_ptx_old = {
         {'rule': rf'IADD{sat} {r0}, {r8}, (?:{r20}|{i20}|{CONST_NAME_RE});', 'ptx': ptx_iadd}],
     'IADD32I': [  # add
         {'rule': rf'IADD32I {r0}, {r8}, {i20};', 'ptx': ptx_iadd32i}],
-    'IADD3': [  # add
-        {'rule': rf'IADD3 {r0}, {r8}, (?:{r20}|{i20}|{CONST_NAME_RE}), {r39};', 'ptx': ptx_iadd3}],
     'ISCADD': [  # add
         {'rule': rf'ISCADD {r0}, {r8}, (?:{r20}|{i20}|{CONST_NAME_RE}), {i39w5};', 'ptx': ptx_iscadd}],
     'LEA': [  # shf.l + add

@@ -534,7 +534,7 @@ class ELF:
 
         # Read in Section
         for i in range(self.header.e_shnum):
-            section = Section()
+            section = Section(index=i)
             begin = self.header.e_shoff + i * self.header.e_shentsize
             end = begin + self.header.e_shentsize
             section.unpack_binary(data[begin:end])
@@ -547,7 +547,7 @@ class ELF:
             if section.sh_type == Section.SHT_VAL['SYMTAB']:
                 offset = 0
                 while offset < section.sh_size:
-                    symbol = Symbol()
+                    symbol = Symbol(index=offset//section.sh_entsize)
                     symbol.unpack_binary(section.data[offset:offset + section.sh_entsize])
                     offset += section.sh_entsize
                     self.symbols.append(symbol)
