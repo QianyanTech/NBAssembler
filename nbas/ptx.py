@@ -60,6 +60,12 @@ def ptx_new_reg(kernel):
     return r_str
 
 
+def ptx_new_reg64(kernel):
+    rd_idx = kernel.reg64_count
+    kernel.reg64_count += 1
+    return f'%rd{rd_idx}'
+
+
 def ptx_cname(kernel, captured_dict, instr):
     name_str = captured_dict['name']
     offset = captured_dict['offset'] if captured_dict['offset'] else 0
@@ -898,58 +904,47 @@ def ptx_iadd3(kernel, captured_dict, instr):
     x1 = ptx_p(captured_dict, 'px1')
     x2 = ptx_p(captured_dict, 'px2')
 
-    # 如果存在第三个加数，使用临时寄存器保存中间结果
-    if c != '0':
-        d1 = ptx_new_reg(kernel)
-    else:
-        d1 = d
-
-    if x1 and x1 != '0':
-        x1_ord = captured_dict['px1ord']
-        instr.ptx.append({
-            'op': 'add', 'rest': f'.cc.u32 %cc{x1_ord}, 0xffffffff, %cc{x1_ord};'
-        })
-        instr.ptx.append({
-            'op': 'mov', 'rest': f'.b32 %cc{x1_ord}, 0;'
-        })
-        op = 'addc'
-    else:
-        op = 'add'
-
     if cc1 and cc1 != '0':
-        instr.add_ptx(op, f'.cc.s32 {d1}, {a}, {b};')
+        type1 = '.s64'
+        a64 = ptx_pack(kernel, instr, a, 0)
+        b64 = ptx_pack(kernel, instr, b, 0)
+        ab64 = ptx_new_reg64(kernel)
+        instr.add_ptx('add', f'{type1} {ab64}, {a64}, {b64};')
+        if x1 and x1 != '0':
+            x1_ord = captured_dict['px1ord']
+            x1_64 = ptx_pack(kernel, instr, f'%cc{x1_ord}', 0)
+            instr.add_ptx('add', f'{type1} {ab64}, {ab64}, {x1_64};')
+        ab = ptx_new_reg(kernel)
         cc1_ord = captured_dict['pcc1ord']
         kernel.pred_regs.add(cc1_ord)
-        instr.add_ptx('addc', f'.s32 %cc{cc1_ord}, 0, 0;')
+        ptx_unpack(instr, ab, f'%cc{cc1_ord}', ab64)
     else:
-        instr.add_ptx(op, f'.s32 {d1}, {a}, {b};')
-
-    # if c != '0':
-    if x2 and x2 != '0':
-        x2_ord = captured_dict['px2ord']
-        instr.ptx.append({
-            'op': 'add', 'rest': f'.cc.u32 %cc{x2_ord}, 0xffffffff, %cc{x2_ord};'
-        })
-        instr.ptx.append({
-            'op': 'mov', 'rest': f'.b32 %cc{x2_ord}, 0;'
-        })
-        op = 'addc'
-    else:
-        op = 'add'
+        type1 = '.s32'
+        ab = ptx_new_reg(kernel)
+        instr.add_ptx('add', f'{type1} {ab}, {a}, {b};')
+        if x1 and x1 != '0':
+            x1_ord = captured_dict['px1ord']
+            instr.add_ptx('add', f'{type1} {ab}, {ab}, %cc{x1_ord};')
 
     if cc2 and cc2 != '0':
-        instr.ptx.append({
-            'op': op, 'rest': f'.cc.s32 {d}, {d1}, {c};'
-        })
+        type2 = '.s64'
+        c64 = ptx_pack(kernel, instr, c, 0)
+        ab64 = ptx_pack(kernel, instr, ab, 0)
+        d64 = ptx_new_reg64(kernel)
+        instr.add_ptx('add', f'{type2} {d64}, {ab64}, {c64};')
+        if x2 and x2 != '0':
+            x2_ord = captured_dict['px2ord']
+            x2_64 = ptx_pack(kernel, instr, f'%cc{x2_ord}', 0)
+            instr.add_ptx('add', f'{type1} {d64}, {d64}, {x2_64};')
         cc2_ord = captured_dict['pcc2ord']
         kernel.pred_regs.add(cc2_ord)
-        instr.ptx.append({
-            'op': 'addc', 'rest': f'.s32 %cc{cc2_ord}, 0, 0;'
-        })
+        ptx_unpack(instr, d, f'%cc{cc2_ord}', d64)
     else:
-        instr.ptx.append({
-            'op': op, 'rest': f'.s32 {d}, {d1}, {c};'
-        })
+        type2 = '.s32'
+        instr.add_ptx('add', f'{type2} {d}, {ab}, {c};')
+        if x2 and x2 != '0':
+            x2_ord = captured_dict['px2ord']
+            instr.add_ptx('add', f'{type1} {d}, {d}, %cc{x2_ord};')
 
 
 grammar_ptx = {
