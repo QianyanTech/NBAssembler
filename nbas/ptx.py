@@ -699,11 +699,12 @@ px1 = fr'(?P<px1not>\!)?(?P<px1>{P})'
 px2 = fr'(?P<px2not>\!)?(?P<px2>{P})'
 ra = fr'(?P<ra>{reg})'
 rb = fr'(?P<rb>{reg})'
-rc = fr'(?P<rc>{reg})'
+rc = fr'(?P<rcneg>[\-~])?(?P<rcabs>\|)?(?P<rc>{reg})\|?'
 rd = fr'(?P<rd>{reg})'
 urd = fr'(?P<urd>{ureg})'
 ura = fr'(?P<ura>{ureg})'
 urb = fr'(?P<urb>{ureg})'
+urc = fr'(?P<urc>{ureg})'
 pim = fr'(?P<pim>(?P<neg>\-)?{immed})'
 imlut = fr'(?P<imlut>{immed})'
 paddr = fr'\[(?:(?P<ra>{reg})(?P<rax>\.X(4|8|16))?(?P<ratype>\.64|\.U32)?)?' \
@@ -712,7 +713,7 @@ paddr = fr'\[(?:(?P<ra>{reg})(?P<rax>\.X(4|8|16))?(?P<ratype>\.64|\.U32)?)?' \
 
 def ptx_mov(kernel, captured_dict, instr):
     d = ptx_r(captured_dict, 'rd')
-    a = ptx_irc(kernel, captured_dict, instr, 'pim', 'ra')
+    a = ptx_irc(kernel, captured_dict, instr, 'pim', 'rc')
     if captured_dict['const']:
         ss_str = 'param' if 'ARG_' in captured_dict['name'] else 'const'
         instr.add_ptx('ld', f'.{ss_str}.b32 {d}, {a};')
@@ -947,6 +948,84 @@ def ptx_iadd3(kernel, captured_dict, instr):
             instr.add_ptx('add', f'{type1} {d}, {d}, %cc{x2_ord};')
 
 
+def ptx_imad(kernel, captured_dict, instr):
+    d = ptx_r(captured_dict, 'rd')
+    a = ptx_r(captured_dict, 'ra')
+    b = ptx_iurc(kernel, captured_dict, instr, 'pim', 'rb', 'urb')
+    c = ptx_r(captured_dict, 'rc')
+    # cc1 = ptx_p(captured_dict, 'pcc1')
+    x1 = ptx_p(captured_dict, 'px1')
+    type_str = '.u32' if captured_dict['U32'] else '.s32'
+    flag = '.lo'
+    if captured_dict['type'] and captured_dict['type'] in ['.WIDE', '.HI']:
+        flag = captured_dict['type'].lower()
+
+    # if cc1 and cc1 != '0':
+    #     type1 = '.s64'
+    #     a64 = ptx_pack(kernel, instr, a, 0)
+    #     b64 = ptx_pack(kernel, instr, b, 0)
+    #     ab64 = ptx_new_reg64(kernel)
+    #     instr.add_ptx('add', f'{type1} {ab64}, {a64}, {b64};')
+    #     if x1 and x1 != '0':
+    #         x1_ord = captured_dict['px1ord']
+    #         x1_64 = ptx_pack(kernel, instr, f'%cc{x1_ord}', 0)
+    #         instr.add_ptx('add', f'{type1} {ab64}, {ab64}, {x1_64};')
+    #     ab = ptx_new_reg(kernel)
+    #     cc1_ord = captured_dict['pcc1ord']
+    #     kernel.pred_regs.add(cc1_ord)
+    #     ptx_unpack(instr, ab, f'%cc{cc1_ord}', ab64)
+    # else:
+    if '.lo' == flag:
+        instr.add_ptx('mad', f'.lo{type_str} {d}, {a}, {b}, {c};')
+        if x1 and x1 != '0':
+            x1_ord = captured_dict['px1ord']
+            instr.add_ptx('add', f'{type_str} {d}, {d}, %cc{x1_ord};')
+    else:
+        c64 = ptx_r2d(kernel, captured_dict, instr, c)
+        d64 = ptx_new_reg64(kernel)
+        instr.add_ptx('mad', f'.wide{type_str} {d64}, {a}, {b}, {c64};')
+        if x1 and x1 != '0':
+            x1_ord = captured_dict['px1ord']
+            x1_64 = ptx_pack(kernel, instr, f'%cc{x1_ord}', 0)
+            instr.add_ptx('add', f'{type_str.replace("32", "64")} {d64}, {d64}, {x1_64};')
+        d_ord = captured_dict['rdord']
+        if '.wide' == flag:
+            ptx_unpack(instr, d, f'%r{d_ord + 1}', d64)
+        else:
+            ptx_unpack(instr, ptx_new_reg(kernel), d, d64)
+
+
+def ptx_imad2(kernel, captured_dict, instr):
+    d = ptx_r(captured_dict, 'rd')
+    a = ptx_r(captured_dict, 'ra')
+    b = ptx_r(captured_dict, 'rb')
+    c = ptx_iurc(kernel, captured_dict, instr, 'pim', 'rc', 'urc')
+    x1 = ptx_p(captured_dict, 'px1')
+    type_str = '.u32' if captured_dict['U32'] else '.s32'
+    flag = '.lo'
+    if captured_dict['type'] and captured_dict['type'] in ['.WIDE', '.HI']:
+        flag = captured_dict['type'].lower()
+
+    if '.lo' == flag:
+        instr.add_ptx('mad', f'.lo{type_str} {d}, {a}, {b}, {c};')
+        if x1 and x1 != '0':
+            x1_ord = captured_dict['px1ord']
+            instr.add_ptx('add', f'{type_str} {d}, {d}, %cc{x1_ord};')
+    else:
+        c64 = ptx_r2d(kernel, captured_dict, instr, c) if 'r' in c else c
+        d64 = ptx_new_reg64(kernel)
+        instr.add_ptx('mad', f'.wide{type_str} {d64}, {a}, {b}, {c64};')
+        if x1 and x1 != '0':
+            x1_ord = captured_dict['px1ord']
+            x1_64 = ptx_pack(kernel, instr, f'%cc{x1_ord}', 0)
+            instr.add_ptx('add', f'{type_str.replace("32", "64")} {d64}, {d64}, {x1_64};')
+        d_ord = captured_dict['rdord']
+        if '.wide' == flag:
+            ptx_unpack(instr, d, f'%r{d_ord + 1}', d64)
+        else:
+            ptx_unpack(instr, ptx_new_reg(kernel), d, d64)
+
+
 grammar_ptx = {
     # Floating Point Instructions
     'FADD': [],  # FP32 Add
@@ -998,7 +1077,11 @@ grammar_ptx = {
     'IDP': [],  # Integer Dot Product and Accumulate
     'IDP4A': [],  # Integer Dot Product and Accumulate
     'IMAD': [  # Integer Multiply And Add
-        {'rule': rf'IMAD\.MOV{u32} {rd}, RZ, RZ, (?:{pim}|{ra}|{CONST_NAME_RE});', 'ptx': ptx_mov},
+        {'rule': rf'IMAD\.MOV{u32} {rd}, RZ, RZ, (?:{pim}|{rc}|{CONST_NAME_RE});', 'ptx': ptx_mov},
+        {'rule': rf'IMAD{timad}{u32}{X} {rd}, {ra}, (?:{rb}|{urb}|{pim}|{CONST_NAME_RE}), {rc}(, {px1})?;',
+         'ptx': ptx_imad},
+        {'rule': rf'IMAD{timad}{u32}{X} {rd}, {ra}, {rb}, (?:{rc}|{urc}|{pim}|{CONST_NAME_RE})(, {px1})?;',
+         'ptx': ptx_imad},
     ],
     'IMMA': [  # Integer Matrix Multiply and Accumulate
     ],
