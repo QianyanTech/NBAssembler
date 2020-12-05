@@ -565,21 +565,6 @@ def ptx_mov32i(kernel, instrs, captured_dict, instr):
             instr['line_num'] = -instr['line_num']
 
 
-def ptx_shfl(kernel, instrs, captured_dict, instr):
-    instr['op'] = 'shfl'
-    p = ptx_p(captured_dict, 'p48')
-    if 'pt' in p:
-        p = ''
-    else:
-        p = f'|{p}'
-    d = ptx_r(captured_dict, 'r0')
-    a = ptx_r(captured_dict, 'r8')
-    b = ptx_ir(captured_dict, 'i20w8', 'r20')
-    c = ptx_ir(captured_dict, 'i34w13', 'r39')
-    mode = captured_dict["mode"].lower()
-    instr['rest'] = f'.sync.{mode}.b32 {d}{p}, {a}, {b}, {c}, -1;'
-
-
 def ptx_prmt(kernel, instrs, captured_dict, instr):
     instr['op'] = 'prmt'
     d = ptx_r(captured_dict, 'r0')
@@ -707,6 +692,7 @@ urb = fr'(?P<urb>{ureg})'
 urc = fr'(?P<urc>{ureg})'
 pim = fr'(?P<pim>(?P<neg>\-)?{immed})'
 imlut = fr'(?P<imlut>{immed})'
+imask = fr'(?P<imask>{immed})'
 paddr = fr'\[(?:(?P<ra>{reg})(?P<rax>\.X(4|8|16))?(?P<ratype>\.64|\.U32)?)?' \
         rf'(?:\s*\+?\s*(?P<urb>{ureg}))?(?:\s*\+?\s*{pim})?\]'
 
@@ -846,11 +832,11 @@ def ptx_isetp(kernel, captured_dict, instr):
     a = ptx_r(captured_dict, 'ra')
     b = ptx_irc(kernel, captured_dict, instr, 'pim', 'rb')
     c = ptx_p(captured_dict, 'pc')
-    if 'pt' in q:
+    if 'p' not in q:
         q = ''
     else:
         q = f'|{q}'
-    if '%pt' == c and 'and' == bool_str:
+    if 'p' not in c and 'and' == bool_str:
         rest = f'{cmp_str}{type_str} {p}{q}, {a}, {b};'
     else:
         rest = f'{cmp_str}{bool_str}{type_str} {p}{q}, {a}, {b}, {c};'
@@ -1026,6 +1012,20 @@ def ptx_imad2(kernel, captured_dict, instr):
             ptx_unpack(instr, ptx_new_reg(kernel), d, d64)
 
 
+def ptx_shfl(kernel, captured_dict, instr):
+    p = ptx_p(captured_dict, 'pp')
+    if 'p' not in p:
+        p = ''
+    else:
+        p = f'|{p}'
+    d = ptx_r(captured_dict, 'rd')
+    a = ptx_r(captured_dict, 'ra')
+    b = ptx_ir(captured_dict, 'pim', 'rb')
+    c = ptx_ir(captured_dict, 'imask', 'rc')
+    mode = captured_dict["mode"].lower()
+    instr.add_ptx('shfl', f'.sync.{mode}.b32 {d}{p}, {a}, {b}, {c}, -1;')
+
+
 grammar_ptx = {
     # Floating Point Instructions
     'FADD': [],  # FP32 Add
@@ -1136,6 +1136,7 @@ grammar_ptx = {
     'SGXT': [  # Sign Extend
     ],
     'SHFL': [  # Warp Wide Register Shuffle
+        {'rule': rf'SHFL{shfl} {pp}, {rd}, {ra}, (?:{pim}|{rb}), (?:{imask}|{rc});', 'ptx': ptx_shfl}
     ],
 
     # Predicate Instructions
@@ -1347,8 +1348,6 @@ grammar_ptx_old = {
     'MOV32I': [  # mov
         {'rule': rf'MOV32I {r0nc}, {i20w32};', 'ptx': ptx_mov32i},
         {'rule': rf'MOV32I {r0nc}, {GLOBAL_NAME_RE};', 'ptx': ptx_mov32i}],
-    'SHFL': [  # shfl.sync
-        {'rule': rf'SHFL{shfl} {p48}, {r0nc}, {r8}, (?:{i20w8}|{r20}), (?:{i34w13}|{r39});', 'ptx': ptx_shfl}],
     'PRMT': [  # prmt
         {'rule': rf'PRMT{prmt} {r0nc}, {r8}, (?:{r20}|{i20}|{CONST_NAME_RE}), {r39};', 'ptx': ptx_prmt}],
     'SEL': [  # selp
