@@ -92,9 +92,9 @@ def ptx_cname(kernel, captured_dict, instr):
         r_str = ptx_new_reg(kernel)
         ss_str = 'param' if 'ARG_' in name_str else 'const'
         instr.add_ptx('ld', f'.{ss_str}.b32 {r_str}, [{name_str}+{offset}];')
-    if f'c20abs' in captured_dict and captured_dict[f'c20abs']:
+    if f'cnameabs' in captured_dict and captured_dict[f'cnameabs']:
         r_str = f'|{r_str}|'
-    if f'c20neg' in captured_dict and captured_dict[f'c20neg']:
+    if f'cnameneg' in captured_dict and captured_dict[f'cnameneg']:
         r_str = f'-{r_str}'
     return r_str
 
@@ -214,19 +214,6 @@ def ptx_bfi(kernel, instrs, captured_dict, instr):
 
     instr['op'] = 'bfi'
     instr['rest'] = f'.b32 {d}, {a}, {e}, {b}, {c};'
-
-
-def ptx_imnmx(kernel, instrs, captured_dict, instr):
-    type_str = 'u32' if captured_dict['U32'] else 's32'
-    d = ptx_r(captured_dict, 'r0')
-    a = ptx_r(captured_dict, 'r8')
-    b = ptx_irc(kernel, instrs, captured_dict, instr, 'i20', 'r20')
-    c = ptx_p(captured_dict, 'p39')
-    if '!' in c:
-        instr['op'] = 'max'
-    else:
-        instr['op'] = 'min'
-    instr['rest'] = f'.{type_str} {d}, {a}, {b};'
 
 
 def ptx_add(f, d, a, b):
@@ -687,6 +674,8 @@ imask = fr'(?P<imask>{immed})'
 paddr = fr'\[(?:(?P<ra>{reg})(?P<rax>\.X(4|8|16))?(?P<ratype>\.64|\.U32)?)?' \
         rf'(?:\s*\+?\s*(?P<urb>{ureg}))?(?:\s*\+?\s*{pim})?\]'
 
+cname = fr'(?P<cnameneg>\-)?(?P<cnameabs>\|)?{CONST_NAME_RE}\|?'
+
 
 def ptx_mov(kernel, captured_dict, instr):
     d = ptx_r(captured_dict, 'rd')
@@ -821,7 +810,7 @@ def ptx_isetp(kernel, captured_dict, instr):
     p = ptx_p(captured_dict, 'pp')
     q = ptx_p(captured_dict, 'pq')
     a = ptx_r(captured_dict, 'ra')
-    b = ptx_irc(kernel, captured_dict, instr, 'pim', 'rb')
+    b = ptx_iurc(kernel, captured_dict, instr, 'pim', 'rb', 'urb')
     c = ptx_p(captured_dict, 'pc')
     if 'p' not in q:
         q = ''
@@ -1025,6 +1014,18 @@ def ptx_sel(kernel, captured_dict, instr):
     instr.add_ptx('selp', f'.b32 {d}, {a}, {b}, {c};')
 
 
+def ptx_imnmx(kernel, captured_dict, instr):
+    type_str = '.u32' if captured_dict['U32'] else '.s32'
+    d = ptx_r(captured_dict, 'rd')
+    a = ptx_r(captured_dict, 'ra')
+    b = ptx_iurc(kernel, captured_dict, instr, 'pim', 'rb', 'urb')
+    c = ptx_p(captured_dict, 'pc')
+    if '!' in c or '0' == c:
+        instr.add_ptx('max', f'{type_str} {d}, {a}, {b};')
+    else:
+        instr.add_ptx('min', f'{type_str} {d}, {a}, {b};')
+
+
 grammar_ptx = {
     # Floating Point Instructions
     'FADD': [],  # FP32 Add
@@ -1069,7 +1070,7 @@ grammar_ptx = {
     ],
     'IADD': [],  # Integer Addition
     'IADD3': [  # 3-input Integer Addition
-        {'rule': rf'IADD3{X} {rd}, ({pcc1}, )?({pcc2}, )?{ra}, (?:{rb}|{urb}|{pim}|{CONST_NAME_RE}),'
+        {'rule': rf'IADD3{X} {rd}, ({pcc1}, )?({pcc2}, )?{ra}, (?:{rb}|{urb}|{pim}|{cname}),'
                  rf' {rc}(, {px1})?(, {px2})?;', 'ptx': ptx_iadd3}
     ],
     'IADD32I': [],  # Integer Addition
@@ -1085,13 +1086,14 @@ grammar_ptx = {
     'IMMA': [  # Integer Matrix Multiply and Accumulate
     ],
     'IMNMX': [  # Integer Minimum/Maximum
+        {'rule': rf'IMNMX{u32} {rd}, {ra}, (?:{rb}|{urb}|{pim}|{cname}), {pc};', 'ptx': ptx_imnmx}
     ],
     'IMUL': [],  # Integer Multiply
     'IMUL32I': [],  # Integer Multiply
     'ISCADD': [],  # Scaled Integer Addition
     'ISCADD32I': [],  # Scaled Integer Addition
     'ISETP': [  # Integer Compare And Set Predicate
-        {'rule': rf'ISETP{ticmp}{u32}{tbool}{tex} {pp}, {pq}, {ra}, (?:{rb}|{pim}|{CONST_NAME_RE}), {pc};',
+        {'rule': rf'ISETP{ticmp}{u32}{tbool}{tex} {pp}, {pq}, {ra}, (?:{rb}|{urb}|{pim}|{CONST_NAME_RE}), {pc};',
          'ptx': ptx_isetp}
     ],
     'LEA': [  # LOAD Effective Address
@@ -1151,6 +1153,7 @@ grammar_ptx = {
     'LD': [  # Load from generic Memory
     ],
     'LDC': [  # Load Constant
+        {'rule': rf'LDC{tmem_type}{tldc_isl} {rd}, {cname};', 'ptx': ptx_ldst},
     ],
     'LDG': [  # Load from Global Memory
         {'rule': rf'LDG{te}{tmem_cache}{tmem_ltc}{tmem_type}{tmem_scopes}{tzd} {rd}, {paddr};', 'ptx': ptx_ldst}
@@ -1199,13 +1202,15 @@ grammar_ptx = {
     'UFLO': [  # Uniform Find Leading One
     ],
     'UIADD3': [  # Uniform Integer Addition
+        {'rule': rf'IADD3{X} {urd}, ({pcc1}, )?({pcc2}, )?{ura}, (?:{urb}|{pim}|{cname}),'
+                 rf' {urc}(, {px1})?(, {px2})?;', 'ptx': ptx_iadd3}
     ],
     'UIMAD': [  # Uniform Integer Multiplication
     ],
     'UISETP': [  # Integer Compare and Set Uniform Predicate
     ],
     'ULDC': [  # Load from Constant Memory into a Uniform Register
-        {'rule': rf'ULDC{tmem_type} {urd}, {CONST_NAME_RE};', 'ptx': ptx_uldc}
+        {'rule': rf'ULDC{tmem_type} {urd}, {cname};', 'ptx': ptx_uldc}
     ],
     'ULEA': [  # Uniform Load Effective Address
     ],
