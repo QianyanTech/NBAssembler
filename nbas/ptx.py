@@ -118,6 +118,14 @@ def ptx_irc(kernel, captured_dict, instr, i_name, r_name):
     return c
 
 
+def ptx_rc(kernel, captured_dict, instr, r_name):
+    if r_name in captured_dict and captured_dict[r_name]:
+        c = ptx_r(captured_dict, r_name)
+    else:
+        c = ptx_cname(kernel, captured_dict, instr)
+    return c
+
+
 def ptx_iurc(kernel, captured_dict, instr, i_name, r_name, ur_name):
     if i_name in captured_dict and captured_dict[i_name]:
         c = ptx_i(captured_dict, i_name)
@@ -550,17 +558,6 @@ def ptx_mov32i(kernel, instrs, captured_dict, instr):
             instr['rest'] = f'.b64 {d}, %rd{rd_idx};'
         else:
             instr['line_num'] = -instr['line_num']
-
-
-def ptx_prmt(kernel, instrs, captured_dict, instr):
-    instr['op'] = 'prmt'
-    d = ptx_r(captured_dict, 'r0')
-    a = ptx_r(captured_dict, 'r8')
-    b = ptx_irc(kernel, instrs, captured_dict, instr, 'i20', 'r20')
-    c = ptx_r(captured_dict, 'r39')
-    mode = '' if not captured_dict['mode'] else f'.{captured_dict["mode"].lower()}'
-    rest = f'.b32{mode} {d}, {a}, {c}, {b};'
-    instr['rest'] = rest
 
 
 def ptx_atom(kernel, instrs, captured_dict, instr):
@@ -1026,6 +1023,15 @@ def ptx_imnmx(kernel, captured_dict, instr):
         instr.add_ptx('min', f'{type_str} {d}, {a}, {b};')
 
 
+def ptx_prmt(kernel, captured_dict, instr):
+    d = ptx_r(captured_dict, 'rd')
+    a = ptx_r(captured_dict, 'ra')
+    b = ptx_ir(captured_dict, 'pim', 'rb')
+    c = ptx_rc(kernel, captured_dict, instr, 'rc')
+    mode = '' if not captured_dict['prmt'] else f'.{captured_dict["prmt"].lower()}'
+    instr.add_ptx('prmt', f'.b32{mode} {d}, {a}, {c}, {b};')
+
+
 grammar_ptx = {
     # Floating Point Instructions
     'FADD': [],  # FP32 Add
@@ -1093,7 +1099,8 @@ grammar_ptx = {
     'ISCADD': [],  # Scaled Integer Addition
     'ISCADD32I': [],  # Scaled Integer Addition
     'ISETP': [  # Integer Compare And Set Predicate
-        {'rule': rf'ISETP{ticmp}{u32}{tbool}{tex} {pp}, {pq}, {ra}, (?:{rb}|{urb}|{pim}|{CONST_NAME_RE}), {pc};',
+        {'rule': rf'ISETP{ticmp}{u32}{tbool}{tex} {pp}, {pq}, {ra},'
+                 rf' (?:{rb}|{urb}|{pim}|{CONST_NAME_RE}), {pc}(, {px1})?;',
          'ptx': ptx_isetp}
     ],
     'LEA': [  # LOAD Effective Address
@@ -1131,6 +1138,7 @@ grammar_ptx = {
     'MOV32I': [],  # Move
     'MOVM': [],  # Move Matrix with Transposition or Expansion
     'PRMT': [  # Permute Register Pair
+        {'rule': rf'PRMT{tprmt} {rd}, {ra}, (?:{rb}|{pim}), (?:{rc}|{cname});', 'ptx': ptx_prmt}
     ],
     'SEL': [  # Select Source with Predicate
         {'rule': rf'SEL {rd}, {ra}, (?:{rb}|{pim}|{CONST_NAME_RE}), {pc};', 'ptx': ptx_sel}
