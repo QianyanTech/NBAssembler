@@ -605,12 +605,16 @@ pcc1 = fr'(?P<pcc1>{P})'
 pcc2 = fr'(?P<pcc2>{P})'
 px1 = fr'(?P<px1not>\!)?(?P<px1>{P})'
 px2 = fr'(?P<px2not>\!)?(?P<px2>{P})'
+upcc1 = fr'(?P<upcc1>{UP})'
+upcc2 = fr'(?P<upcc2>{UP})'
+upx1 = fr'(?P<upx1not>\!)?(?P<px1>{UP})'
+upx2 = fr'(?P<upx2not>\!)?(?P<px2>{UP})'
 ra = fr'(?P<ra>{reg})'
 rb = fr'(?P<rb>{reg})'
 rc = fr'(?P<rcneg>[\-~])?(?P<rcabs>\|)?(?P<rc>{reg})\|?'
 rd = fr'(?P<rd>{reg})'
 urd = fr'(?P<urd>{ureg})'
-ura = fr'(?P<ura>{ureg})'
+ura = fr'(?P<uraneg>[\-~])?(?P<uraabs>\|)?(?P<ura>{ureg})\|?'
 urb = fr'(?P<urb>{ureg})'
 urc = fr'(?P<urc>{ureg})'
 pim = fr'(?P<pim>(?P<neg>\-)?{immed})'
@@ -620,16 +624,18 @@ paddr = fr'\[(?:(?P<ra>{reg})(?P<rax>\.X(4|8|16))?(?P<ratype>\.64|\.U32)?)?' \
         rf'(?:\s*\+?\s*(?P<ura>{ureg}))?(?:\s*\+?\s*{pim})?\]'
 
 cname = fr'(?P<cnameneg>\-)?(?P<cnameabs>\|)?{CONST_NAME_RE}\|?'
+pldc = rf'c\[(?P<cbank>{hexx})\]\s*\[(?P<rb>{reg})?(?:\s*\+?\s*{pim})?\]'
 
 
 def ptx_mov(kernel, captured_dict, instr):
     d = ptx_r(captured_dict, 'rd')
     a = ptx_irc(kernel, captured_dict, instr, 'pim', 'rc')
-    if captured_dict['const']:
-        ss_str = 'param' if 'ARG_' in captured_dict['name'] else 'const'
-        instr.add_ptx('ld', f'.{ss_str}.b32 {d}, {a};')
-    else:
-        instr.add_ptx('mov', f'.b32 {d}, {a};')
+    # if captured_dict['const']:
+    #     ss_str = 'param' if 'ARG_' in captured_dict['name'] else 'const'
+    #     instr.add_ptx('ld', f'.{ss_str}.b32 {d}, {a};')
+    # else:
+    #     instr.add_ptx('mov', f'.b32 {d}, {a};')
+    instr.add_ptx('mov', f'.b32 {d}, {a};')
 
 
 def ptx_uldc(kernel, captured_dict, instr):
@@ -768,7 +774,7 @@ def ptx_isetp(kernel, captured_dict, instr):
         q = ''
     else:
         q = f'|{q}'
-    if 'p' not in c and 'and' == bool_str:
+    if not c or (c == '1' and '.and' == bool_str) or (c == '0' and '.or' == bool_str):
         rest = f'{cmp_str}{type_str} {p}{q}, {a}, {b};'
     else:
         rest = f'{cmp_str}{bool_str}{type_str} {p}{q}, {a}, {b}, {c};'
@@ -866,6 +872,59 @@ def ptx_iadd3(kernel, captured_dict, instr):
             instr.add_ptx('add', f'{type1} {d}, {d}, %cc{x2_ord};')
 
 
+def ptx_uiadd3(kernel, captured_dict, instr):
+    d = ptx_r(captured_dict, 'urd')
+    a = ptx_r(captured_dict, 'ura')
+    b = ptx_iurc(kernel, captured_dict, instr, 'pim', 'rb', 'urb')
+    c = ptx_r(captured_dict, 'urc')
+    cc1 = ptx_p(captured_dict, 'upcc1')
+    cc2 = ptx_p(captured_dict, 'upcc2')
+    x1 = ptx_p(captured_dict, 'upx1')
+    x2 = ptx_p(captured_dict, 'upx2')
+
+    if cc1 and cc1 != '0':
+        type1 = '.s64'
+        a64 = ptx_pack(kernel, instr, a, 0)
+        b64 = ptx_pack(kernel, instr, b, 0)
+        ab64 = ptx_new_reg64(kernel)
+        instr.add_ptx('add', f'{type1} {ab64}, {a64}, {b64};')
+        if x1 and x1 != '0':
+            x1_ord = captured_dict['upx1ord']
+            x1_64 = ptx_pack(kernel, instr, f'%ucc{x1_ord}', 0)
+            instr.add_ptx('add', f'{type1} {ab64}, {ab64}, {x1_64};')
+        ab = ptx_new_reg(kernel)
+        cc1_ord = captured_dict['upcc1ord']
+        kernel.pred_regs.add(cc1_ord)
+        ptx_unpack(instr, ab, f'%ucc{cc1_ord}', ab64)
+    else:
+        type1 = '.s32'
+        ab = ptx_new_reg(kernel)
+        instr.add_ptx('add', f'{type1} {ab}, {a}, {b};')
+        if x1 and x1 != '0':
+            x1_ord = captured_dict['upx1ord']
+            instr.add_ptx('add', f'{type1} {ab}, {ab}, %ucc{x1_ord};')
+
+    if cc2 and cc2 != '0':
+        type2 = '.s64'
+        c64 = ptx_pack(kernel, instr, c, 0)
+        ab64 = ptx_pack(kernel, instr, ab, 0)
+        d64 = ptx_new_reg64(kernel)
+        instr.add_ptx('add', f'{type2} {d64}, {ab64}, {c64};')
+        if x2 and x2 != '0':
+            x2_ord = captured_dict['upx2ord']
+            x2_64 = ptx_pack(kernel, instr, f'%ucc{x2_ord}', 0)
+            instr.add_ptx('add', f'{type1} {d64}, {d64}, {x2_64};')
+        cc2_ord = captured_dict['upcc2ord']
+        kernel.pred_regs.add(cc2_ord)
+        ptx_unpack(instr, d, f'%ucc{cc2_ord}', d64)
+    else:
+        type2 = '.s32'
+        instr.add_ptx('add', f'{type2} {d}, {ab}, {c};')
+        if x2 and x2 != '0':
+            x2_ord = captured_dict['upx2ord']
+            instr.add_ptx('add', f'{type1} {d}, {d}, %ucc{x2_ord};')
+
+
 def ptx_imad(kernel, captured_dict, instr):
     d = ptx_r(captured_dict, 'rd')
     a = ptx_r(captured_dict, 'ra')
@@ -899,7 +958,7 @@ def ptx_imad(kernel, captured_dict, instr):
             x1_ord = captured_dict['px1ord']
             instr.add_ptx('add', f'{type_str} {d}, {d}, %cc{x1_ord};')
     else:
-        c64 = ptx_r2d(kernel, captured_dict, instr, c)
+        c64 = ptx_r2d(kernel, captured_dict, instr, c) if 'r' in c else c
         d64 = ptx_new_reg64(kernel)
         instr.add_ptx('mad', f'.wide{type_str} {d64}, {a}, {b}, {c64};')
         if x1 and x1 != '0':
@@ -1087,7 +1146,7 @@ grammar_ptx = {
         {'rule': rf'IMAD{timad}{u32}{X} {rd}, {ra}, (?:{rb}|{urb}|{pim}|{CONST_NAME_RE}), {rc}(, {px1})?;',
          'ptx': ptx_imad},
         {'rule': rf'IMAD{timad}{u32}{X} {rd}, {ra}, {rb}, (?:{rc}|{urc}|{pim}|{CONST_NAME_RE})(, {px1})?;',
-         'ptx': ptx_imad},
+         'ptx': ptx_imad2},
     ],
     'IMMA': [  # Integer Matrix Multiply and Accumulate
     ],
@@ -1214,8 +1273,8 @@ grammar_ptx = {
     'UFLO': [  # Uniform Find Leading One
     ],
     'UIADD3': [  # Uniform Integer Addition
-        {'rule': rf'IADD3{X} {urd}, ({pcc1}, )?({pcc2}, )?{ura}, (?:{urb}|{pim}|{cname}),'
-                 rf' {urc}(, {px1})?(, {px2})?;', 'ptx': ptx_iadd3}
+        {'rule': rf'IADD3{X} {urd}, ({upcc1}, )?({upcc2}, )?{ura}, (?:{urb}|{pim}|{cname}),'
+                 rf' {urc}(, {upx1})?(, {upx2})?;', 'ptx': ptx_uiadd3}
     ],
     'UIMAD': [  # Uniform Integer Multiplication
     ],
@@ -1385,13 +1444,6 @@ grammar_ptx_old = {
         {'rule': rf'STL{mem_cache}{mem_type} {addr}, {r0nc};', 'ptx': ptx_ldst}],
     'LDC': [  # ld
         {'rule': rf'LDC{mem_cache}{mem_type} {r0nc}, {ldc};', 'ptx': ptx_ldst}],
-    # ATOM Instructions
-    'ATOM': [  # atom
-        {'rule': rf'ATOM{atom} {r0nc}, {addr}, {r20}(?:, {r39a})?;', 'ptx': ptx_atom}],
-    'ATOMS': [  # atom
-        {'rule': rf'ATOMS{atom} {r0nc}, {addr}, {r20}(?:, {r39a})?;', 'ptx': ptx_atom}],
-    'RED': [  # red
-        {'rule': rf'RED{atom} {addr}, {r20};', 'ptx': ptx_atom}],
     'BRK': [  # bra
         {'rule': rf'BRK `\(\s*{LABEL_RE}\s*\);', 'ptx': ptx_brk}],
     'SYNC': [  # bra
