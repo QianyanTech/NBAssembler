@@ -560,58 +560,6 @@ def ptx_mov32i(kernel, instrs, captured_dict, instr):
             instr['line_num'] = -instr['line_num']
 
 
-def ptx_atom(kernel, instrs, captured_dict, instr):
-    if instr['op'] == 'ATOMS':
-        ss = 'shared'
-    else:
-        ss = 'global'
-    op_str = captured_dict['mode'].lower()
-    if not captured_dict['type']:
-        if op_str in ['or', 'and', 'xor']:
-            type_str = 'b32'
-        else:
-            type_str = 'u32'
-    else:
-        type_str = captured_dict['type'][1:].lower()
-    if '64' in type_str and op_str == 'exch':
-        type_str = 'b64'
-
-    if '64' in type_str:
-        d = ptx_r2d(kernel, instrs, captured_dict, instr, 'r0')
-        b = ptx_r2d(kernel, instrs, captured_dict, instr, 'r20')
-        c = ptx_r2d(kernel, instrs, captured_dict, instr, 'r39a')
-    else:
-        d = ptx_r(captured_dict, 'r0')
-        b = ptx_r(captured_dict, 'r20')
-        c = ptx_r(captured_dict, 'r39a')
-
-    if ss == 'shared':
-        a = ptx_r(captured_dict, 'r8')
-    else:
-        a = ptx_r2d(kernel, instrs, captured_dict, instr, 'r8')
-    if a in ['0', '-0', '|0|', '']:
-        if ss == 'shared':
-            a = '_shared+'
-        else:
-            a = ''
-    else:
-        a = f'{a}+'
-    i = ptx_i(captured_dict, 'i20w24')
-    i = int(i, base=0) if i else 0
-
-    if c:
-        c = f', {c}'
-    else:
-        c = ''
-
-    if d in ['', '0']:
-        instr['op'] = 'red'
-        instr['rest'] = f'.{ss}.{op_str}.{type_str} [{a}{i}], {b};'
-    else:
-        instr['op'] = 'atom'
-        instr['rest'] = f'.{ss}.{op_str}.{type_str} {d}, [{a}{i}], {b}{c};'
-
-
 def ptx_sync(kernel, instrs, captured_dict, instr):
     instr['op'] = 'bra'
     instr['rest'] = f' {captured_dict["label"]};'
@@ -669,7 +617,7 @@ pim = fr'(?P<pim>(?P<neg>\-)?{immed})'
 imlut = fr'(?P<imlut>{immed})'
 imask = fr'(?P<imask>{immed})'
 paddr = fr'\[(?:(?P<ra>{reg})(?P<rax>\.X(4|8|16))?(?P<ratype>\.64|\.U32)?)?' \
-        rf'(?:\s*\+?\s*(?P<urb>{ureg}))?(?:\s*\+?\s*{pim})?\]'
+        rf'(?:\s*\+?\s*(?P<ura>{ureg}))?(?:\s*\+?\s*{pim})?\]'
 
 cname = fr'(?P<cnameneg>\-)?(?P<cnameabs>\|)?{CONST_NAME_RE}\|?'
 
@@ -727,6 +675,28 @@ def ptx_umov(kernel, captured_dict, instr):
             instr.ptx = []
 
 
+def ptx_addr(kernel, captured_dict, instr):
+    ss = instr.op[-1]
+    if ss in ['L', 'S', 'C']:
+        a = ptx_r(captured_dict, 'ra')
+        b = ptx_r(captured_dict, 'ura')
+    else:
+        a = ptx_r2d(kernel, captured_dict, instr, 'ra')
+        b = ptx_r2d(kernel, captured_dict, instr, 'ura')
+    if a in ['0', '-0', '|0|', '']:
+        if ss == 'S':
+            a = '_shared+'
+        else:
+            a = ''
+    else:
+        a = f'{a}+'
+    c = ptx_i(captured_dict, 'pim')
+    c = int(c, base=0) if c else 0
+    if c:
+        b += f'+{c}'
+    return f'[{a}{b}]'
+
+
 def ptx_ldst(kernel, captured_dict, instr):
     op = instr.op
     if op in ['LDL', 'STL']:
@@ -763,30 +733,15 @@ def ptx_ldst(kernel, captured_dict, instr):
             d = f'{{0, 0, 0, 0}}'
         else:
             d = f'{{%r{d_idx}, %r{d_idx + 1}, %r{d_idx + 2}, %r{d_idx + 3}}}'
-    if ss in ['shared', 'const']:
-        a = ptx_r(captured_dict, 'ra')
-        b = ptx_r(captured_dict, 'urb')
-    else:
-        a = ptx_r2d(kernel, captured_dict, instr, 'ra')
-        b = ptx_r2d(kernel, captured_dict, instr, 'urb')
-    if a in ['0', '-0', '|0|', '']:
-        if ss == 'shared':
-            a = '_shared+'
-        else:
-            a = ''
-    else:
-        a = f'{a}+'
-    c = ptx_i(captured_dict, 'pim')
-    c = int(c, base=0) if c else 0
-    if c:
-        b += f'+{c}'
+
+    adr = ptx_addr(kernel, captured_dict, instr)
 
     if 'LD' in op:
         op = 'ld'
-        dabc = f'{d}, [{a}{b}]'
+        dabc = f'{d}, {adr}'
     else:
         op = 'st'
-        dabc = f'[{a}{b}], {d}'
+        dabc = f'{adr}, {d}'
 
     type_str = '.u32'
     v_str = ''
@@ -1032,6 +987,51 @@ def ptx_prmt(kernel, captured_dict, instr):
     instr.add_ptx('prmt', f'.b32{mode} {d}, {a}, {c}, {b};')
 
 
+def ptx_atom(kernel, captured_dict, instr):
+    if instr.op == 'ATOMS':
+        ss = '.shared'
+    else:
+        ss = '.global'
+    op_str = captured_dict['op'].lower()
+    if not captured_dict['type']:
+        if op_str in ['or', 'and', 'xor']:
+            type_str = '.b32'
+        else:
+            type_str = '.u32'
+    else:
+        type_str = captured_dict['type'].lower()
+    if '64' in type_str and op_str == 'exch':
+        type_str = '.b64'
+
+    if '64' in type_str:
+        b = ptx_r2d(kernel, captured_dict, instr, 'rb')
+        c = ptx_r2d(kernel, captured_dict, instr, 'rc')
+    else:
+        b = ptx_r(captured_dict, 'rb')
+        c = ptx_r(captured_dict, 'rc')
+
+    if c:
+        c = f', {c}'
+    else:
+        c = ''
+
+    adr = ptx_addr(kernel, captured_dict, instr)
+
+    d = ptx_r(captured_dict, 'rd')
+
+    if '64' in type_str:
+        d = ptx_r2d(kernel, captured_dict, instr, d)
+
+    if d in ['', '0']:
+        instr.add_ptx('red', f'{ss}{op_str}{type_str} {adr}, {b};')
+    else:
+        instr.add_ptx('atom', f'{ss}{op_str}{type_str} {d}, {adr}, {b}{c};')
+
+    if '64' in type_str and d:
+        d_idx = captured_dict['rdord']
+        ptx_unpack(instr, f'%r{d_idx}', f'%r{d_idx + 1}', d)
+
+
 grammar_ptx = {
     # Floating Point Instructions
     'FADD': [],  # FP32 Add
@@ -1099,7 +1099,7 @@ grammar_ptx = {
     'ISCADD': [],  # Scaled Integer Addition
     'ISCADD32I': [],  # Scaled Integer Addition
     'ISETP': [  # Integer Compare And Set Predicate
-        {'rule': rf'ISETP{ticmp}{u32}{tbool}{tex} {pp}, {pq}, {ra},'
+        {'rule': rf'ISETP{ticmp}{u32}{tbool} {pp}, {pq}, {ra},'
                  rf' (?:{rb}|{urb}|{pim}|{CONST_NAME_RE}), {pc}(, {px1})?;',
          'ptx': ptx_isetp}
     ],
@@ -1189,8 +1189,12 @@ grammar_ptx = {
     'ATOMS': [  # Atomic Operation on Shared Memory
     ],
     'ATOMG': [  # Atomic Operation on Global Memory
+        {'rule': rf'ATOMG{te}{tatom_op}{tmem_cache}{tmem_type}{tmem_scopes}'
+                 rf' ({pp}, )?{rd}, {paddr}, {rb}(, {rc})?;', 'ptx': ptx_atom},
     ],
     'RED': [  # Reduction Operation on Generic Memory
+        {'rule': rf'RED{te}{tatom_op}{tmem_cache}{tmem_type}{tmem_scopes}'
+                 rf' {paddr}, {rb};', 'ptx': ptx_atom},
     ],
     'CCTL': [],  # Cache Control
     'CCTLL': [],  # Cache Control

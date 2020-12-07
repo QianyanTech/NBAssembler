@@ -648,6 +648,8 @@ class Cubin(ELF):
         with open(asm_path, 'r') as f:
             asm = f.read()
 
+        asm = re.sub(r'//.*', '', asm)
+
         while re.search(INCLUDE_RE, asm) or re.search(PYTHON_RE, asm):
             # include nested files
             asm = process_include(asm, asm_path, define_dict)
