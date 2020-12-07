@@ -576,15 +576,6 @@ def ptx_prmt(kernel, instrs, captured_dict, instr):
     instr['rest'] = rest
 
 
-def ptx_sel(kernel, instrs, captured_dict, instr):
-    d = ptx_r(captured_dict, 'r0')
-    a = ptx_r(captured_dict, 'r8')
-    b = ptx_irc(kernel, instrs, captured_dict, instr, 'i20', 'r20')
-    c = ptx_p(captured_dict, 'p39')
-    instr['op'] = 'selp'
-    instr['rest'] = f'.b32 {d}, {a}, {b}, {c};'
-
-
 def ptx_atom(kernel, instrs, captured_dict, instr):
     if instr['op'] == 'ATOMS':
         ss = 'shared'
@@ -1026,6 +1017,14 @@ def ptx_shfl(kernel, captured_dict, instr):
     instr.add_ptx('shfl', f'.sync.{mode}.b32 {d}{p}, {a}, {b}, {c}, -1;')
 
 
+def ptx_sel(kernel, captured_dict, instr):
+    d = ptx_r(captured_dict, 'rd')
+    a = ptx_r(captured_dict, 'ra')
+    b = ptx_irc(kernel, captured_dict, instr, 'pim', 'rb')
+    c = ptx_p(captured_dict, 'pc')
+    instr.add_ptx('selp', f'.b32 {d}, {a}, {b}, {c};')
+
+
 grammar_ptx = {
     # Floating Point Instructions
     'FADD': [],  # FP32 Add
@@ -1132,6 +1131,7 @@ grammar_ptx = {
     'PRMT': [  # Permute Register Pair
     ],
     'SEL': [  # Select Source with Predicate
+        {'rule': rf'SEL {rd}, {ra}, (?:{rb}|{pim}|{CONST_NAME_RE}), {pc};', 'ptx': ptx_sel}
     ],
     'SGXT': [  # Sign Extend
     ],
