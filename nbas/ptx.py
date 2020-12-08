@@ -596,6 +596,28 @@ def ptx_r2p(kernel, instrs, captured_dict, instr):
     instr['line_num'] = None
 
 
+def ptx_addr(kernel, captured_dict, instr):
+    ss = instr.op[-1]
+    if ss in ['L', 'S', 'C']:
+        a = ptx_r(captured_dict, 'ra')
+        b = ptx_r(captured_dict, 'ura')
+    else:
+        a = ptx_r2d(kernel, captured_dict, instr, 'ra')
+        b = ptx_r2d(kernel, captured_dict, instr, 'ura')
+    if a in ['0', '-0', '|0|', '']:
+        if ss == 'S':
+            a = '_shared+'
+        else:
+            a = ''
+    else:
+        a = f'{a}+'
+    c = ptx_i(captured_dict, 'pim')
+    c = int(c, base=0) if c else 0
+    if c:
+        b += f'+{c}'
+    return f'[{a}{b}]'
+
+
 ptx_ignore_instrs = ['NOP', 'MEMBAR', 'SSY', 'PBK']
 
 pp = fr'(?P<pp>{P})'
@@ -681,28 +703,6 @@ def ptx_umov(kernel, captured_dict, instr):
             instr.ptx = []
 
 
-def ptx_addr(kernel, captured_dict, instr):
-    ss = instr.op[-1]
-    if ss in ['L', 'S', 'C']:
-        a = ptx_r(captured_dict, 'ra')
-        b = ptx_r(captured_dict, 'ura')
-    else:
-        a = ptx_r2d(kernel, captured_dict, instr, 'ra')
-        b = ptx_r2d(kernel, captured_dict, instr, 'ura')
-    if a in ['0', '-0', '|0|', '']:
-        if ss == 'S':
-            a = '_shared+'
-        else:
-            a = ''
-    else:
-        a = f'{a}+'
-    c = ptx_i(captured_dict, 'pim')
-    c = int(c, base=0) if c else 0
-    if c:
-        b += f'+{c}'
-    return f'[{a}{b}]'
-
-
 def ptx_ldst(kernel, captured_dict, instr):
     op = instr.op
     if op in ['LDL', 'STL']:
@@ -781,7 +781,7 @@ def ptx_isetp(kernel, captured_dict, instr):
     instr.add_ptx('setp', rest)
 
 
-def ptx_exit(kernel, captured_dict, instr):
+def ptx_exit(kernel, captured_dict, instr):  # perfect
     instr.add_ptx('ret', ';')
 
 
@@ -817,6 +817,20 @@ def ptx_shf(kernel, captured_dict, instr):
     b = ptx_iurc(kernel, captured_dict, instr, 'pim', 'rb', 'urb')
     c = ptx_r(captured_dict, 'rc')
     instr.add_ptx('shf', f'{lr}{mode}.b32 {d}, {a}, {c}, {b};')
+
+
+def ptx_sgxt(kernel, captured_dict, instr):  # perfect
+    mode = '.wrap' if captured_dict['W'] else '.clamp'
+    d = ptx_r(captured_dict, 'rd')
+    a = ptx_r(captured_dict, 'ra')
+    b = ptx_i(captured_dict, 'pim')
+    i = int(b, base=0)
+    i = min(i, 32) if mode == '.clamp' else i & 0x1f
+    if captured_dict['U32']:
+        instr.add_ptx('and', f'.b32 {d}, {a}, {2 ** i - 1:#0x};')
+    else:
+        instr.add_ptx('shl', f'.b32 {d}, {a}, {32 - i};')
+        instr.add_ptx('shr', f'.s32 {d}, {d}, {32 - i};')
 
 
 def ptx_iadd3(kernel, captured_dict, instr):
@@ -1203,6 +1217,7 @@ grammar_ptx = {
         {'rule': rf'SEL {rd}, {ra}, (?:{rb}|{pim}|{CONST_NAME_RE}), {pc};', 'ptx': ptx_sel}
     ],
     'SGXT': [  # Sign Extend
+        {'rule': rf'SGXT{tw}{u32} {rd}, {ra}, {pim};', 'ptx': ptx_sgxt}
     ],
     'SHFL': [  # Warp Wide Register Shuffle
         {'rule': rf'SHFL{shfl} {pp}, {rd}, {ra}, (?:{pim}|{rb}), (?:{imask}|{rc});', 'ptx': ptx_shfl}
