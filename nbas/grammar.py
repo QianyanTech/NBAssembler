@@ -83,7 +83,7 @@ SCHED_RE = rf'(?sm:^\.sched.+?\.end_sched)'
 
 REG_NAME_RE = rf'(?P<type>U?[RP])_(?P<name>[a-zA-Z_]\w*)_?(?P<offset>\d+)?'
 CONST_NAME_RE = rf'c\[(?P<const>(?P<name>[a-zA-Z_]\w*)(?:\+(?P<offset>\d+))?)\]'
-GLOBAL_NAME_RE = rf'(?P<type>32@(lo|hi|fn))\((?P<name>[a-zA-Z_]\w*)\s*\+?\s*(?P<addend>{immed})?\)'
+GLOBAL_NAME_RE = rf'(?P<type>32@(lo|hi|fn))\((?P<gname>[a-zA-Z_]\w*)\s*\+?\s*(?P<addend>{immed})?\)'
 
 COMPUTE_RE = rf'(?sm:^\.compute_(?P<compute>[0-9]+))'
 ARCH_RE = rf'(?sm:^\.sm_(?P<arch>[0-9]+))'

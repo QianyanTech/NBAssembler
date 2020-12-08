@@ -367,17 +367,17 @@ class Kernel:
         if self.upred_reg_count:
             ptx += f'    .reg .pred  %up<{self.upred_reg_count}>;\n'
         if self.pred_reg_count:
-            ptx += f'    .reg .b32  %cc<{self.pred_reg_count}>;\n'
+            ptx += f'    .reg .b32  %x<{self.pred_reg_count}>;\n'
         if self.upred_reg_count:
-            ptx += f'    .reg .b32  %ucc<{self.upred_reg_count}>;\n'
+            ptx += f'    .reg .b32  %ux<{self.upred_reg_count}>;\n'
         if self.reg_count:
             ptx += f'    .reg .b32   %r<{self.reg_count}>;\n'
         if self.ureg_count:
             ptx += f'    .reg .b32   %ur<{self.ureg_count}>;\n'
         if self.reg64_count:
-            ptx += f'    .reg .b64   %rd<{self.reg64_count}>;\n'
+            ptx += f'    .reg .b64   %dr<{self.reg64_count}>;\n'
         if self.shared_size:
-            ptx += f'    .shared .b8 _shared[{self.shared_size}];\n'
+            ptx += f'    .shared .b8 %s[{self.shared_size}];\n'
         for instr in self.instrs:
             statement = self.print_ptx_line(instr)
             if statement:
@@ -483,7 +483,7 @@ class Kernel:
             if m:
                 match = m.group()
                 type_ = m.group('type')
-                name = m.group('name').encode()
+                name = m.group('gname').encode()
                 addend = m.group('addend')
                 if not addend:
                     rel = Relocation()
@@ -1002,30 +1002,22 @@ class Kernel:
                 instr.ptx = None
                 continue
             # 统计寄存器数量
-            if 'rd' in captured_dict and captured_dict['rd'] and captured_dict['rd'] != 'RZ':
-                r_num = int(captured_dict['rd'].strip('R'))
-                self.reg_set.add(r_num)
+            if 'rd' in captured_dict and captured_dict['rd'] and 'RZ' not in captured_dict['rd']:
+                r_t, r_num = ptx_ord(captured_dict['rd'])
+                if 'ur' in r_t:
+                    reg_set = self.ureg_set
+                else:
+                    reg_set = self.reg_set
+                reg_set.add(r_num)
                 if 'type' in captured_dict:
                     c_type = captured_dict['type']
                     if c_type:
                         if '64' in c_type:
-                            self.reg_set.add(r_num + 1)
+                            reg_set.add(r_num + 1)
                         if '128' in c_type:
-                            self.reg_set.add(r_num + 1)
-                            self.reg_set.add(r_num + 2)
-                            self.reg_set.add(r_num + 3)
-            if 'urd' in captured_dict and captured_dict['urd'] and captured_dict['urd'] != 'URZ':
-                r_num = int(captured_dict['urd'].strip('UR'))
-                self.ureg_set.add(r_num)
-                if 'type' in captured_dict:
-                    c_type = captured_dict['type']
-                    if c_type:
-                        if '64' in c_type:
-                            self.ureg_set.add(r_num + 1)
-                        if '128' in c_type:
-                            self.ureg_set.add(r_num + 1)
-                            self.ureg_set.add(r_num + 2)
-                            self.ureg_set.add(r_num + 3)
+                            reg_set.add(r_num + 1)
+                            reg_set.add(r_num + 2)
+                            reg_set.add(r_num + 3)
             ptx_func = gram['ptx']
             ptx_func(self, captured_dict, instr)
         if self.pred_regs:
