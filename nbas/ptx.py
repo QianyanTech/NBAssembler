@@ -107,11 +107,11 @@ def ptx_r(kernel, captured_dict, instr, name):
 
 
 def ptx_cname(kernel, captured_dict, instr):
-    if captured_dict['name'] is None and captured_dict['offset'] is None:
+    if captured_dict['cname'] is None and captured_dict['adim'] is None:
         return ''
 
-    name_str = captured_dict['name']
-    offset = captured_dict['offset'] if captured_dict['offset'] else 0
+    name_str = captured_dict['cname']
+    offset = captured_dict['adim'] if captured_dict['adim'] else 0
 
     const0_map = {
         'BLOCK_DIM_X': '%ntid.x',
@@ -143,11 +143,11 @@ def ptx_cname(kernel, captured_dict, instr):
         r_str = new_reg(kernel)
         ss_str = 'param' if 'ARG_' in name_str else 'const'
         instr.add_ptx('ld', f'.{ss_str}.b{t_str} {r_str}, [{name_str}+{offset}];')
-    if f'cnameabs' in captured_dict and captured_dict[f'cnameabs']:
+    if f'cabs' in captured_dict and captured_dict[f'cabs']:
         d = new_reg(kernel)
         instr.add_ptx('abs', f'.s{t_str} {d}, {r_str};')
         r_str = d
-    if f'cnameneg' in captured_dict and captured_dict[f'cnameneg']:
+    if f'cneg' in captured_dict and captured_dict[f'cneg']:
         d = new_reg(kernel)
         instr.add_ptx('neg', f'.s{t_str} {d}, {r_str};')
         r_str = d
@@ -182,14 +182,16 @@ def ptx_rc(kernel, captured_dict, instr, r_name):
 
 
 def ptx_addr(kernel, captured_dict, instr):
+    if 'cname' in captured_dict and captured_dict['cname']:
+        return ptx_cname(kernel, captured_dict, instr)
     ss = instr.op[-1]
     cd = captured_dict.copy()
     if ss in ['L', 'S', 'C']:
         cd['type'] = '32'
     else:
         cd['type'] = '64'
-    a = ptx_r(kernel, cd, instr, 'ra')
-    b = ptx_r(kernel, cd, instr, 'ra2')
+    a = ptx_r(kernel, cd, instr, 'rad')
+    b = ptx_r(kernel, cd, instr, 'rad2')
     if a in ['0', '-0', '|0|', '']:
         if ss == 'S':
             a = '%s+'
@@ -197,7 +199,7 @@ def ptx_addr(kernel, captured_dict, instr):
             a = ''
     else:
         a = f'{a}+'
-    c = ptx_i(captured_dict, 'pim')
+    c = ptx_i(captured_dict, 'adim')
     c = int(c, base=0) if c else 0
     if b:
         b += f'+{c}'
@@ -225,11 +227,12 @@ rd = fr'(?P<rd>{preg})'
 pim = fr'(?P<pim>(?P<neg>\-)?{immed})'
 imlut = fr'(?P<imlut>{immed})'
 imask = fr'(?P<imask>{immed})'
-paddr = fr'\[(?:(?P<ra>{preg})(?P<rax>\.X(4|8|16))?(?P<ratype>\.64|\.U32)?)?' \
-        rf'(?:\s*\+?\s*(?P<ra2>{preg}))?(?:\s*\+?\s*{pim})?\]'
+adim = fr'(?P<adim>(?P<adneg>\-)?{immed})'
+paddr = fr'\[(?:(?P<rad>{preg})(?P<rax>\.X(4|8|16))?(?P<ratype>\.64|\.U32)?)?' \
+        rf'(?:\s*\+?\s*(?P<rad2>{preg}))?(?:\s*\+?\s*{adim})?\]'
 
-cname = fr'(?P<cnameneg>\-)?(?P<cnameabs>\|)?{CONST_NAME_RE}\|?'
-pldc = rf'c\[(?P<cbank>{hexx})\]\s*\[(?P<rb>{preg})?(?:\s*\+?\s*{pim})?\]'
+caddr = rf'(?P<cneg>\-)?(?P<cabs>\|)?c(\[0x3\]\s*)?' \
+        rf'\[((?P<rad>{preg})|(?P<cname>[a-zA-Z_]\w*))?(?:\s*\+?\s*{adim})?\]\|?'
 
 
 def ptx_mov(kernel, captured_dict, instr):
@@ -260,7 +263,7 @@ def ptx_ldc(kernel, captured_dict, instr):
         d = f'{{{d_t}{d_idx}, {d_t}{d_idx + 1}}}'
     elif captured_dict['type'] and '128' in captured_dict['type']:
         d = f'{{{d_t}{d_idx}, {d_t}{d_idx + 1}, {d_t}{d_idx + 2}, {d_t}{d_idx + 3}}}'
-    ss_str = 'param' if 'ARG_' in captured_dict['name'] else 'const'
+    ss_str = 'param' if 'ARG_' in captured_dict['cname'] else 'const'
     type_str = '.u32'
     v_str = ''
     if captured_dict['type']:
@@ -279,12 +282,13 @@ def ptx_ldst(kernel, captured_dict, instr):
         ss = '.local'
     elif op in ['LDS', 'STS']:
         ss = '.shared'
-    elif op == 'LDC':
-        ss = '.const'
+    elif 'LDC' in op:
+        ss = '.param' if 'cname' in captured_dict and captured_dict['cname'] and 'ARG_' in captured_dict[
+            'cname'] else '.const'
     else:
         ss = '.global'
 
-    if captured_dict['cache']:
+    if 'cache' in captured_dict and captured_dict['cache']:
         cache_str = f'.{captured_dict["cache"].lower()}'
     else:
         cache_str = ''
@@ -688,23 +692,23 @@ grammar_ptx = {
     ],
     'IADD': [],  # Integer Addition
     'IADD3': [  # 3-input Integer Addition
-        {'rule': rf'IADD3{X} {rd}, ({pcc1}, )?({pcc2}, )?{ra}, (?:{rb}|{pim}|{cname}),'
+        {'rule': rf'IADD3{X} {rd}, ({pcc1}, )?({pcc2}, )?{ra}, (?:{rb}|{pim}|{caddr}),'
                  rf' {rc}(, {px1})?(, {px2})?;', 'ptx': ptx_iadd3}
     ],
     'IADD32I': [],  # Integer Addition
     'IDP': [],  # Integer Dot Product and Accumulate
     'IDP4A': [],  # Integer Dot Product and Accumulate
     'IMAD': [  # Integer Multiply And Add
-        {'rule': rf'IMAD\.MOV{u32} {rd}, RZ, RZ, (?:{pim}|{ra}|{CONST_NAME_RE});', 'ptx': ptx_mov},
-        {'rule': rf'IMAD{timad}{u32}{X} {rd}, {ra}, (?:{rb}|{pim}|{CONST_NAME_RE}), {rc}(, {px1})?;',
+        {'rule': rf'IMAD\.MOV{u32} {rd}, RZ, RZ, (?:{pim}|{ra}|{caddr});', 'ptx': ptx_mov},
+        {'rule': rf'IMAD{timad}{u32}{X} {rd}, {ra}, (?:{rb}|{pim}|{caddr}), {rc}(, {px1})?;',
          'ptx': ptx_imad},
-        {'rule': rf'IMAD{timad}{u32}{X} {rd}, {ra}, {rb}, (?:{rc}|{pim}|{CONST_NAME_RE})(, {px1})?;',
+        {'rule': rf'IMAD{timad}{u32}{X} {rd}, {ra}, {rb}, (?:{rc}|{pim}|{caddr})(, {px1})?;',
          'ptx': ptx_imad2},
     ],
     'IMMA': [  # Integer Matrix Multiply and Accumulate
     ],
     'IMNMX': [  # Integer Minimum/Maximum
-        {'rule': rf'IMNMX{u32} {rd}, {ra}, (?:{rb}|{pim}|{cname}), {pc};', 'ptx': ptx_imnmx}
+        {'rule': rf'IMNMX{u32} {rd}, {ra}, (?:{rb}|{pim}|{caddr}), {pc};', 'ptx': ptx_imnmx}
     ],
     'IMUL': [],  # Integer Multiply
     'IMUL32I': [],  # Integer Multiply
@@ -712,21 +716,21 @@ grammar_ptx = {
     'ISCADD32I': [],  # Scaled Integer Addition
     'ISETP': [  # Integer Compare And Set Predicate
         {'rule': rf'ISETP{ticmp}{u32}{tbool} {pp}, {pq}, {ra},'
-                 rf' (?:{rb}|{pim}|{CONST_NAME_RE}), {pc}(, {px1})?;',
+                 rf' (?:{rb}|{pim}|{caddr}), {pc}(, {px1})?;',
          'ptx': ptx_isetp}
     ],
     'LEA': [  # LOAD Effective Address
     ],
     'LOP': [],  # Logic Operation
     'LOP3': [  # Logic Operation
-        {'rule': rf'LOP3\.LUT{tpand} ({pp}, )?{rd}, {ra}, (?:{rb}|{pim}|{CONST_NAME_RE}), {rc}, {imlut}, {pc};',
+        {'rule': rf'LOP3\.LUT{tpand} ({pp}, )?{rd}, {ra}, (?:{rb}|{pim}|{caddr}), {rc}, {imlut}, {pc};',
          'ptx': ptx_lop3},
     ],
     'LOP32I': [],  # Logic Operation
     'POPC': [  # Population count
     ],
     'SHF': [  # Funnel Shift
-        {'rule': rf'SHF{tshf_lr}{tw}{tshf_type} {rd}, {ra}, (?:{rb}|{pim}|{CONST_NAME_RE}), {rc};',
+        {'rule': rf'SHF{tshf_lr}{tw}{tshf_type} {rd}, {ra}, (?:{rb}|{pim}|{caddr}), {rc};',
          'ptx': ptx_shf},
     ],
     'SHL': [],  # Shift Left
@@ -750,10 +754,10 @@ grammar_ptx = {
     'MOV32I': [],  # Move
     'MOVM': [],  # Move Matrix with Transposition or Expansion
     'PRMT': [  # Permute Register Pair
-        {'rule': rf'PRMT{tprmt} {rd}, {ra}, (?:{rb}|{pim}), (?:{rc}|{cname});', 'ptx': ptx_prmt}
+        {'rule': rf'PRMT{tprmt} {rd}, {ra}, (?:{rb}|{pim}), (?:{rc}|{caddr});', 'ptx': ptx_prmt}
     ],
     'SEL': [  # Select Source with Predicate
-        {'rule': rf'SEL {rd}, {ra}, (?:{rb}|{pim}|{CONST_NAME_RE}), {pc};', 'ptx': ptx_sel}
+        {'rule': rf'SEL {rd}, {ra}, (?:{rb}|{pim}|{caddr}), {pc};', 'ptx': ptx_sel}
     ],
     'SGXT': [  # Sign Extend
         {'rule': rf'SGXT{tw}{u32} {rd}, {ra}, {pim};', 'ptx': ptx_sgxt}
@@ -774,7 +778,7 @@ grammar_ptx = {
     'LD': [  # Load from generic Memory
     ],
     'LDC': [  # Load Constant
-        {'rule': rf'LDC{tmem_type}{tldc_isl} {rd}, {cname};', 'ptx': ptx_ldst},
+        {'rule': rf'LDC{tmem_type}{tldc_isl} {rd}, {caddr};', 'ptx': ptx_ldst},
     ],
     'LDG': [  # Load from Global Memory
         {'rule': rf'LDG{te}{tmem_cache}{tmem_ltc}{tmem_type}{tmem_scopes}{tzd} {rd}, {paddr};', 'ptx': ptx_ldst}
@@ -827,7 +831,7 @@ grammar_ptx = {
     'UFLO': [  # Uniform Find Leading One
     ],
     'UIADD3': [  # Uniform Integer Addition
-        {'rule': rf'IADD3{X} {rd}, ({pcc1}, )?({pcc2}, )?{ra}, (?:{rb}|{pim}|{cname}),'
+        {'rule': rf'IADD3{X} {rd}, ({pcc1}, )?({pcc2}, )?{ra}, (?:{rb}|{pim}|{caddr}),'
                  rf' {rc}(, {px1})?(, {px2})?;', 'ptx': ptx_iadd3}
     ],
     'UIMAD': [  # Uniform Integer Multiplication
@@ -835,7 +839,7 @@ grammar_ptx = {
     'UISETP': [  # Integer Compare and Set Uniform Predicate
     ],
     'ULDC': [  # Load from Constant Memory into a Uniform Register
-        {'rule': rf'ULDC{tmem_type} {rd}, {cname};', 'ptx': ptx_ldc}
+        {'rule': rf'ULDC{tmem_type} {rd}, {caddr};', 'ptx': ptx_ldst}
     ],
     'ULEA': [  # Uniform Load Effective Address
     ],
@@ -844,7 +848,7 @@ grammar_ptx = {
     ],
     'ULOP32I': [],  # Logic Operation
     'UMOV': [  # Uniform Move
-        {'rule': rf'UMOV {rd}, (?:{pim}|{ra}|{CONST_NAME_RE}|{GLOBAL_NAME_RE});', 'ptx': ptx_mov},
+        {'rule': rf'UMOV {rd}, (?:{pim}|{ra}|{caddr}|{GLOBAL_NAME_RE});', 'ptx': ptx_mov},
     ],
     'UP2UR': [],  # Uniform Predicate to Uniform Register
     'UPLOP3': [],  # Uniform Predicate Logic Operation
