@@ -255,27 +255,6 @@ def ptx_mov(kernel, captured_dict, instr):
             instr.ptx = None
 
 
-def ptx_ldc(kernel, captured_dict, instr):
-    d = ptx_r(kernel, captured_dict, instr, 'rd')
-    d_t, d_idx = ptx_ord(d)
-    a = ptx_cname(kernel, captured_dict, instr)
-    if captured_dict['type'] and '64' in captured_dict['type']:
-        d = f'{{{d_t}{d_idx}, {d_t}{d_idx + 1}}}'
-    elif captured_dict['type'] and '128' in captured_dict['type']:
-        d = f'{{{d_t}{d_idx}, {d_t}{d_idx + 1}, {d_t}{d_idx + 2}, {d_t}{d_idx + 3}}}'
-    ss_str = 'param' if 'ARG_' in captured_dict['cname'] else 'const'
-    type_str = '.u32'
-    v_str = ''
-    if captured_dict['type']:
-        if '64' in captured_dict['type']:
-            v_str = '.v2'
-        elif '128' in captured_dict['type']:
-            v_str = '.v4'
-        elif '32' not in captured_dict['type']:
-            type_str = captured_dict['type'].lower()
-    instr.add_ptx('ld', f'.{ss_str}{v_str}{type_str} {d}, {a};')
-
-
 def ptx_ldst(kernel, captured_dict, instr):
     op = instr.op
     if op in ['LDL', 'STL']:
@@ -396,7 +375,7 @@ def ptx_shf(kernel, captured_dict, instr):
     d = ptx_r(kernel, cd, instr, 'rd')
     alo = ptx_r(kernel, cd, instr, 'ra')
     n = ptx_irc(kernel, cd, instr, 'pim', 'rb')
-    ahi = ptx_r(kernel, cd, instr, 'rc')
+    ahi = ptx_irc(kernel, cd, instr, 'pim', 'rc')
 
     if (('.hi' == hl and '.l' == lr) or ('.lo' == hl and '.r' == lr)) and 'u' in type_str:
         instr.add_ptx('shf', f'{lr}{mode}.b32 {d}, {alo}, {ahi}, {n};')
@@ -730,8 +709,8 @@ grammar_ptx = {
     'POPC': [  # Population count
     ],
     'SHF': [  # Funnel Shift
-        {'rule': rf'SHF{tshf_lr}{tw}{tshf_type} {rd}, {ra}, (?:{rb}|{pim}|{caddr}), {rc};',
-         'ptx': ptx_shf},
+        {'rule': rf'SHF{tshf_lr}{tw}{tshf_type} {rd}, {ra}, (?:{rb}|{pim}|{caddr}), {rc};', 'ptx': ptx_shf},
+        {'rule': rf'SHF{tshf_lr}{tw}{tshf_type} {rd}, {ra}, {rb}, (?:{rc}|{pim}|{caddr});', 'ptx': ptx_shf},
     ],
     'SHL': [],  # Shift Left
     'SHR': [],  # Shift Right
