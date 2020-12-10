@@ -678,6 +678,13 @@ def ptx_lea(kernel, captured_dict, instr):
         instr.ptx = None
 
 
+def ptx_rcp(kernel, captured_dict, instr):
+    d = ptx_r(kernel, captured_dict, instr, 'rd')
+    a = ptx_r(kernel, captured_dict, instr, 'ra')
+
+    instr.add_ptx('rcp', f'.approx.ftz.f32 {d} {a};')
+
+
 grammar_ptx = {
     # Floating Point Instructions
     'FADD': [],  # FP32 Add
@@ -694,6 +701,7 @@ grammar_ptx = {
     'FSETP': [],  # FP32 Compare And Set Predicate
     'FSWZADD': [],  # FP32 Swizzle Add
     'MUFU': [  # FP32 Multi Function Operation
+        {'rule': rf'MUFU\.RCP {rd}, {ra};', 'ptx': ptx_rcp}
     ],
     'HADD2': [],  # FP16 Add
     'HADD2_32I': [],  # FP16 Add
@@ -1278,11 +1286,6 @@ grammar_ptx = {
 #         {'rule': rf'BFE{u32} {r0nc}, {r8}, (?:{r20}|{i20}|{CONST_NAME_RE});', 'ptx': ptx_bfe}],
 #     'BFI': [
 #         {'rule': rf'BFI {r0nc}, {r8}, (?:{r20}|{i20}), (?:{r39}|{CONST_NAME_RE});', 'ptx': ptx_bfi}],
-#     'ISCADD': [  # add
-#         {'rule': rf'ISCADD {r0}, {r8}, (?:{r20}|{i20}|{CONST_NAME_RE}), {i39w5};', 'ptx': ptx_iscadd}],
-#     'LEA': [  # shf.l + add
-#         {'rule': rf'LEA {r0nc}, {r8}, (?:{r20}|{i20}|{CONST_NAME_RE}), {i39w5};', 'ptx': ptx_iscadd},
-#         {'rule': rf'LEA\.HI {r0nc}, {r8}, (?:{r20}|{i20}|{CONST_NAME_RE}), {r39}, {i28w5};', 'ptx': ptx_lea}],
 #     'XMAD': [  # mad
 #         {'rule': rf'XMAD{xmad} (?P<d>{r0nc}), (?P<a>{r8}), (?P<b>(?:{r20}|{i20}|{CONST_NAME_RE})), (?P<c>{r39});',
 #          'ptx': ptx_xmad},
