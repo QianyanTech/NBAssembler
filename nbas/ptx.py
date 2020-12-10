@@ -225,6 +225,7 @@ rb = fr'(?P<rbneg>[\-~])?(?P<rbabs>\|)?(?P<rb>{preg})\|?'
 rc = fr'(?P<rcneg>[\-~])?(?P<rcabs>\|)?(?P<rc>{preg})\|?'
 rd = fr'(?P<rd>{preg})'
 pim = fr'(?P<pim>(?P<neg>\-)?{immed})'
+pim2 = fr'(?P<pim2>(?P<neg>\-)?{immed})'
 imlut = fr'(?P<imlut>{immed})'
 imask = fr'(?P<imask>{immed})'
 adim = fr'(?P<adim>(?P<adneg>\-)?{immed})'
@@ -375,7 +376,7 @@ def ptx_shf(kernel, captured_dict, instr):
     d = ptx_r(kernel, cd, instr, 'rd')
     alo = ptx_r(kernel, cd, instr, 'ra')
     n = ptx_irc(kernel, cd, instr, 'pim', 'rb')
-    ahi = ptx_irc(kernel, cd, instr, 'pim', 'rc')
+    ahi = ptx_irc(kernel, cd, instr, 'pim2', 'rc')
 
     if (('.hi' == hl and '.l' == lr) or ('.lo' == hl and '.r' == lr)) and 'u' in type_str:
         instr.add_ptx('shf', f'{lr}{mode}.b32 {d}, {alo}, {ahi}, {n};')
@@ -765,6 +766,7 @@ grammar_ptx = {
     'LDGDEPBAR': [],  # Global Load Dependency Barrier
     'LDGSTS': [],  # Asynchronous Global to Shared Memcopy
     'LDL': [  # Load within Local Memory Window
+        {'rule': rf'LDL{tmem_cache}{tmem_type} {rd}, {paddr};', 'ptx': ptx_ldst}
     ],
     'LDS': [  # Load within Shared Memory Window
         {'rule': rf'LDS{tu}{tmem_type}{tzd} {rd}, {paddr};', 'ptx': ptx_ldst}
@@ -776,6 +778,7 @@ grammar_ptx = {
         {'rule': rf'STG{te}{tmem_cache}{tmem_type}{tmem_scopes}{tzd} {paddr}, {rc};', 'ptx': ptx_ldst}
     ],
     'STL': [  # Store within Local or Shared Window
+        {'rule': rf'STL{tmem_cache}{tmem_type} {paddr}, {rc};', 'ptx': ptx_ldst}
     ],
     'STS': [  # Store within Local or Shared Window
         {'rule': rf'STS{tmem_type} {paddr}, {rc};', 'ptx': ptx_ldst}
@@ -826,6 +829,8 @@ grammar_ptx = {
     ],
     'ULOP': [],  # Logic Operation
     'ULOP3': [  # Logic Operation
+        {'rule': rf'ULOP3\.LUT{tpand} ({pp}, )?{rd}, {ra}, (?:{rb}|{pim}|{caddr}), {rc}, {imlut}, {pc};',
+         'ptx': ptx_lop3},
     ],
     'ULOP32I': [],  # Logic Operation
     'UMOV': [  # Uniform Move
@@ -843,6 +848,8 @@ grammar_ptx = {
     ],
     'USGXT': [],  # Uniform Sign Extend
     'USHF': [  # Uniform Funnel Shift
+        {'rule': rf'USHF{tshf_lr}{tw}{tshf_type} {rd}, {ra}, (?:{rb}|{pim}|{caddr}), {rc};', 'ptx': ptx_shf},
+        {'rule': rf'USHF{tshf_lr}{tw}{tshf_type} {rd}, {ra}, {rb}, (?:{rc}|{pim2}|{caddr});', 'ptx': ptx_shf},
     ],
     'USHL': [],  # Uniform Left Shift
     'USHR': [],  # Uniform Right Shift
