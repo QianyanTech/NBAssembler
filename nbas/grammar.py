@@ -1159,7 +1159,7 @@ grammar_75 = {
     ],
     'ULEA': [  # Uniform Load Effective Address
         {'type': 'x32', 'code': 0x291,
-         'rule': rf'ULEA{thi}{X} {ur16}, ({up81}, )?{ur24}, {ur32}, ({ur64}, )?{i75w5}(, {up87})?;'},
+         'rule': rf'ULEA{thi}{X}{tsx32} {ur16}, ({up81}, )?{ur24}, {ur32}, ({ur64}, )?{i75w5}(, {up87})?;'},
     ],
     'ULOP': [],  # Logic Operation
     'ULOP3': [  # Logic Operation
@@ -1941,7 +1941,7 @@ RET: type
 0x00000000000000000000000000000000 .REL
 0x00000000002000000000000000000000 .ABS
 
-LEA: SX32
+LEA, ULEA: SX32
 0x00000000000002000000000000000000 .SX32
 
 SHF, USHF: type
