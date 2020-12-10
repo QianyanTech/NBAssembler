@@ -2720,6 +2720,8 @@ def decode_ctrls(code):
 def print_ctrl(ctrl):
     """
     打印控制码
+    K:03:1:2:Y:f
+    schedule:是否自动调度，默认自动调度，设置位K保持控制码不变
     wait_bm：Wait Dependency Barriers Masks，6位bit map，表示该指令等待哪些Dependency Barrier
     rb_idx:  Read Dependency Barrier，数字1-6，用于设置非固定周期指令的读后写依赖
     wb_idx:  Write Dependency Barrier，数字1-6，用于设置非固定周期指令的写后读依赖

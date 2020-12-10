@@ -208,7 +208,7 @@ def ptx_addr(kernel, captured_dict, instr):
     return f'[{a}{b}]'
 
 
-ptx_ignore_instrs = ['NOP', 'MEMBAR', 'SSY', 'PBK']
+ptx_ignore_instrs = ['NOP', 'MEMBAR', 'SSY', 'PBK', 'BMOV', 'BSSY', 'BSYNC']
 
 ppred = fr'U?P[0-7T]'
 preg = fr'U?R[Z0-9]+'
@@ -226,6 +226,7 @@ rc = fr'(?P<rcneg>[\-~])?(?P<rcabs>\|)?(?P<rc>{preg})\|?'
 rd = fr'(?P<rd>{preg})'
 pim = fr'(?P<pim>(?P<neg>\-)?{immed})'
 pim2 = fr'(?P<pim2>(?P<neg>\-)?{immed})'
+puim = fr'(?P<puim>{immed})'
 imlut = fr'(?P<imlut>{immed})'
 imask = fr'(?P<imask>{immed})'
 adim = fr'(?P<adim>(?P<adneg>\-)?{immed})'
@@ -430,19 +431,22 @@ def ptx_iadd3(kernel, captured_dict, instr):
         instr.add_ptx('add', f'{type1} {ab64}, {a64}, {b64};')
         if x1 and x1 != '0':
             x1_t, x1_ord = ptx_ord(x1)
-            x1_64 = ptx_pack(kernel, instr, f'%x{x1_ord}', 0)
+            x1_64 = ptx_pack(kernel, instr, f'{x1_t.replace("p", "x")}{x1_ord}', 0)
             instr.add_ptx('add', f'{type1} {ab64}, {ab64}, {x1_64};')
         ab = ptx_new_reg(kernel)
         cc1_t, cc1_ord = ptx_ord(cc1)
-        kernel.pred_regs.add(cc1_ord)
-        ptx_unpack(instr, ab, f'%x{cc1_ord}', ab64)
+        if 'u' in cc1_t:
+            kernel.upred_regs.add(cc1_ord)
+        else:
+            kernel.pred_regs.add(cc1_ord)
+        ptx_unpack(instr, ab, f'{cc1_t.replace("p", "x")}{cc1_ord}', ab64)
     else:
         type1 = '.s32'
         ab = ptx_new_reg(kernel)
         instr.add_ptx('add', f'{type1} {ab}, {a}, {b};')
         if x1 and x1 != '0':
             x1_t, x1_ord = ptx_ord(x1)
-            instr.add_ptx('add', f'{type1} {ab}, {ab}, %x{x1_ord};')
+            instr.add_ptx('add', f'{type1} {ab}, {ab}, {x1_t.replace("p", "x")}{x1_ord};')
 
     if cc2 and cc2 != '0':
         type2 = '.s64'
@@ -452,17 +456,20 @@ def ptx_iadd3(kernel, captured_dict, instr):
         instr.add_ptx('add', f'{type2} {d64}, {ab64}, {c64};')
         if x2 and x2 != '0':
             x2_t, x2_ord = ptx_ord(x2)
-            x2_64 = ptx_pack(kernel, instr, f'%x{x2_ord}', 0)
+            x2_64 = ptx_pack(kernel, instr, f'{x2_t.replace("p", "x")}{x2_ord}', 0)
             instr.add_ptx('add', f'{type1} {d64}, {d64}, {x2_64};')
         cc2_t, cc2_ord = ptx_ord(cc2)
-        kernel.pred_regs.add(cc2_ord)
-        ptx_unpack(instr, d, f'%x{cc2_ord}', d64)
+        if 'u' in cc2_t:
+            kernel.upred_regs.add(cc2_ord)
+        else:
+            kernel.pred_regs.add(cc2_ord)
+        ptx_unpack(instr, d, f'{cc2_t.replace("p", "x")}{cc2_ord}', d64)
     else:
         type2 = '.s32'
         instr.add_ptx('add', f'{type2} {d}, {ab}, {c};')
         if x2 and x2 != '0':
             x2_t, x2_ord = ptx_ord(x2)
-            instr.add_ptx('add', f'{type1} {d}, {d}, %x{x2_ord};')
+            instr.add_ptx('add', f'{type1} {d}, {d}, {x2_t.replace("p", "x")}{x2_ord};')
 
 
 def ptx_imad(kernel, captured_dict, instr):
@@ -496,14 +503,14 @@ def ptx_imad(kernel, captured_dict, instr):
         instr.add_ptx('mad', f'.lo{type_str} {d}, {a}, {b}, {c};')
         if x1 and x1 != '0':
             x1_t, x1_ord = ptx_ord(x1)
-            instr.add_ptx('add', f'{type_str} {d}, {d}, %x{x1_ord};')
+            instr.add_ptx('add', f'{type_str} {d}, {d}, {x1_t.replace("p", "x")}{x1_ord};')
     else:
         c64 = ptx_r2d(kernel, instr, c) if 'r' in c else c
         d64 = ptx_new_reg64(kernel)
         instr.add_ptx('mad', f'.wide{type_str} {d64}, {a}, {b}, {c64};')
         if x1 and x1 != '0':
             x1_t, x1_ord = ptx_ord(x1)
-            x1_64 = ptx_pack(kernel, instr, f'%x{x1_ord}', 0)
+            x1_64 = ptx_pack(kernel, instr, f'{x1_t.replace("p", "x")}{x1_ord}', 0)
             instr.add_ptx('add', f'{type_str.replace("32", "64")} {d64}, {d64}, {x1_64};')
         d_t, d_ord = ptx_ord(d)
         if '.wide' == flag:
@@ -530,13 +537,13 @@ def ptx_imad2(kernel, captured_dict, instr):
         instr.add_ptx('mad', f'.lo{type_str} {d}, {a}, {b}, {c};')
         if x1 and x1 != '0':
             x1_t, x1_ord = ptx_ord(x1)
-            instr.add_ptx('add', f'{type_str} {d}, {d}, %x{x1_ord};')
+            instr.add_ptx('add', f'{type_str} {d}, {d}, {x1_t.replace("p", "x")}{x1_ord};')
     else:
         d64 = ptx_new_reg64(kernel)
         instr.add_ptx('mad', f'.wide{type_str} {d64}, {a}, {b}, {c};')
         if x1 and x1 != '0':
             x1_t, x1_ord = ptx_ord(x1)
-            x1_64 = ptx_pack(kernel, instr, f'%x{x1_ord}', 0)
+            x1_64 = ptx_pack(kernel, instr, f'{x1_t.replace("p", "x")}{x1_ord}', 0)
             instr.add_ptx('add', f'{type_str.replace("32", "64")} {d64}, {d64}, {x1_64};')
         d_t, d_ord = ptx_ord(d)
         if '.wide' == flag:
@@ -628,6 +635,49 @@ def ptx_atom(kernel, captured_dict, instr):
             instr.add_ptx('atom', f'{ss}{op_str}{type_str} {d}, {adr}, {b}{c};')
 
 
+def ptx_lea(kernel, captured_dict, instr):
+    hi = captured_dict['HI'].lower() if captured_dict['HI'] else ''
+    x = captured_dict['X'].lower() if captured_dict['X'] else ''
+    sx32 = captured_dict['SX32'].lower() if captured_dict['SX32'] else ''
+
+    d = ptx_r(kernel, captured_dict, instr, 'rd')
+    a = ptx_r(kernel, captured_dict, instr, 'ra')
+    b = ptx_irc(kernel, captured_dict, instr, 'pim', 'rb')
+    c = ptx_r(kernel, captured_dict, instr, 'rc')
+    i = ptx_i(captured_dict, 'puim')
+    cc = ptx_p(captured_dict, 'pcc1')
+    xx = ptx_p(captured_dict, 'px1')
+
+    if (not x) and (not hi) and (not sx32) and cc and (not xx):
+        # LEA
+        instr.add_ptx('shl', f'.b32 {d}, {a}, {i}')
+        a64 = ptx_pack(kernel, instr, d, 0)
+        b64 = ptx_pack(kernel, instr, b, 0)
+        instr.add_ptx('add', f'.s64 {b64}, {b64}, {a64}')
+        cc1_t, cc1_ord = ptx_ord(cc)
+        if 'u' in cc1_t:
+            kernel.upred_regs.add(cc1_ord)
+        else:
+            kernel.pred_regs.add(cc1_ord)
+        ptx_unpack(instr, d, f'{cc1_t.replace("p", "x")}{cc1_ord}', b64)
+    elif x and hi and xx and (not cc):
+        if sx32:
+            # LEA.HI.X.SX32
+            a64 = ptx_new_reg64(kernel)
+            instr.add_ptx('cvt', f'.s64.s32 {a64}, {a}')
+        else:
+            # LEA.HI.X
+            a64 = ptx_pack(kernel, instr, a, c)
+        instr.add_ptx('shl', f'.b64 {a64}, {a64}, {i}')
+        b64 = ptx_pack(kernel, instr, 0, b)
+        instr.add_ptx('add', f'.s64 {b64}, {b64}, {a64}')
+        ptx_unpack(instr, ptx_new_reg(kernel), d, b64)
+        x1_t, x1_ord = ptx_ord(xx)
+        instr.add_ptx('add', f'.s32 {d}, {d}, {x1_t.replace("p", "x")}{x1_ord}')
+    else:
+        instr.ptx = None
+
+
 grammar_ptx = {
     # Floating Point Instructions
     'FADD': [],  # FP32 Add
@@ -700,6 +750,8 @@ grammar_ptx = {
          'ptx': ptx_isetp}
     ],
     'LEA': [  # LOAD Effective Address
+        {'rule': rf'LEA{thi}{X}{tsx32} {rd}, ({pcc1}, )?{ra}, (?:{rb}|{pim}|{caddr}), ({rc}, )?{puim}(, {px1})?;',
+         'ptx': ptx_lea}
     ],
     'LOP': [],  # Logic Operation
     'LOP3': [  # Logic Operation
@@ -826,6 +878,8 @@ grammar_ptx = {
         {'rule': rf'ULDC{tmem_type} {rd}, {caddr};', 'ptx': ptx_ldst}
     ],
     'ULEA': [  # Uniform Load Effective Address
+        {'rule': rf'ULEA{thi}{X}{tsx32} {rd}, ({pcc1}, )?{ra}, (?:{rb}|{pim}|{caddr}), ({rc}, )?{puim}(, {px1})?;',
+         'ptx': ptx_lea}
     ],
     'ULOP': [],  # Logic Operation
     'ULOP3': [  # Logic Operation
@@ -995,122 +1049,6 @@ grammar_ptx = {
 #     instr['rest'] = f'.b32 {d}, {a}, {e}, {b}, {c};'
 #
 #
-# def ptx_iadd(kernel, instrs, captured_dict, instr):
-#     d = ptx_r(captured_dict, 'r0')
-#     a = ptx_r(captured_dict, 'r8')
-#     b = ptx_irc(kernel, instrs, captured_dict, instr, 'i20', 'r20')
-#
-#     if '.CC' in instr['rest']:
-#         instr_x = ptx_find_x(kernel, instr)
-#         statement = instr_x['op'] + instr_x['rest']
-#         if m := re.search(rf'IADD\.X {r0}, {r8}, (?:{r20}|{i20}|{CONST_NAME_RE});', statement):
-#             captured_dict_x = m.groupdict()
-#             instr_x['line_num'] = None
-#             d2 = ptx_r(captured_dict_x, 'r0')
-#             a2 = ptx_r(captured_dict_x, 'r8')
-#             b2 = ptx_irc(kernel, instrs, captured_dict_x, instr, 'i20', 'r20')
-#             da = ptx_pack(kernel, instrs, instr, a, a2)
-#             db = ptx_pack(kernel, instrs, instr, b, b2)
-#             rd_idx = kernel.reg64_count
-#             ptx_append_instr(instrs, instr, 'add', f'.s64 %dr{rd_idx}, {da}, {db};')
-#             kernel.reg64_count += 1
-#             dd = f'%dr{rd_idx}'
-#             ptx_unpack(instrs, instr, d, d2, dd)
-#             instr['line_num'] = None
-#         elif m := re.search(rf'ISETP{icmp}{u32}\.X\.AND {p3}, PT, {r8}, (?:{r20}|{i20}|{CONST_NAME_RE}), PT;',
-#                             statement):
-#             captured_dict_x = m.groupdict()
-#             instr_x['line_num'] = None
-#             cmp_str = captured_dict_x['cmp'].lower()
-#             type_str = 'u64' if captured_dict_x['U32'] else 's64'
-#             d = ptx_p(captured_dict_x, 'p3')
-#             a2 = ptx_r(captured_dict_x, 'r8')
-#             b2 = ptx_irc(kernel, instrs, captured_dict_x, instr, 'i20', 'r20')
-#             da = ptx_pack(kernel, instrs, instr, a, a2)
-#             db = ptx_pack(kernel, instrs, instr, b.strip('-'), b2)
-#             instr['op'] = 'setp'
-#             instr['rest'] = f'.{cmp_str}.{type_str} {d}, {da}, {db};'
-#         else:
-#             instr['line_num'] = -instr['line_num']
-#     else:
-#         sat_str = captured_dict['SAT'].lower() if captured_dict['SAT'] else ''
-#         instr['op'], instr['rest'] = ptx_add(sat_str, d, a, b)
-#
-#
-# def ptx_iadd32i(kernel, instrs, captured_dict, instr):
-#     d = ptx_r(captured_dict, 'r0')
-#     a = ptx_r(captured_dict, 'r8')
-#     b = ptx_i(captured_dict, 'i20')
-#     if '.CC' in instr['rest']:
-#         instr_x = ptx_find_x(kernel, instr)
-#         statement = instr_x['op'] + instr_x['rest']
-#         if (m := re.search(rf'IADD\.X {r0}, {r8}, (?:{r20}|{i20}|{CONST_NAME_RE});', statement)) \
-#                 or (m := re.search(rf'IADD32I\.X {r0}, {r8}, {i20};', statement)):
-#             captured_dict_x = m.groupdict()
-#             instr_x['line_num'] = None
-#             d2 = ptx_r(captured_dict_x, 'r0')
-#             a2 = ptx_r(captured_dict_x, 'r8')
-#             b2 = ptx_irc(kernel, instrs, captured_dict_x, instr, 'i20', 'r20')
-#             da = ptx_pack(kernel, instrs, instr, a, a2)
-#             db = ptx_pack(kernel, instrs, instr, b, b2)
-#             rd_idx = kernel.reg64_count
-#             ptx_append_instr(instrs, instr, 'add', f'.s64 %dr{rd_idx}, {da}, {db};')
-#             kernel.reg64_count += 1
-#             dd = f'%dr{rd_idx}'
-#             ptx_unpack(instrs, instr, d, d2, dd)
-#             instr['line_num'] = None
-#         else:
-#             instr['line_num'] = -instr['line_num']
-#     else:
-#         instr['op'], instr['rest'] = ptx_add('', d, a, b)
-#
-#
-# def ptx_iscadd(kernel, instrs, captured_dict, instr):
-#     d = ptx_r(captured_dict, 'r0')
-#     a = ptx_r(captured_dict, 'r8')
-#     b = ptx_irc(kernel, instrs, captured_dict, instr, 'i20', 'r20')
-#     c = ptx_i(captured_dict, 'i39w5')
-#     c = 1 << int(c, base=0)
-#     if '.CC' in instr['rest']:
-#         instr_x = ptx_find_x(kernel, instr)
-#         statement = instr_x['op'] + instr_x['rest']
-#         if m := re.search(rf'IADD\.X {r0}, {r8}, (?:{r20}|{i20}|{CONST_NAME_RE});', statement):
-#             captured_dict_x = m.groupdict()
-#             instr_x['line_num'] = None
-#             d2 = ptx_r(captured_dict_x, 'r0')
-#             b2 = ptx_irc(kernel, instrs, captured_dict_x, instr, 'i20', 'r20')
-#             db = ptx_pack(kernel, instrs, instr, b, b2)
-#             rd_idx = kernel.reg64_count
-#             ptx_append_instr(instrs, instr, 'mul', f'.wide.u32 %dr{rd_idx}, {a}, {c};')
-#             kernel.reg64_count += 1
-#             ptx_append_instr(instrs, instr, 'add', f'.s64 {db}, %dr{rd_idx}, {db};')
-#             ptx_unpack(instrs, instr, d, d2, db)
-#             instr['line_num'] = None
-#         else:
-#             instr['line_num'] = -instr['line_num']
-#     else:
-#         instr['op'] = 'mad'
-#         instr['rest'] = f'.lo.s32 {d}, {a}, {c}, {b};'
-#
-#
-# def ptx_lea(kernel, instrs, captured_dict, instr):
-#     instr['op'] = 'add'
-#     d = ptx_r(captured_dict, 'r0')
-#     a_lo = ptx_r(captured_dict, 'r8')
-#     b = ptx_irc(kernel, instrs, captured_dict, instr, 'i20', 'r20')
-#     a_hi = ptx_r(captured_dict, 'r39')
-#     c = ptx_i(captured_dict, 'i28w5')
-#
-#     r_idx = kernel.reg_count + 256
-#     r_str = f'%r{r_idx}'
-#     ptx_append_instr(instrs, instr, 'shf', f'.l.wrap.b32 {r_str}, {a_lo}, {a_hi}, {c};')
-#     kernel.reg_set.add(r_idx)
-#     kernel.ptx_reg_count += 1
-#
-#     rest = f'.s32 {d}, {b}, {r_str};'
-#     instr['rest'] = rest
-#
-#
 # def ptx_xmad(kernel, instrs, captured_dict, instr):
 #     mode = captured_dict['mode']
 #     line_num = instr['line_num']
@@ -1269,26 +1207,6 @@ grammar_ptx = {
 #     instr['rest'] = rest
 #
 #
-# def ptx_shl(kernel, instrs, captured_dict, instr):
-#     instr['op'] = 'shl'
-#     type_str = '.b32'
-#     d = ptx_r(captured_dict, 'r0')
-#     a = ptx_r(captured_dict, 'r8')
-#     b = ptx_irc(kernel, instrs, captured_dict, instr, 'i20', 'r20')
-#     rest = f'{type_str} {d}, {a}, {b};'
-#     instr['rest'] = rest
-#
-#
-# def ptx_shr(kernel, instrs, captured_dict, instr):
-#     instr['op'] = 'shr'
-#     type_str = '.s32' if not captured_dict['U32'] else captured_dict['U32'].lower()
-#     d = ptx_r(captured_dict, 'r0')
-#     a = ptx_r(captured_dict, 'r8')
-#     b = ptx_irc(kernel, instrs, captured_dict, instr, 'i20', 'r20')
-#     rest = f'{type_str} {d}, {a}, {b};'
-#     instr['rest'] = rest
-#
-#
 # def ptx_mov32i(kernel, instrs, captured_dict, instr):
 #     instr['op'] = 'mov'
 #     d = ptx_r(captured_dict, 'r0')
@@ -1352,18 +1270,14 @@ grammar_ptx = {
 #             ptx_append_instr(instrs, instr, 'and', f'.b32 {r_str}, {a}, {1 << i};')
 #             ptx_append_instr(instrs, instr, 'setp', f'.eq.s32 %p{i}, {r_str}, 0;')
 #     instr['line_num'] = None
+#
+#
 # grammar_ptx_old = {
 #     # Integer Instructions
 #     'BFE': [
 #         {'rule': rf'BFE{u32} {r0nc}, {r8}, (?:{r20}|{i20}|{CONST_NAME_RE});', 'ptx': ptx_bfe}],
 #     'BFI': [
 #         {'rule': rf'BFI {r0nc}, {r8}, (?:{r20}|{i20}), (?:{r39}|{CONST_NAME_RE});', 'ptx': ptx_bfi}],
-#     'IMNMX': [  # max min
-#         {'rule': rf'IMNMX{u32} {r0}, {r8}, (?:{r20}|{i20}|{CONST_NAME_RE}), {p39};', 'ptx': ptx_imnmx}],
-#     'IADD': [  # add
-#         {'rule': rf'IADD{sat} {r0}, {r8}, (?:{r20}|{i20}|{CONST_NAME_RE});', 'ptx': ptx_iadd}],
-#     'IADD32I': [  # add
-#         {'rule': rf'IADD32I {r0}, {r8}, {i20};', 'ptx': ptx_iadd32i}],
 #     'ISCADD': [  # add
 #         {'rule': rf'ISCADD {r0}, {r8}, (?:{r20}|{i20}|{CONST_NAME_RE}), {i39w5};', 'ptx': ptx_iscadd}],
 #     'LEA': [  # shf.l + add
@@ -1384,34 +1298,14 @@ grammar_ptx = {
 #          'ptx': ptx_lop}],
 #     'LOP32I': [  # and or xor not
 #         {'rule': rf'LOP32I{bool2} {r0nc}, (?P<INV8>~)?{r8}, {i20w32};', 'ptx': ptx_lop32i}],
-#     'SHL': [  # shl
-#         {'rule': rf'SHL {r0nc}, {r8}, (?:{r20}|{i20}|{CONST_NAME_RE});', 'ptx': ptx_shl}],
-#     'SHR': [  # shr
-#         {'rule': rf'SHR{u32} {r0nc}, {r8}, (?:{r20}|{i20}|{CONST_NAME_RE});', 'ptx': ptx_shr}],
 #     # Movement Instructions
 #     'MOV32I': [  # mov
 #         {'rule': rf'MOV32I {r0nc}, {i20w32};', 'ptx': ptx_mov32i},
 #         {'rule': rf'MOV32I {r0nc}, {GLOBAL_NAME_RE};', 'ptx': ptx_mov32i}],
-#     'PRMT': [  # prmt
-#         {'rule': rf'PRMT{prmt} {r0nc}, {r8}, (?:{r20}|{i20}|{CONST_NAME_RE}), {r39};', 'ptx': ptx_prmt}],
-#     'SEL': [  # selp
-#         {'rule': rf'SEL {r0}, {r8}, (?:{r20}|{i20}|{CONST_NAME_RE}), {p39};', 'ptx': ptx_sel}],
 #     # Predicate/CC Instructions
 #     'PSETP': [  # setp
 #         {'rule': rf'PSETP(?:\.(?P<bool>AND|OR|XOR)){bool2} {p3}, {p0}, {p12}, {p29}, {p39};', 'ptx': ptx_psetp}],
-#     # Compute Load/Store Instructions
-#     'STG': [  # st
-#         {'rule': rf'STG{mem_cache}{mem_type} {addr}, {r0nc};', 'ptx': ptx_ldst}],
-#     'LDS': [  # ld
-#         {'rule': rf'LDS{mem_cache}{mem_type} {r0nc}, {addr};', 'ptx': ptx_ldst}],
-#     'STS': [  # st
-#         {'rule': rf'STS{mem_cache}{mem_type} {addr}, {r0nc};', 'ptx': ptx_ldst}],
-#     'LDL': [  # ld
-#         {'rule': rf'LDL{mem_cache}{mem_type} {r0nc}, {addr};', 'ptx': ptx_ldst}],
-#     'STL': [  # st
-#         {'rule': rf'STL{mem_cache}{mem_type} {addr}, {r0nc};', 'ptx': ptx_ldst}],
-#     'LDC': [  # ld
-#         {'rule': rf'LDC{mem_cache}{mem_type} {r0nc}, {ldc};', 'ptx': ptx_ldst}],
+
 #     'BRK': [  # bra
 #         {'rule': rf'BRK `\(\s*{LABEL_RE}\s*\);', 'ptx': ptx_brk}],
 #     'SYNC': [  # bra

@@ -15,13 +15,17 @@ THREADS = 1
 mod = cuda.module_from_file('test.cubin')
 kernel = mod.get_function("kTest")
 
-a = np.array([0b1111]*THREADS).astype(np.uint32)
-a_gpu, duration_size = mod.get_global('a')
+a = np.array([0x1000000000]*THREADS).astype(np.uint64)
+a_gpu, a_size = mod.get_global('a')
 
-c = np.array([0]*THREADS).astype(np.uint32)
-c_gpu, result_size = mod.get_global('c')
+b = np.array([0x100000010]*THREADS).astype(np.uint64)
+b_gpu, b_size = mod.get_global('b')
+
+c = np.array([0]*THREADS).astype(np.uint64)
+c_gpu, c_size = mod.get_global('c')
 
 cuda.memcpy_htod(a_gpu, a)
+cuda.memcpy_htod(b_gpu, b)
 
 kernel(block=(1, 1, 1))
 

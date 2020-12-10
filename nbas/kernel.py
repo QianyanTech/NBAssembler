@@ -888,6 +888,7 @@ class Kernel:
         for i in range(nop_pad):
             line_num = len(instrs)
             instr = process_asm_line('-:--:-:-:Y:0 NOP;', line_num)
+            instr['label'] = ''
             instrs.append(instr)
 
         for param in self.params:
@@ -948,8 +949,6 @@ class Kernel:
         self.instrs = instrs
 
     def disassemble_ptx(self):
-        # 无用指令
-        ignore_instrs = ['NOP', 'MEMBAR', 'SSY', 'PBK']
         self.pred_regs = set()
         self.upred_regs = set()
         self.reg_set = set()
@@ -971,7 +970,7 @@ class Kernel:
             instrs.append(instr)
 
             # 忽略无用指令
-            if op in ignore_instrs:
+            if op in ptx_ignore_instrs:
                 instr.ptx = []
                 if instr.label:
                     label = instr.label
