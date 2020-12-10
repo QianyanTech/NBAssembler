@@ -767,6 +767,7 @@ grammar_ptx = {
     'LDL': [  # Load within Local Memory Window
     ],
     'LDS': [  # Load within Shared Memory Window
+        {'rule': rf'LDS{tu}{tmem_type}{tzd} {rd}, {paddr};', 'ptx': ptx_ldst}
     ],
     'LDSM': [],  # Load Matrix from Shared Memory with Element Size Expansion
     'ST': [
@@ -777,6 +778,7 @@ grammar_ptx = {
     'STL': [  # Store within Local or Shared Window
     ],
     'STS': [  # Store within Local or Shared Window
+        {'rule': rf'STS{tmem_type} {paddr}, {rc};', 'ptx': ptx_ldst}
     ],
     'MATCH': [],  # Match Register Values Across Thread Group
     'QSPC': [],  # Query Space
