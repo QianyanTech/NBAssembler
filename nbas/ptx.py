@@ -685,6 +685,39 @@ def ptx_rcp(kernel, captured_dict, instr):
     instr.add_ptx('rcp', f'.approx.ftz.f32 {d} {a};')
 
 
+def ptx_i2f(kernel, captured_dict, instr):
+    rnd_s = captured_dict['rnd'].lower() if captured_dict['rnd'] else ''
+    type_s = captured_dict['type'].lower() if captured_dict['type'] else '.s32'
+    f64_s = captured_dict['F64'].lower() if captured_dict['F64'] else '.f32'
+
+    d = ptx_r(kernel, captured_dict, instr, 'rd')
+    a = ptx_irc(kernel, captured_dict, instr, 'pim', 'ra')
+
+    if f64_s == '.f64':
+        d64 = ptx_new_reg64(kernel)
+        instr.add_ptx('cvt', f'{rnd_s}{f64_s}{type_s} {d64}, {a};')
+        d_t, d_ord = ptx_ord(d)
+        ptx_unpack(instr, d, f'{d_t}{d_ord + 1}', d64)
+    else:
+        instr.add_ptx('cvt', f'{rnd_s}{f64_s}{type_s} {d}, {a};')
+
+
+def ptx_f2i(kernel, captured_dict, instr):
+    rnd_s = captured_dict['round'].lower() if captured_dict['round'] else ''
+    ntz_s = captured_dict['NTZ'].lower() if captured_dict['NTZ'] else ''
+    ftz_s = captured_dict['FTZ'].lower() if captured_dict['FTZ'] else ''
+    type_s = captured_dict['type'].lower() if captured_dict['type'] else '.s32'
+    f64_s = captured_dict['F64'].lower() if captured_dict['F64'] else '.f32'
+
+    d = ptx_r(kernel, captured_dict, instr, 'rd')
+    a = ptx_irc(kernel, captured_dict, instr, 'pim', 'ra')
+
+    if ftz_s and (type_s == '.u32') and (rnd_s == '.trunc') and ntz_s:
+        instr.add_ptx('cvt', f'.rzi.ftz{type_s}.f32 {d}, {a};')
+    else:
+        instr.ptx = None
+
+
 grammar_ptx = {
     # Floating Point Instructions
     'FADD': [],  # FP32 Add
@@ -781,8 +814,10 @@ grammar_ptx = {
     # Conversion Instructions
     'F2F': [],  # Floating Point To Floating Point Conversion
     'F2I': [  # Floating Point To Integer Conversion
+        {'rule': rf'F2I{tftz}{tx2x}{tround} {rd}, (?:{ra}|{pim}|{caddr});', 'ptx': ptx_f2i},
     ],
     'I2F': [  # Integer To Floating Point Conversion
+        {'rule': rf'I2F{tx2x}{trnd} {rd}, (?:{ra}|{pim}|{caddr});', 'ptx': ptx_i2f},
     ],
     'I2I': [],  # Integer To Integer Conversion
     'I2IP': [],  # Integer To Integer Conversion and Packing
