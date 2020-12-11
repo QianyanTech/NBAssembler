@@ -58,7 +58,8 @@ def disassemble(cubin_path, kernel_names, asm_path, strip, global_only):
                 print(f'{kernel_name.decode()} nor Found.')
                 return 0
     else:
-        kernels = cubin.kernel_dict.values()
+        kernels = list(cubin.kernel_dict.values())
+    kernels.sort(key=lambda k: k.name)
 
     consts = set()
     globals_ = set()

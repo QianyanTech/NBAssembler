@@ -964,11 +964,13 @@ class Kernel:
         for instruction in self.instrs:
             instr = Instruction(**instruction)
             instr.ptx_pred = f'@{"!" if instr.pred_not else ""}%{instr.pred_reg.lower()}' if instr.pred else ''
-            op = instr.op
-            rest = re.sub(r'\.reuse', '', instr.rest)
             instr.ptx = []
             instrs.append(instr)
+        self.instrs = instrs
 
+        for instr in self.instrs:
+            op = instr.op
+            rest = re.sub(r'\.reuse', '', instr.rest)
             # 忽略无用指令
             if op in ptx_ignore_instrs:
                 instr.ptx = []
@@ -1037,7 +1039,6 @@ class Kernel:
             if instr.label and instr.label in instr.rest:
                 instr.ptx = []
                 break
-        self.instrs = instrs
 
     def assemble(self, test_binary: bytes = b''):
         if self.arch < 70:

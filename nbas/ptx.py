@@ -328,6 +328,35 @@ def ptx_isetp(kernel, captured_dict, instr):
     a = ptx_r(kernel, captured_dict, instr, 'ra')
     b = ptx_irc(kernel, captured_dict, instr, 'pim', 'rb')
     c = ptx_p(captured_dict, 'pc')
+
+    ex = captured_dict['EX'].lower() if captured_dict['EX'] else ''
+    xx = ptx_p(captured_dict, 'px1')
+
+    m = None
+    if ex:
+        for i in reversed(kernel.instrs[:instr.line_num]):
+            op = i.op
+            rest = re.sub(r'\.reuse', '', i.rest)
+            if m := re.search(grammar_ptx['ISETP'][0]['rule'], op + rest):
+                cd = m.groupdict()
+                pp = ptx_p(cd, 'pp')
+                pcmp_str = cd['cmp'].lower()
+                pbool_str = cd['bool'].lower()
+                ptype_str = '.u32' if cd['U32'] else '.s32'
+                if pp == xx:
+                    if (pcmp_str != cmp_str) or (pbool_str != bool_str) or (ptype_str != type_str):
+                        instr.ptx = None
+                        return None
+                    pa = ptx_r(kernel, cd, instr, 'ra')
+                    pb = ptx_irc(kernel, cd, instr, 'pim', 'rb')
+                    a = ptx_pack(kernel, instr, pa, a)
+                    b = ptx_pack(kernel, instr, pb, b)
+                    type_str = type_str.replace('32', '64')
+                    break
+        if not m:
+            instr.ptx = None
+            return None
+
     if 'p' not in q:
         q = ''
     else:
@@ -359,19 +388,27 @@ def ptx_s2r(kernel, captured_dict, instr):
 
 
 def ptx_lop3(kernel, captured_dict, instr):
+    pand = captured_dict['PAND'].lower() if captured_dict['PAND'] else ''
+    p = ptx_p(captured_dict, 'pp')
     d = ptx_r(kernel, captured_dict, instr, 'rd')
     a = ptx_r(kernel, captured_dict, instr, 'ra')
     b = ptx_irc(kernel, captured_dict, instr, 'pim', 'rb')
     c = ptx_r(kernel, captured_dict, instr, 'rc')
     lut = ptx_i(captured_dict, 'imlut')
+    x = ptx_p(captured_dict, 'pc')
+
+    if d == '0':
+        d = ptx_new_reg(kernel)
     instr.add_ptx('lop3', f'.b32 {d}, {a}, {b}, {c}, {lut};')
+    if p:
+        instr.add_ptx('setp', f'.ne.b32 {p}, {d}, 0;')
 
 
 def ptx_shf(kernel, captured_dict, instr):
     lr = captured_dict['lr'].lower()
     mode = '.wrap' if captured_dict['W'] else '.clamp'
     hl = '.hi' if captured_dict['HI'] else '.lo'
-    type_str = '.s64' if 'S' in captured_dict['type'] else '.u64'
+    type_str = '.s64' if 'S' in captured_dict['type'] else '.b64'
     cd = captured_dict.copy()
     cd['type'] = ''
     d = ptx_r(kernel, cd, instr, 'rd')
@@ -650,10 +687,10 @@ def ptx_lea(kernel, captured_dict, instr):
 
     if (not x) and (not hi) and (not sx32) and cc and (not xx):
         # LEA
-        instr.add_ptx('shl', f'.b32 {d}, {a}, {i}')
+        instr.add_ptx('shl', f'.b32 {d}, {a}, {i};')
         a64 = ptx_pack(kernel, instr, d, 0)
         b64 = ptx_pack(kernel, instr, b, 0)
-        instr.add_ptx('add', f'.s64 {b64}, {b64}, {a64}')
+        instr.add_ptx('add', f'.s64 {b64}, {b64}, {a64};')
         cc1_t, cc1_ord = ptx_ord(cc)
         if 'u' in cc1_t:
             kernel.upred_regs.add(cc1_ord)
@@ -664,16 +701,16 @@ def ptx_lea(kernel, captured_dict, instr):
         if sx32:
             # LEA.HI.X.SX32
             a64 = ptx_new_reg64(kernel)
-            instr.add_ptx('cvt', f'.s64.s32 {a64}, {a}')
+            instr.add_ptx('cvt', f'.s64.s32 {a64}, {a};')
         else:
             # LEA.HI.X
             a64 = ptx_pack(kernel, instr, a, c)
-        instr.add_ptx('shl', f'.b64 {a64}, {a64}, {i}')
+        instr.add_ptx('shl', f'.b64 {a64}, {a64}, {i};')
         b64 = ptx_pack(kernel, instr, 0, b)
-        instr.add_ptx('add', f'.s64 {b64}, {b64}, {a64}')
+        instr.add_ptx('add', f'.s64 {b64}, {b64}, {a64};')
         ptx_unpack(instr, ptx_new_reg(kernel), d, b64)
         x1_t, x1_ord = ptx_ord(xx)
-        instr.add_ptx('add', f'.s32 {d}, {d}, {x1_t.replace("p", "x")}{x1_ord}')
+        instr.add_ptx('add', f'.s32 {d}, {d}, {x1_t.replace("p", "x")}{x1_ord};')
     else:
         instr.ptx = None
 
@@ -682,7 +719,7 @@ def ptx_rcp(kernel, captured_dict, instr):
     d = ptx_r(kernel, captured_dict, instr, 'rd')
     a = ptx_r(kernel, captured_dict, instr, 'ra')
 
-    instr.add_ptx('rcp', f'.approx.ftz.f32 {d} {a};')
+    instr.add_ptx('rcp', f'.approx.ftz.f32 {d}, {a};')
 
 
 def ptx_i2f(kernel, captured_dict, instr):
@@ -786,7 +823,7 @@ grammar_ptx = {
     'ISCADD': [],  # Scaled Integer Addition
     'ISCADD32I': [],  # Scaled Integer Addition
     'ISETP': [  # Integer Compare And Set Predicate
-        {'rule': rf'ISETP{ticmp}{u32}{tbool} {pp}, {pq}, {ra},'
+        {'rule': rf'ISETP{ticmp}{u32}{tbool}{tex} {pp}, {pq}, {ra},'
                  rf' (?:{rb}|{pim}|{caddr}), {pc}(, {px1})?;',
          'ptx': ptx_isetp}
     ],
