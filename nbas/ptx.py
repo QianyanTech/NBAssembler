@@ -416,7 +416,7 @@ def ptx_shf(kernel, captured_dict, instr):
     n = ptx_irc(kernel, cd, instr, 'pim', 'rb')
     ahi = ptx_irc(kernel, cd, instr, 'pim2', 'rc')
 
-    if (('.hi' == hl and '.l' == lr) or ('.lo' == hl and '.r' == lr)) and 'u' in type_str:
+    if (('.hi' == hl and '.l' == lr) or ('.lo' == hl and '.r' == lr)) and 'b' in type_str:
         instr.add_ptx('shf', f'{lr}{mode}.b32 {d}, {alo}, {ahi}, {n};')
     else:
         if mode == '.warp':
@@ -697,7 +697,7 @@ def ptx_lea(kernel, captured_dict, instr):
         else:
             kernel.pred_regs.add(cc1_ord)
         ptx_unpack(instr, d, f'{cc1_t.replace("p", "x")}{cc1_ord}', b64)
-    elif x and hi and xx and (not cc):
+    elif hi and (not cc):
         if sx32:
             # LEA.HI.X.SX32
             a64 = ptx_new_reg64(kernel)
@@ -709,8 +709,9 @@ def ptx_lea(kernel, captured_dict, instr):
         b64 = ptx_pack(kernel, instr, 0, b)
         instr.add_ptx('add', f'.s64 {b64}, {b64}, {a64};')
         ptx_unpack(instr, ptx_new_reg(kernel), d, b64)
-        x1_t, x1_ord = ptx_ord(xx)
-        instr.add_ptx('add', f'.s32 {d}, {d}, {x1_t.replace("p", "x")}{x1_ord};')
+        if x and xx:
+            x1_t, x1_ord = ptx_ord(xx)
+            instr.add_ptx('add', f'.s32 {d}, {d}, {x1_t.replace("p", "x")}{x1_ord};')
     else:
         instr.ptx = None
 

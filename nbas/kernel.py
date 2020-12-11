@@ -999,9 +999,9 @@ class Kernel:
                     captured_dict = m.groupdict()
                     break
             if not gram:
-                # raise Exception(f'Cannot recognize instruction {op + rest}')
-                instr.ptx = None
-                continue
+                raise Exception(f'Cannot recognize instruction {op + rest}')
+                # instr.ptx = None
+                # continue
             # 统计寄存器数量
             if 'rd' in captured_dict and captured_dict['rd'] and 'RZ' not in captured_dict['rd']:
                 r_t, r_num = ptx_ord(captured_dict['rd'])
