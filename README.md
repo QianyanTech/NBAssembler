@@ -1,6 +1,6 @@
 # NB Assembler
 
-Assembler for NVIDIA (Maxwell Pascal Volta Turing Ampere) GPUs.
+Assembler and Decompiler for NVIDIA (Maxwell Pascal Volta Turing Ampere) GPUs.
 
 
 ## Requirements:
@@ -188,25 +188,6 @@ out = '''
 	#	yield: 让出,表示当前warp可以被换出。一般用于stall超过4个周期情况
 	#	stall: 本条指令调度后，下一条指令延迟开始的周期数
 ```
-
-## Todo
-
-代码分析优化：
-
-* 调度器
-* 反汇编ptx
-
-## 注意
-
-生成的cubin:
-
-* 有些原始cubin中包含WEAK或LOCAL的FUNC符号，有些仅仅是跳转的符号，可以去掉；有些不知道干什么用的，也去掉了，目前不影响使用。
-
-* 原始.shstrtab .strtab 里面有不使用的字符串。生成的cubin没有
-
-* global const3的对齐可能不同，不影响使用
-
-* symbol顺序可能不同，kernel相关的各个种类的section类内顺序不同。不影响使用
 
 
 
