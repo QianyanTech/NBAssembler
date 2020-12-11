@@ -1025,8 +1025,10 @@ class Kernel:
             self.pred_reg_count = max(self.pred_regs) + 1
         if self.upred_regs:
             self.upred_reg_count = max(self.upred_regs) + 1
-        self.reg_count = max(self.reg_set) + 1
-        self.ureg_count = max(self.ureg_set) + 1
+        if self.reg_set:
+            self.reg_count = max(self.reg_set) + 1
+        if self.ureg_set:
+            self.ureg_count = max(self.ureg_set) + 1
 
         # 不使用STACK时，去掉第一条 MOV R1, c[0x0][0x20]
         for instr in instrs:

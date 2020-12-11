@@ -24,9 +24,9 @@ def ptx_new_reg64(kernel):
 
 def ptx_ord(r):
     r_str = r.lower()
-    if 'pt' in r_str:
+    if '1' == r_str:
         return '', 1
-    elif 'rz' in r_str:
+    elif '0' == r_str:
         return '', 0
 
     if m := re.search(rf'%?(?P<type>[ud]?[rxp])(?P<ord>\d+)', r_str):
@@ -344,7 +344,8 @@ def ptx_isetp(kernel, captured_dict, instr):
                 pbool_str = cd['bool'].lower()
                 ptype_str = '.u32' if cd['U32'] else '.s32'
                 if pp == xx:
-                    if (pcmp_str != cmp_str) or (pbool_str != bool_str) or (ptype_str != type_str):
+                    # s64的前一个指令可能是u32
+                    if (pcmp_str != cmp_str) or (pbool_str != bool_str) or (ptype_str[2:] != type_str[2:]):
                         instr.ptx = None
                         return None
                     pa = ptx_r(kernel, cd, instr, 'ra')
@@ -756,6 +757,19 @@ def ptx_f2i(kernel, captured_dict, instr):
         instr.ptx = None
 
 
+def ptx_bar(kernel, captured_dict, instr):
+    i = ptx_i(captured_dict, 'pim')
+    instr.add_ptx('bar', f'.sync {i};')
+
+
+def ptx_plop3(kernel, captured_dict, instr):
+    p = ptx_p(captured_dict, 'pp')
+    i = ptx_i(captured_dict, 'pim')
+    if i == '0x80':
+        instr.add_ptx('not', f'.pred {pp}, 0;')
+    elif i == '0x8':
+        instr.add_ptx('not', f'.pred {pp}, 1;')
+
 grammar_ptx = {
     # Floating Point Instructions
     'FADD': [],  # FP32 Add
@@ -881,6 +895,8 @@ grammar_ptx = {
 
     # Predicate Instructions
     'PLOP3': [  # Predicate Logic Operation
+        {'rule': rf'PLOP3\.LUT {pp}, PT, PT, PT, PT, {pim}, 0x0;',
+         'ptx': ptx_plop3},
     ],
     'PSETP': [],  # Combine Predicates and Set Predicate
     'P2R': [  # Move Predicate Register To Register
@@ -1043,6 +1059,7 @@ grammar_ptx = {
     # Miscellaneous Instructions
     'B2R': [],  # Move Barrier To Register
     'BAR': [  # Barrier Synchronization
+        {'rule': rf'BAR\.SYNC {pim};', 'ptx': ptx_bar}
     ],
     'CS2R': [  # Move Special Register to Register
         {'rule': rf'CS2R{tcs2r} {rd}, {sr};', 'ptx': ptx_s2r}
