@@ -770,6 +770,7 @@ def ptx_plop3(kernel, captured_dict, instr):
     elif i == '0x8':
         instr.add_ptx('not', f'.pred {pp}, 1;')
 
+
 grammar_ptx = {
     # Floating Point Instructions
     'FADD': [],  # FP32 Add
@@ -937,6 +938,8 @@ grammar_ptx = {
     'ATOM': [
     ],  # Atomic Operation on Generic Memory
     'ATOMS': [  # Atomic Operation on Shared Memory
+        {'rule': rf'ATOMS{tatom_op}{tmem_type}'
+                 rf' {rd}, {paddr}(, {rb})?(, {rc})?;', 'ptx': ptx_atom},
     ],
     'ATOMG': [  # Atomic Operation on Global Memory
         {'rule': rf'ATOMG{te}{tatom_op}{tmem_cache}{tmem_type}{tmem_scopes}'
@@ -957,6 +960,7 @@ grammar_ptx = {
     ],
     'REDUX': [],  # Reduction of a Vector Register into a Uniform Register
     'S2UR': [  # Move Special Register to Uniform Register
+        {'rule': rf'S2UR {rd}, {sr};', 'ptx': ptx_s2r}
     ],
     'UBMSK': [],  # Uniform Bitfield Mask
     'UBREV': [],  # Uniform Bit Reverse
@@ -968,8 +972,16 @@ grammar_ptx = {
                  rf' {rc}(, {px1})?(, {px2})?;', 'ptx': ptx_iadd3}
     ],
     'UIMAD': [  # Uniform Integer Multiplication
+        {'rule': rf'UIMAD\.MOV{u32} {rd}, RZ, RZ, (?:{pim}|{ra}|{caddr});', 'ptx': ptx_mov},
+        {'rule': rf'UIMAD{timad}{u32}{X} {rd}, {ra}, (?:{rb}|{pim}|{caddr}), {rc}(, {px1})?;',
+         'ptx': ptx_imad},
+        {'rule': rf'UIMAD{timad}{u32}{X} {rd}, {ra}, {rb}, (?:{rc}|{pim}|{caddr})(, {px1})?;',
+         'ptx': ptx_imad2},
     ],
     'UISETP': [  # Integer Compare and Set Uniform Predicate
+        {'rule': rf'UISETP{ticmp}{u32}{tbool}{tex} {pp}, {pq}, {ra},'
+                 rf' (?:{rb}|{pim}|{caddr}), {pc}(, {px1})?;',
+         'ptx': ptx_isetp}
     ],
     'ULDC': [  # Load from Constant Memory into a Uniform Register
         {'rule': rf'ULDC{tmem_type} {rd}, {caddr};', 'ptx': ptx_ldst}
