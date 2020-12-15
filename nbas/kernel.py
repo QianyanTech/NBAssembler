@@ -226,6 +226,7 @@ class Kernel:
         self.instrs = []
         self.binary = b''
         self.cubin = None
+        self.line_info = {}
         self.arch = 61
         self.cuda_api_version = 111
         self.sw_war = 0
@@ -941,8 +942,7 @@ class Kernel:
         else:
             raise Exception(f'Unsupported arch {self.arch}')
 
-        line_info = load_ptx_line_info(self.cubin.path, self.symbol_idx)
-        for a, l in line_info.items():
+        for a, l in self.line_info.items():
             i = addr2line_num(a, self.arch)
             instrs[i]['ptx'] = self.cubin.ptx[l]
 

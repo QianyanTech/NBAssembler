@@ -6,17 +6,24 @@ from tempfile import mkstemp
 from .grammar import *
 
 
-def load_ptx_line_info(path, symbol_id):
-    ret, sass = getstatusoutput(f'nvdisasm -c -novliw -ndf -gp -fun {symbol_id} {path}')
+def load_ptx_line_info(path):
+    ret, sass = getstatusoutput(f'nvdisasm -c -novliw -ndf -gp {path}')
     if ret != 0:
         raise Warning(f'{sass}')
     sass = [line for line in sass.split('\n')]
     if len(sass) <= 1:
         raise Warning(f'{sass}')
+    kernel_name = b''
+    kernels = {}
     line_info = {}
     for i in range(len(sass)):
         line = sass[i]
-        if m := re.search(rf'//##.+?line\s+(?P<line>\d+)', line):
+        if m := re.search(rf'//-+\s+\.text\.(?P<name>\w+)', line):
+            if line_info and kernel_name:
+                kernels[kernel_name] = line_info
+            kernel_name = m.group('name').encode()
+            line_info = {}
+        elif m := re.search(rf'//##.+?line\s+(?P<line>\d+)', line):
             # 行号改为从零开始
             line_num = int(m.group('line'), base=10) - 1
             next_line = sass[i+1]
@@ -25,7 +32,9 @@ def load_ptx_line_info(path, symbol_id):
                 raise Warning(f'ptx line info file parse error:\n  {line}\n  {next_line}')
             sass_addr = int(m.group('addr'), base=16)
             line_info[sass_addr] = line_num
-    return line_info
+    if line_info and kernel_name:
+        kernels[kernel_name] = line_info
+    return kernels
 
 
 def disassemble_nv(binary, arch):

@@ -175,6 +175,10 @@ class Cubin(ELF):
             ptx = self.section_dict[ptx_section_name].data.decode().split('\x00')
             self.ptx = ptx
 
+            line_info_dict = load_ptx_line_info(self.path)
+            for kernel_name, line_info in line_info_dict.items():
+                self.kernel_dict[kernel_name].line_info = line_info
+
     @staticmethod
     def load_data(section, type_):
         data_dict = {}
