@@ -985,6 +985,9 @@ class Kernel:
                 label = ''
             # 处理pred
             if instr.pred:
+                if 'PT' in instr.pred_reg and instr.pred_not:
+                    instr.ptx = []
+                    continue
                 if 'UP' in instr.pred_reg:
                     self.upred_regs.add(int(instr.pred_reg.strip("UP"), base=0))
                 else:
