@@ -379,13 +379,20 @@ def ptx_bra(kernel, captured_dict, instr):
 
 
 def ptx_s2r(kernel, captured_dict, instr):
+    type_str = '.b32'
     r_str = ptx_r(kernel, captured_dict, instr, 'rd')
+    r_t, r_idx = ptx_ord(r_str)
+    if instr.op == 'CS2R' and not captured_dict['type']:
+        type_str = '.b64'
+        r_str = ptx_new_reg64(kernel)
     sr_str = captured_dict['sr']
     if 'SRZ' == sr_str:
         sr_str = '0'
     else:
         sr_str = f"%{sr_str[3:].lower()}"
-    instr.add_ptx('mov', f'.b32 {r_str}, {sr_str};')
+    instr.add_ptx('mov', f'{type_str} {r_str}, {sr_str};')
+    if '64' in type_str:
+        ptx_unpack(instr, f'{r_t}{r_idx}', f'{r_t}{r_idx + 1}', r_str)
 
 
 def ptx_lop3(kernel, captured_dict, instr):
