@@ -49,7 +49,7 @@ class Data:
             return ''
 
         ptx = ''
-        ptx += f".{type_} .align {self.align} .b8 {self.name.decode()}[{self.size}]"
+        ptx += f".{type_:<6} .align {self.align:<2} .b8  {self.name.decode()}[{self.size}]"
         binary = self.binary
         if binary:
             length = 16
@@ -351,7 +351,7 @@ class Kernel:
 
     def print_ptx(self):
         ptx = f'.visible .entry {self.name.decode()}(\n'
-        ptx += ',\n'.join([f"    .param .align {min(param['Size'], 16)} .b8 ARG_{param['Ordinal']}[{param['Size']}]"
+        ptx += ',\n'.join([f"    .param .align {min(param['Size'], 16):<2} .b8  ARG_{param['Ordinal']}[{param['Size']}]"
                            for param in self.params])
         ptx += '\n)\n'
 
@@ -365,25 +365,25 @@ class Kernel:
 
         ptx += '{\n'
         if self.frame_size:
-            ptx += f'    .local .align 16 .b8 	__local_depot[{self.frame_size}];\n'
+            ptx += f'    .local .align 16 .b8  __local_depot[{self.frame_size}];\n'
             # ptx += f'    .reg .b64  %SP;\n'
             # ptx += f'    .reg .b64  %SPL;\n'
         if self.pred_reg_count:
-            ptx += f'    .reg .pred  %p<{self.pred_reg_count}>;\n'
+            ptx += f'    .reg .pred\t%p<{self.pred_reg_count}>;\n'
         if self.upred_reg_count:
-            ptx += f'    .reg .pred  %up<{self.upred_reg_count}>;\n'
+            ptx += f'    .reg .pred\t%up<{self.upred_reg_count}>;\n'
         if self.pred_reg_count:
-            ptx += f'    .reg .b32  %x<{self.pred_reg_count}>;\n'
+            ptx += f'    .reg .b32\t%x<{self.pred_reg_count}>;\n'
         if self.upred_reg_count:
-            ptx += f'    .reg .b32  %ux<{self.upred_reg_count}>;\n'
+            ptx += f'    .reg .b32\t%ux<{self.upred_reg_count}>;\n'
         if self.reg_count:
-            ptx += f'    .reg .b32   %r<{self.reg_count}>;\n'
+            ptx += f'    .reg .b32\t%r<{self.reg_count}>;\n'
         if self.ureg_count:
-            ptx += f'    .reg .b32   %ur<{self.ureg_count}>;\n'
+            ptx += f'    .reg .b32\t%ur<{self.ureg_count}>;\n'
         if self.reg64_count:
-            ptx += f'    .reg .b64   %dr<{self.reg64_count}>;\n'
+            ptx += f'    .reg .b64\t%dr<{self.reg64_count}>;\n'
         if self.shared_size:
-            ptx += f'    .shared .b8 %s[{self.shared_size}];\n'
+            ptx += f'    .shared .b8\t%s[{self.shared_size}];\n'
         for instr in self.instrs:
             statement = self.print_ptx_line(instr)
             if statement:
