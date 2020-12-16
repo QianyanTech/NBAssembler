@@ -369,7 +369,7 @@ def test_cubin(cubin_path, kernel_names, global_only, check=False):
 
 
 def main():
-    description = 'NB Assembler for NVIDIA (Maxwell Pascal Volta Turing Ampere) GPUs.'
+    description = 'Assembler and Decompiler for NVIDIA (Maxwell Pascal Volta Turing Ampere) GPUs.'
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument('-V', '--version', action='store_true', help='Print version information on this tool.')
     subparsers = parser.add_subparsers(dest='cmd', title='subcommands')

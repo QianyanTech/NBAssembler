@@ -35,88 +35,30 @@ python setup.py install
 # help
 nbasm -h
 
-# usage: nbasm [-h] {list,das,as,test} ...
-# 
+# usage: nbasm [-h] [-V] {list,das,as,pre,pdas,test,det} ...
+
+# Assembler and Decompiler for NVIDIA (Maxwell Pascal Volta Turing Ampere) GPUs.
+
 # optional arguments:
 #   -h, --help            show this help message and exit
-# 
+#   -V, --version         Print version information on this tool.
+
 # subcommands:
-#   {list,das,as,test,detect}
+#   {list,das,as,pre,pdas,test,det}
 #     list                list cubin info
 #     das                 disassemble cubin
 #     as                  assemble asm
+#     pre                 preprocess asm
+#     pdas                disassemble asm to ptx
 #     test                test assembler by disassemble and then assemble
-
-# list
-nbasm list -h
-# usage: nbasm list [-h] [-k KERNEL] CUBIN
-# 
-# positional arguments:
-#   CUBIN                 input cubin
-# 
-# optional arguments:
-#   -h, --help            show this help message and exit
-#   -k KERNEL, --kernel KERNEL
-#                         kernel name
-
-# disassemble
-nbasm das -h
-# usage: nbasm das [-h] [-k KERNELS [KERNELS ...]] [-o OUTPUT] [-s] CUBIN
-# 
-# positional arguments:
-#   CUBIN                 input cubin
-# 
-# optional arguments:
-#   -h, --help            show this help message and exit
-#   -k KERNELS [KERNELS ...], --kernels KERNELS [KERNELS ...]
-#                         kernel names
-#   -o OUTPUT, --output OUTPUT
-#                         output asm file path
-#   -s, --strip           strip comment
-
-# assemble
-nbasm as -h
-# usage: nbasm as [-h] [-o OUTPUT] [-D DEFINE [DEFINE ...]] ASM
-# 
-# positional arguments:
-#   ASM                   input asm
-# 
-# optional arguments:
-#   -h, --help            show this help message and exit
-#   -o OUTPUT, --output OUTPUT
-#                         output cubin path
-#   -D DEFINE [DEFINE ...], --define DEFINE [DEFINE ...]
-#                         define variable for embedded python code
-
-# test
-nbasm test -h
-# usage: nbasm test [-h] [-c] [-k KERNELS [KERNELS ...]] CUBIN
-# 
-# positional arguments:
-#   CUBIN                 input cubin
-# 
-# optional arguments:
-#   -h, --help            show this help message and exit
-#   -c, --check           Detect register bank conflicts
-#   -k KERNELS [KERNELS ...], --kernels KERNELS [KERNELS ...]
-#                         kernel names
+#     det                 detect machine code bits
 
 # examples
 nbasm list ethash.cubin 
 nbasm das -k Search -o ethash_search.s ethash.cubin
 nbasm as -D DEBUG=True -o ethash.cubin ethash_search.s
-nbasm test -c ethash.cubin
+nbasm pdas -o ethash.ptx ethash.s
 ```
-
-## Related projects
-
-[AsFermi](https://github.com/hyqneuron/asfermi), an SASS assembler for NVIDIA Fermi GPUs. By Hou Yunqing.
-
-[KeplerAs](https://github.com/xiuxiazhang/KeplerAs), an SASS assembler for NVIDIA Kepler. By Xiuxia Zhang.
-
-[MaxAs](https://github.com/NervanaSystems/maxas), an SASS assembler for NVIDIA Maxwell and Pascal. By Scott Gray.
-
-[TuringAs](https://github.com/daadaada/turingas), an SASS assembler for NVIDIA Volta and Turing. By Da Yan.
 
 ## ASM Grammar
 
@@ -188,6 +130,16 @@ out = '''
 	#	yield: 让出,表示当前warp可以被换出。一般用于stall超过4个周期情况
 	#	stall: 本条指令调度后，下一条指令延迟开始的周期数
 ```
+
+## Related projects
+
+[AsFermi](https://github.com/hyqneuron/asfermi), an SASS assembler for NVIDIA Fermi GPUs. By Hou Yunqing.
+
+[KeplerAs](https://github.com/xiuxiazhang/KeplerAs), an SASS assembler for NVIDIA Kepler. By Xiuxia Zhang.
+
+[MaxAs](https://github.com/NervanaSystems/maxas), an SASS assembler for NVIDIA Maxwell and Pascal. By Scott Gray.
+
+[TuringAs](https://github.com/daadaada/turingas), an SASS assembler for NVIDIA Volta and Turing. By Da Yan.
 
 
 
