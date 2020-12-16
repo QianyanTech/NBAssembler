@@ -557,13 +557,17 @@ def ptx_imad(kernel, captured_dict, instr):
     # else:
     if '.lo' == flag:
         instr.add_ptx('mad', f'.lo{type_str} {d}, {a}, {b}, {c};')
+        # t = ptx_new_reg(kernel)
+        # instr.add_ptx('mul', f'.lo{type_str} {t}, {a}, {b};')
+        # instr.add_ptx('add', f'{type_str} {d}, {t}, {c};')
         if x1 and x1 != '0':
             x1_t, x1_ord = ptx_ord(x1)
             instr.add_ptx('add', f'{type_str} {d}, {d}, {x1_t.replace("p", "x")}{x1_ord};')
     else:
         c64 = ptx_r2d(kernel, instr, c) if 'r' in c else c
         d64 = ptx_new_reg64(kernel)
-        instr.add_ptx('mad', f'.wide{type_str} {d64}, {a}, {b}, {c64};')
+        instr.add_ptx('mul', f'.wide{type_str} {d64}, {a}, {b};')
+        instr.add_ptx('add', f'{type_str.replace("32", "64")} {d64}, {d64}, {c64};')
         if x1 and x1 != '0':
             x1_t, x1_ord = ptx_ord(x1)
             x1_64 = ptx_pack(kernel, instr, f'{x1_t.replace("p", "x")}{x1_ord}', 0)
