@@ -193,6 +193,15 @@ def ptx_addr(kernel, captured_dict, instr):
     else:
         cd['type'] = '64'
     a = ptx_r(kernel, cd, instr, 'rad')
+    if 'rax' in cd and cd['rax']:
+        x = cd['rax'][2:]
+        if cd['type'] == '32':
+            ax = ptx_new_reg(kernel)
+            instr.add_ptx('mul', f'.lo.u32 {ax}, {a}, {x};')
+        else:
+            ax = ptx_new_reg64(kernel)
+            instr.add_ptx('mul', f'.lo.u64 {ax}, {a}, {x};')
+        a = ax
     b = ptx_r(kernel, cd, instr, 'rad2')
     if a in ['0', '-0', '|0|', '']:
         if ss == 'S':
