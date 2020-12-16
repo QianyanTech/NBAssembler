@@ -960,7 +960,6 @@ class Kernel:
         self.reg64_count = 0
         stack_cnt = 0
         instrs = []
-        label = ''
         instruction: dict
         for instruction in self.instrs:
             instr = Instruction(**instruction)
@@ -974,16 +973,10 @@ class Kernel:
             rest = re.sub(r'\.reuse', '', instr.rest)
             # 忽略无用指令
             if op in ptx_ignore_instrs:
-                instr.ptx = []
-                if instr.label:
-                    label = instr.label
+                instr.add_ptx('mov', f'.b32 %r0, %r0;')
                 continue
             if 'R1,' in rest:
                 stack_cnt += 1
-            # 如果label位于无用指令上，向后调整label位置
-            if label:
-                instr.label = label
-                label = ''
             # 处理pred
             if instr.pred:
                 if 'PT' in instr.pred_reg and instr.pred_not:
