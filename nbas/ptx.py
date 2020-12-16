@@ -132,7 +132,9 @@ def ptx_cname(kernel, captured_dict, instr):
         new_reg = ptx_new_reg
 
     if name_str in const0_dict:
-        if name_str not in const0_map:
+        if name_str == 'STACK' and kernel.frame_size:
+            r_str = f'__local_depot+{kernel.frame_size}'
+        elif name_str not in const0_map:
             r_str = f'[{name_str}]'
         else:
             r_str = new_reg(kernel)

@@ -364,6 +364,10 @@ class Kernel:
         # .minnctapersm
 
         ptx += '{\n'
+        if self.frame_size:
+            ptx += f'    .local .align 16 .b8 	__local_depot[{self.frame_size}];\n'
+            # ptx += f'    .reg .b64  %SP;\n'
+            # ptx += f'    .reg .b64  %SPL;\n'
         if self.pred_reg_count:
             ptx += f'    .reg .pred  %p<{self.pred_reg_count}>;\n'
         if self.upred_reg_count:
