@@ -695,8 +695,9 @@ def ptx_lea(kernel, captured_dict, instr):
 
     if (not x) and (not hi) and (not sx32) and cc and (not xx):
         # LEA
-        instr.add_ptx('shl', f'.b32 {d}, {a}, {i};')
-        a64 = ptx_pack(kernel, instr, d, 0)
+        t = ptx_new_reg(kernel)
+        instr.add_ptx('shl', f'.b32 {t}, {a}, {i};')
+        a64 = ptx_pack(kernel, instr, t, 0)
         b64 = ptx_pack(kernel, instr, b, 0)
         instr.add_ptx('add', f'.s64 {b64}, {b64}, {a64};')
         cc1_t, cc1_ord = ptx_ord(cc)
