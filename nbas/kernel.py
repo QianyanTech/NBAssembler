@@ -351,7 +351,8 @@ class Kernel:
 
     def print_ptx(self):
         ptx = f'.visible .entry {self.name.decode()}(\n'
-        ptx += ',\n'.join([f"    .param .b8 ARG_{param['Ordinal']}[{param['Size']}]" for param in self.params])
+        ptx += ',\n'.join([f"    .param .align {min(param['Size'], 16)} .b8 ARG_{param['Ordinal']}[{param['Size']}]"
+                           for param in self.params])
         ptx += '\n)\n'
 
         if self.maxreg_count:
