@@ -307,12 +307,12 @@ class Kernel:
         return asm
 
     @staticmethod
-    def print_asm_line(instr):
+    def print_asm_line(instr, no_line_info=False):
         # ctrl, addr, pred, op, rest, code, reuse
         asm = ''
         if instr['label']:
             asm += f"{instr['label']}:\n"
-        if 'ptx' in instr:
+        if 'ptx' in instr and (not no_line_info):
             asm += f'{" ":<30s}// {instr["ptx"]}\n'
         if 'addr' in instr:
             asm += f"    /*{instr['addr']}*/  {instr['ctrl']} {print_instr(instr):<56s} /* {instr['code']} */ " \
@@ -321,18 +321,18 @@ class Kernel:
             asm += f"    {instr['ctrl']} {print_instr(instr):<56s} # {print_reuse(instr['reuse'])}"
         return asm
 
-    def print_asm(self):
+    def print_asm(self, no_line_info=False):
         asm = ''
         for instr in self.instrs:
-            asm += self.print_asm_line(instr) + '\n'
+            asm += self.print_asm_line(instr, no_line_info) + '\n'
 
         return asm
 
-    def print(self):
+    def print(self, no_line_info=False):
         constant2 = ''
         if self.constant2:
             constant2 = self.constant2.print()
-        asm = constant2 + self.print_meta() + self.print_asm()
+        asm = constant2 + self.print_meta() + self.print_asm(no_line_info)
 
         return asm
 

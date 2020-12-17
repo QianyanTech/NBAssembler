@@ -39,7 +39,7 @@ def list_cubin(cubin_path, kernel_name, global_only):
         print(kernel.print_meta())
 
 
-def disassemble(cubin_path, kernel_names, asm_path, strip, global_only):
+def disassemble(cubin_path, kernel_names, asm_path, strip, global_only, no_line_info=False):
     cubin = Cubin()
     cubin.load(cubin_path, global_only)
     # 输出各种元信息
@@ -74,7 +74,7 @@ def disassemble(cubin_path, kernel_names, asm_path, strip, global_only):
         kernel.map_global()
         kernel.map_constant0()
         kernel.mark_const2()
-        kernel_asm += '\n' + kernel.print()
+        kernel_asm += '\n' + kernel.print(no_line_info)
         consts = consts.union(kernel.consts)
         globals_ = globals_.union(kernel.globals)
 
@@ -384,6 +384,7 @@ def main():
     parser_das.add_argument('-k', '--kernels', metavar='KERNELS', nargs='+', type=str, default='', help='kernel names')
     parser_das.add_argument('-o', '--output', metavar='OUTPUT', type=str, default='', help='output asm file path')
     parser_das.add_argument('-s', '--strip', action='store_true', help='strip comment')
+    parser_das.add_argument('-n', '--no_line_info', action='store_true', help='strip line info')
     parser_das.add_argument('-g', '--global_only', action='store_true', help='ignore non global FUNC')
 
     parser_as = subparsers.add_parser('as', help='assemble asm')
@@ -429,7 +430,7 @@ def main():
         list_cubin(cubin_path=args.cubin, kernel_name=args.kernel.encode(), global_only=args.global_only)
     elif args.cmd == 'das':
         disassemble(cubin_path=args.cubin, kernel_names=args.kernels, asm_path=args.output, strip=args.strip,
-                    global_only=args.global_only)
+                    global_only=args.global_only, no_line_info=args.no_line_info)
     elif args.cmd == 'as':
         assemble(asm_path=args.asm, out_cubin_path=args.output, define_list=args.define, out_asm_path=args.debug,
                  sort_banks=args.sort)
