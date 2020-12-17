@@ -100,7 +100,7 @@ def disassemble(cubin_path, kernel_names, asm_path, strip, global_only):
         print(asm, end='')
 
 
-def disassemble_ptx(asm_path, ptx_path, define_list):
+def decompile_ptx(asm_path, ptx_path, define_list):
     cubin = Cubin()
 
     define_dict = {}
@@ -131,7 +131,7 @@ def disassemble_ptx(asm_path, ptx_path, define_list):
     kernel_ptx = ''
     for kernel in cubin.kernel_dict.values():
         kernel.mark_const2(replace=True)
-        kernel.disassemble_ptx()
+        kernel.decompile_ptx()
         kernel_ptx += '\n' + kernel.print_ptx()
 
     ptx = header_ptx + global_ptx + constant_ptx + kernel_ptx
@@ -403,7 +403,7 @@ def main():
     parser_pre.add_argument('-o', '--output', metavar='OUTPUT', type=str, default='', help='output asm file path')
     parser_pre.add_argument('-s', '--strip', action='store_true', help='strip comment')
 
-    parser_pdas = subparsers.add_parser('pdas', help='disassemble asm to ptx')
+    parser_pdas = subparsers.add_parser('dcc', help='decompile asm to ptx')
     parser_pdas.add_argument('asm', help='input asm', metavar='ASM')
     parser_pdas.add_argument('-D', '--define', metavar='DEFINE', nargs='+', type=str, default='',
                              help='define variable for embedded python code')
@@ -435,8 +435,8 @@ def main():
                  sort_banks=args.sort)
     elif args.cmd == 'pre':
         preprocess(asm_path=args.asm, out_asm_path=args.output, define_list=args.define, strip=args.strip)
-    elif args.cmd == 'pdas':
-        disassemble_ptx(asm_path=args.asm, ptx_path=args.output, define_list=args.define)
+    elif args.cmd == 'dcc':
+        decompile_ptx(asm_path=args.asm, ptx_path=args.output, define_list=args.define)
     elif args.cmd == 'test':
         test_cubin(cubin_path=args.cubin, kernel_names=args.kernels, global_only=args.global_only, check=args.check)
     elif args.cmd == 'det':

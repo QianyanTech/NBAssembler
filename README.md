@@ -49,7 +49,7 @@ nbasm -h
 #     das                 disassemble cubin
 #     as                  assemble asm
 #     pre                 preprocess asm
-#     pdas                disassemble asm to ptx
+#     dcc                 decompile asm to ptx
 #     test                test assembler by disassemble and then assemble
 #     det                 detect machine code bits
 
@@ -57,7 +57,7 @@ nbasm -h
 nbasm list ethash.cubin 
 nbasm das -k Search -o ethash_search.s ethash.cubin
 nbasm as -D DEBUG=True -o ethash.cubin ethash_search.s
-nbasm pdas -o ethash.ptx ethash.s
+nbasm dcc -o ethash.ptx ethash.s
 ```
 
 ## ASM Grammar

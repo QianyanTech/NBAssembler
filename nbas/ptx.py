@@ -280,14 +280,15 @@ def ptx_ldst(kernel, captured_dict, instr):
     else:
         ss = '.global'
 
-    if 'cache' in captured_dict and captured_dict['cache']:
-        cache_str = f'.{captured_dict["cache"].lower()}'
-    else:
-        cache_str = ''
-    if cache_str == '.ci':
-        cache_str = '.nc'
-    elif cache_str == '.wt':
-        cache_str = '.volatile'
+    cache_str = ''
+    sync_str = ''
+    nc = ''
+    if 'const' in captured_dict and captured_dict['const']:
+        const_str = f'{captured_dict["const"]}'
+        if const_str == '.CONSTANT':
+            nc = '.nc'
+        elif const_str == '.STRONG':
+            sync_str = '.volatile'
 
     cd = captured_dict.copy()
     cd['type'] = ''
@@ -327,7 +328,7 @@ def ptx_ldst(kernel, captured_dict, instr):
             v_str = '.v4'
         elif '32' not in captured_dict['type']:
             type_str = captured_dict['type'].lower()
-    instr.add_ptx(op, f'{ss}{cache_str}{v_str}{type_str} {dabc};')
+    instr.add_ptx(op, f'{sync_str}{ss}{cache_str}{nc}{v_str}{type_str} {dabc};')
 
 
 def ptx_isetp(kernel, captured_dict, instr):

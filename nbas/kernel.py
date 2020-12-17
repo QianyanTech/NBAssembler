@@ -953,7 +953,7 @@ class Kernel:
 
         self.instrs = instrs
 
-    def disassemble_ptx(self):
+    def decompile_ptx(self):
         self.pred_regs = set()
         self.upred_regs = set()
         self.reg_set = set()
