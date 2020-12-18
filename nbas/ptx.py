@@ -483,6 +483,14 @@ def ptx_sub(kernel, captured_dict, instr):
     instr.add_ptx('sub', f'.s32 {d}, {a}, {b};')
 
 
+def ptx_sub2(kernel, captured_dict, instr):
+    d = ptx_r(kernel, captured_dict, instr, 'rd')
+    a = ptx_r(kernel, captured_dict, instr, 'ra')
+    b = ptx_irc(kernel, captured_dict, instr, 'pim', 'rb')
+
+    instr.add_ptx('sub', f'.s32 {d}, {b}, {a};')
+
+
 def ptx_iadd3(kernel, captured_dict, instr):
     d = ptx_r(kernel, captured_dict, instr, 'rd')
     a = ptx_r(kernel, captured_dict, instr, 'ra')
@@ -859,6 +867,7 @@ grammar_ptx = {
     'IADD': [],  # Integer Addition
     'IADD3': [  # 3-input Integer Addition
         {'rule': rf'IADD3 {rd}, {ra}, -(?:{rb}|{pim}|{caddr}), RZ;', 'ptx': ptx_sub},
+        {'rule': rf'IADD3 {rd}, -{ra}, (?:{rb}|{pim}|{caddr}), RZ;', 'ptx': ptx_sub2},
         {'rule': rf'IADD3{X} {rd}, ({pcc1}, )?({pcc2}, )?{ra}, (?:{rb}|{pim}|{caddr}),'
                  rf' {rc}(, {px1})?(, {px2})?;', 'ptx': ptx_iadd3},
     ],
@@ -1012,7 +1021,9 @@ grammar_ptx = {
     'UFLO': [  # Uniform Find Leading One
     ],
     'UIADD3': [  # Uniform Integer Addition
-        {'rule': rf'IADD3{X} {rd}, ({pcc1}, )?({pcc2}, )?{ra}, (?:{rb}|{pim}|{caddr}),'
+        {'rule': rf'UIADD3 {rd}, {ra}, -(?:{rb}|{pim}|{caddr}), URZ;', 'ptx': ptx_sub},
+        {'rule': rf'UIADD3 {rd}, -{ra}, (?:{rb}|{pim}|{caddr}), URZ;', 'ptx': ptx_sub2},
+        {'rule': rf'UIADD3{X} {rd}, ({pcc1}, )?({pcc2}, )?{ra}, (?:{rb}|{pim}|{caddr}),'
                  rf' {rc}(, {px1})?(, {px2})?;', 'ptx': ptx_iadd3}
     ],
     'UIMAD': [  # Uniform Integer Multiplication
