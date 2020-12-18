@@ -911,6 +911,7 @@ grammar_ptx = {
 
     # Movement Instructions
     'MOV': [  # Move
+        {'rule': rf'MOV {rd}, (?:{pim}|{ra}|{caddr}|{GLOBAL_NAME_RE});', 'ptx': ptx_mov},
     ],
     'MOV32I': [],  # Move
     'MOVM': [],  # Move Matrix with Transposition or Expansion
