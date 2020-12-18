@@ -524,7 +524,7 @@ class Kernel:
         for instr in self.instrs:
             op = instr['op']
             rest = instr['rest']
-            if op in jump_op and '0x0;' not in rest:
+            if op in jump_op and not re.search(GLOBAL_NAME_RE, rest):
                 address = get_jump_offset(rest)
                 line_num = addr2line_num(address, self.arch)
                 if rel and (op in rel_jump_op_61 + rel_jump_op_75):
@@ -560,7 +560,7 @@ class Kernel:
             rest = instr['rest']
             if label:
                 labels[label] = instr['line_num']
-            if op in jump_op and '0x0;' not in rest:
+            if op in jump_op and not re.search(GLOBAL_NAME_RE, rest):
                 jump_instrs.append(instr)
             elif op == 'SYNC':
                 instr['rest'] = ';'

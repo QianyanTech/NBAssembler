@@ -70,8 +70,8 @@ def disassemble(cubin_path, kernel_names, asm_path, strip, global_only, no_line_
         # kernel.schedule()
         # kernel.sort_banks()
         cubin.map_constant3(kernel)
-        kernel.map_jump()
         kernel.map_global()
+        kernel.map_jump()
         kernel.map_constant0()
         kernel.mark_const2()
         kernel_asm += '\n' + kernel.print(no_line_info)
@@ -164,9 +164,9 @@ def assemble(asm_path, out_cubin_path, define_list, out_asm_path, sort_banks):
         # Unmap global, const0, const3
         cubin.unmap_constant3(kernel)
         kernel.unmap_reg()
-        kernel.unmap_global()
         kernel.unmap_constant0()
         kernel.unmap_jump()
+        kernel.unmap_global()
         # kernel.schedule()
         if sort_banks:
             kernel.sort_banks()
@@ -229,9 +229,9 @@ def preprocess(asm_path, out_asm_path, define_list, strip):
         # Unmap global, const0, const3
         cubin.unmap_constant3(kernel)
         kernel.unmap_reg()
-        kernel.unmap_global()
         kernel.unmap_constant0()
         kernel.unmap_jump()
+        kernel.unmap_global()
         kernel.schedule()
         kernel.sort_banks()
         cubin.map_constant3(kernel)
