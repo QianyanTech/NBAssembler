@@ -643,11 +643,12 @@ def ptx_shfl(kernel, captured_dict, instr):
 
 
 def ptx_sel(kernel, captured_dict, instr):
+    type_str = '.f32' if instr.op == 'FSEL' else '.b32'
     d = ptx_r(kernel, captured_dict, instr, 'rd')
     a = ptx_r(kernel, captured_dict, instr, 'ra')
     b = ptx_irc(kernel, captured_dict, instr, 'pim', 'rb')
     c = ptx_p(captured_dict, 'pc')
-    instr.add_ptx('selp', f'.b32 {d}, {a}, {b}, {c};')
+    instr.add_ptx('selp', f'{type_str} {d}, {a}, {b}, {c};')
 
 
 def ptx_imnmx(kernel, captured_dict, instr):
@@ -821,6 +822,7 @@ grammar_ptx = {
     'FMUL': [],  # FP32 Multiply
     'FMUL32I': [],  # FP32 Multiply
     'FSEL': [  # Floating Point Select
+        {'rule': rf'FSEL {rd}, {ra}, (?:{rb}|{pim}|{caddr}), {pc};', 'ptx': ptx_sel}
     ],
     'FSET': [],  # FP32 Compare And Set
     'FSETP': [],  # FP32 Compare And Set Predicate
@@ -1050,6 +1052,7 @@ grammar_ptx = {
     'UPSETP': [],  # Uniform Predicate Logic Operation
     'UR2UP': [],  # Uniform Register to Uniform Predicate
     'USEL': [  # Uniform Select
+        {'rule': rf'USEL {rd}, {ra}, (?:{rb}|{pim}|{caddr}), {pc};', 'ptx': ptx_sel}
     ],
     'USGXT': [],  # Uniform Sign Extend
     'USHF': [  # Uniform Funnel Shift
