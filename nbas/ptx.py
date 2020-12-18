@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 # coding: utf-8
 
-# 先使用nvbit，把每一条指令的输入输出数据导出
-# asm1 -> ptx : ptx中详细记录对应的ptx是由哪条指令转换而来
-# ptx -> asm2 : 逐条将ptx分别构建cubin并测试，-O0
+# todo: n:1 直接生成64位add mul指令
 
 from .grammar import *
 
@@ -470,6 +468,14 @@ def ptx_sgxt(kernel, captured_dict, instr):  # perfect
         instr.add_ptx('shr', f'.s32 {d}, {d}, {32 - i};')
 
 
+def ptx_sub(kernel, captured_dict, instr):
+    d = ptx_r(kernel, captured_dict, instr, 'rd')
+    a = ptx_r(kernel, captured_dict, instr, 'ra')
+    b = ptx_irc(kernel, captured_dict, instr, 'pim', 'rb')
+
+    instr.add_ptx('sub', f'.s32 {d}, {a}, {b};')
+
+
 def ptx_iadd3(kernel, captured_dict, instr):
     d = ptx_r(kernel, captured_dict, instr, 'rd')
     a = ptx_r(kernel, captured_dict, instr, 'ra')
@@ -601,7 +607,9 @@ def ptx_imad2(kernel, captured_dict, instr):
             instr.add_ptx('add', f'{type_str} {d}, {d}, {x1_t.replace("p", "x")}{x1_ord};')
     else:
         d64 = ptx_new_reg64(kernel)
-        instr.add_ptx('mad', f'.wide{type_str} {d64}, {a}, {b}, {c};')
+        # instr.add_ptx('mad', f'.wide{type_str} {d64}, {a}, {b}, {c};')
+        instr.add_ptx('mul', f'.wide{type_str} {d64}, {a}, {b};')
+        instr.add_ptx('add', f'{type_str.replace("32", "64")} {d64}, {d64}, {c};')
         if x1 and x1 != '0':
             x1_t, x1_ord = ptx_ord(x1)
             x1_64 = ptx_pack(kernel, instr, f'{x1_t.replace("p", "x")}{x1_ord}', 0)
@@ -840,8 +848,9 @@ grammar_ptx = {
     ],
     'IADD': [],  # Integer Addition
     'IADD3': [  # 3-input Integer Addition
+        {'rule': rf'IADD3 {rd}, {ra}, -(?:{rb}|{pim}|{caddr}), RZ;', 'ptx': ptx_sub},
         {'rule': rf'IADD3{X} {rd}, ({pcc1}, )?({pcc2}, )?{ra}, (?:{rb}|{pim}|{caddr}),'
-                 rf' {rc}(, {px1})?(, {px2})?;', 'ptx': ptx_iadd3}
+                 rf' {rc}(, {px1})?(, {px2})?;', 'ptx': ptx_iadd3},
     ],
     'IADD32I': [],  # Integer Addition
     'IDP': [],  # Integer Dot Product and Accumulate
