@@ -468,6 +468,13 @@ def ptx_sgxt(kernel, captured_dict, instr):  # perfect
         instr.add_ptx('shr', f'.s32 {d}, {d}, {32 - i};')
 
 
+def ptx_abs(kernel, captured_dict, instr):
+    d = ptx_r(kernel, captured_dict, instr, 'rd')
+    a = ptx_rc(kernel, captured_dict, instr, 'ra')
+
+    instr.add_ptx('abs', f'.s32 {d}, {a};')
+
+
 def ptx_sub(kernel, captured_dict, instr):
     d = ptx_r(kernel, captured_dict, instr, 'rd')
     a = ptx_r(kernel, captured_dict, instr, 'ra')
@@ -845,6 +852,7 @@ grammar_ptx = {
     'FLO': [  # Find Leading One
     ],
     'IABS': [  # Integer Absolute Value
+        {'rule': rf'IABS {rd}, (?:{ra}|{pim}|{caddr});', 'ptx': ptx_abs},
     ],
     'IADD': [],  # Integer Addition
     'IADD3': [  # 3-input Integer Addition
