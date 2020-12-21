@@ -819,6 +819,13 @@ def ptx_plop3(kernel, captured_dict, instr):
         instr.add_ptx('not', f'.pred {pp}, 1;')
 
 
+def ptx_popc(kernel, captured_dict, instr):
+    d = ptx_r(kernel, captured_dict, instr, 'rd')
+    a = ptx_r(kernel, captured_dict, instr, 'ra')
+
+    instr.add_ptx('popc', f'.b32 {d}, {a};')
+
+
 grammar_ptx = {
     # Floating Point Instructions
     'FADD': [],  # FP32 Add
@@ -906,6 +913,7 @@ grammar_ptx = {
     ],
     'LOP32I': [],  # Logic Operation
     'POPC': [  # Population count
+        {'rule': rf'POPC {rd}, {ra};', 'ptx': ptx_popc},
     ],
     'SHF': [  # Funnel Shift
         {'rule': rf'SHF{tshf_lr}{tw}{tshf_type} {rd}, {ra}, (?:{rb}|{pim}|{caddr}), {rc};', 'ptx': ptx_shf},
@@ -1057,6 +1065,7 @@ grammar_ptx = {
     'UP2UR': [],  # Uniform Predicate to Uniform Register
     'UPLOP3': [],  # Uniform Predicate Logic Operation
     'UPOPC': [  # Uniform Population Count
+        {'rule': rf'UPOPC {rd}, {ra};', 'ptx': ptx_popc},
     ],
     'UPRMT': [  # Uniform Byte Permute
     ],
