@@ -733,19 +733,22 @@ def ptx_lea(kernel, captured_dict, instr):
     cc = ptx_p(captured_dict, 'pcc1')
     xx = ptx_p(captured_dict, 'px1')
 
-    if (not x) and (not hi) and (not sx32) and cc and (not xx):
+    if (not x) and (not hi) and (not sx32) and (not xx):
         # LEA
         t = ptx_new_reg(kernel)
         instr.add_ptx('shl', f'.b32 {t}, {a}, {i};')
         a64 = ptx_pack(kernel, instr, t, 0)
         b64 = ptx_pack(kernel, instr, b, 0)
         instr.add_ptx('add', f'.s64 {b64}, {b64}, {a64};')
-        cc1_t, cc1_ord = ptx_ord(cc)
-        if 'u' in cc1_t:
-            kernel.upred_regs.add(cc1_ord)
+        if cc:
+            cc1_t, cc1_ord = ptx_ord(cc)
+            if 'u' in cc1_t:
+                kernel.upred_regs.add(cc1_ord)
+            else:
+                kernel.pred_regs.add(cc1_ord)
+            ptx_unpack(instr, d, f'{cc1_t.replace("p", "x")}{cc1_ord}', b64)
         else:
-            kernel.pred_regs.add(cc1_ord)
-        ptx_unpack(instr, d, f'{cc1_t.replace("p", "x")}{cc1_ord}', b64)
+            ptx_unpack(instr, d, t, b64)
     elif hi and (not cc):
         if sx32:
             # LEA.HI.X.SX32
