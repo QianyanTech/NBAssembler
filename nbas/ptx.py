@@ -826,6 +826,15 @@ def ptx_popc(kernel, captured_dict, instr):
     instr.add_ptx('popc', f'.b32 {d}, {a};')
 
 
+def ptx_flo(kernel, captured_dict, instr):
+    type_str = '.u32' if captured_dict['U32'] else '.s32'
+    sh = '.shiftamt' if captured_dict['SH'] else ''
+    d = ptx_r(kernel, captured_dict, instr, 'rd')
+    a = ptx_r(kernel, captured_dict, instr, 'ra')
+
+    instr.add_ptx('bfind', f'{sh}{type_str} {d}, {a};')
+
+
 grammar_ptx = {
     # Floating Point Instructions
     'FADD': [],  # FP32 Add
@@ -867,6 +876,7 @@ grammar_ptx = {
     ],
     'BREV': [],  # Bit Reverse
     'FLO': [  # Find Leading One
+        {'rule': rf'FLO{u32}{tsh} {rd}, {ra};', 'ptx': ptx_flo},
     ],
     'IABS': [  # Integer Absolute Value
         {'rule': rf'IABS {rd}, (?:{ra}|{pim}|{caddr});', 'ptx': ptx_abs},
