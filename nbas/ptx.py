@@ -835,6 +835,12 @@ def ptx_flo(kernel, captured_dict, instr):
     instr.add_ptx('bfind', f'{sh}{type_str} {d}, {a};')
 
 
+def ptx_vote(kernel, captured_dict, instr):
+    d = ptx_r(kernel, captured_dict, instr, 'rd')
+
+    instr.add_ptx('vote', f'.sync.ballot.b32 {d}, 1, 0xffffffff;')
+
+
 grammar_ptx = {
     # Floating Point Instructions
     'FADD': [],  # FP32 Add
@@ -1092,6 +1098,7 @@ grammar_ptx = {
     'USHL': [],  # Uniform Left Shift
     'USHR': [],  # Uniform Right Shift
     'VOTEU': [  # Voting across SIMD Thread Group with Results in Uniform Destination
+        {'rule': rf'VOTEU\.ALL {rd}, UPT, PT;', 'ptx': ptx_vote}
     ],
 
     # Texture Instructions
@@ -1165,6 +1172,7 @@ grammar_ptx = {
     'SETCTAID': [],  # Set CTA ID
     'SETLMEMBASE': [],  # Set Local Memory Base Address
     'VOTE': [  # Vote Across SIMD Thread Group
+        {'rule': rf'VOTE\.ALL {rd}, PT, PT;', 'ptx': ptx_vote}
     ],
 
 }
