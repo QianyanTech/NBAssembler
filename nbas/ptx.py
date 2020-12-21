@@ -173,6 +173,14 @@ def ptx_irc(kernel, captured_dict, instr, i_name, r_name):
     return c
 
 
+def ptx_ic(kernel, captured_dict, instr, i_name):
+    if i_name in captured_dict and captured_dict[i_name]:
+        c = ptx_i(captured_dict, i_name)
+    else:
+        c = ptx_cname(kernel, captured_dict, instr)
+    return c
+
+
 def ptx_rc(kernel, captured_dict, instr, r_name):
     if r_name in captured_dict and captured_dict[r_name]:
         c = ptx_r(kernel, captured_dict, instr, r_name)
@@ -184,6 +192,8 @@ def ptx_rc(kernel, captured_dict, instr, r_name):
 def ptx_addr(kernel, captured_dict, instr):
     if 'cname' in captured_dict and captured_dict['cname']:
         return ptx_cname(kernel, captured_dict, instr)
+    if 'pim' in captured_dict and captured_dict['pim']:
+        return ptx_i(captured_dict, 'pim')
     ss = instr.op[-1]
     cd = captured_dict.copy()
     if ss in ['L', 'S', 'C']:
@@ -326,7 +336,10 @@ def ptx_ldst(kernel, captured_dict, instr):
             v_str = '.v4'
         elif '32' not in captured_dict['type']:
             type_str = captured_dict['type'].lower()
-    instr.add_ptx(op, f'{sync_str}{ss}{cache_str}{nc}{v_str}{type_str} {dabc};')
+    if 'pim' in captured_dict and captured_dict['pim'] and op == 'ld':
+        instr.add_ptx('mov', f'{v_str}{type_str} {dabc};')
+    else:
+        instr.add_ptx(op, f'{sync_str}{ss}{cache_str}{nc}{v_str}{type_str} {dabc};')
 
 
 def ptx_isetp(kernel, captured_dict, instr):
@@ -389,6 +402,13 @@ def ptx_bra(kernel, captured_dict, instr):
 
 
 def ptx_s2r(kernel, captured_dict, instr):
+    sr_map = {
+        'SR_EQMASK': '%lanemask_eq',
+        'SR_LTMASK': '%lanemask_lt',
+        'SR_LEMASK': '%lanemask_le',
+        'SR_GTMASK': '%lanemask_gt',
+        'SR_GEMASK': '%lanemask_ge',
+    }
     type_str = '.b32'
     r_str = ptx_r(kernel, captured_dict, instr, 'rd')
     r_t, r_idx = ptx_ord(r_str)
@@ -398,6 +418,8 @@ def ptx_s2r(kernel, captured_dict, instr):
     sr_str = captured_dict['sr']
     if 'SRZ' == sr_str:
         sr_str = '0'
+    elif sr_str in sr_map:
+        sr_str = sr_map[sr_str]
     else:
         sr_str = f"%{sr_str[3:].lower()}"
     instr.add_ptx('mov', f'{type_str} {r_str}, {sr_str};')
@@ -988,7 +1010,7 @@ grammar_ptx = {
     'LD': [  # Load from generic Memory
     ],
     'LDC': [  # Load Constant
-        {'rule': rf'LDC{tmem_type}{tldc_isl} {rd}, {caddr};', 'ptx': ptx_ldst},
+        {'rule': rf'LDC{tmem_type}{tldc_isl} {rd}, (?:{pim}|{caddr});', 'ptx': ptx_ldst},
     ],
     'LDG': [  # Load from Global Memory
         {'rule': rf'LDG{te}{tmem_cache}{tmem_ltc}{tmem_type}{tmem_scopes}{tzd} {rd}, {paddr};', 'ptx': ptx_ldst}
@@ -1066,7 +1088,7 @@ grammar_ptx = {
          'ptx': ptx_isetp}
     ],
     'ULDC': [  # Load from Constant Memory into a Uniform Register
-        {'rule': rf'ULDC{tmem_type} {rd}, {caddr};', 'ptx': ptx_ldst}
+        {'rule': rf'ULDC{tmem_type} {rd}, (?:{pim}|{caddr});', 'ptx': ptx_ldst}
     ],
     'ULEA': [  # Uniform Load Effective Address
         {'rule': rf'ULEA{thi}{X}{tsx32} {rd}, ({pcc1}, )?{ra}, (?:{rb}|{pim}|{caddr}), ({rc}, )?{puim}(, {px1})?;',
