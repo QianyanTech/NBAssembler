@@ -721,6 +721,10 @@ class Kernel:
             code = self.EIATTR['SW1850030_WAR']
             size = 0
             data += pack('<2sH', code, size)
+        if self.explicit_caching:
+            code = self.EIATTR['EXPLICIT_CACHING']
+            size = 0
+            data += pack('<2sH', code, size)
         if self.wmma_used:
             code = self.EIATTR['WMMA_USED']
             size = 0
