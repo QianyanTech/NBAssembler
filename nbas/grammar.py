@@ -1148,6 +1148,8 @@ grammar_75 = {
     'UIMAD': [  # Uniform Integer Multiplication
         {'type': 'x32', 'code': 0x2a4,
          'rule': rf'UIMAD{timad}{u32}{X} {ur16}, ({up81}, )?{ur24}, {ur32}, {ur64}(, {up87})?;'},
+        {'type': 'x32', 'code': 0x8a4,
+         'rule': rf'UIMAD{timad}{u32}{X} {ur16}, ({up81}, )?{ur24}, {i32}, {ur64}(, {up87})?;'},
     ],
     'UISETP': [  # Integer Compare and Set Uniform Predicate
         {'type': 'x32', 'code': 0x88c,
@@ -2445,14 +2447,14 @@ BRA: ur24neg
 0x00000000000000000000000040000000 -
 0x00000000000000000000000040000000 ~
 
-SEL, LDG, LD, LDS, LDL, IMAD, UIMAD, IADD3, FLO, UFLO, POPC, UPOPC, LOP3, ULEA, LEA, ISETP, MOV, UMOV, SHF, IMNMX: ur32
+SEL, LDG, LD, LDS, LDL, IMAD, IADD3, FLO, UFLO, POPC, UPOPC, LOP3, ULEA, LEA, ISETP, MOV, UMOV, SHF, IMNMX: ur32
 0x00000000080000000000000000000000 ALL
 
 IADD3, UIADD3, FLO, UFLO, UPOPC, POPC, ULEA: ur32neg
 0x00000000000000008000000000000000 -
 0x00000000000000008000000000000000 ~
 
-STG, ST, STS, ATOM, ATOMG, RED, USHF, UIADD3: ur64
+STG, ST, STS, ATOM, ATOMG, RED, USHF, UIADD3, UIMAD: ur64
 0x00000000080000000000000000000000 ALL
 
 ULEA: ur64
