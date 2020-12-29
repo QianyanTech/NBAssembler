@@ -105,7 +105,7 @@ def ptx_r(kernel, captured_dict, instr, name):
 
 
 def ptx_cname(kernel, captured_dict, instr):
-    if captured_dict['cname'] is None and captured_dict['adim'] is None:
+    if captured_dict['cname'] is None:
         return ''
 
     name_str = captured_dict['cname']
@@ -201,6 +201,15 @@ def ptx_addr(kernel, captured_dict, instr):
     else:
         cd['type'] = '64'
     a = ptx_r(kernel, cd, instr, 'rad')
+
+    # 如果遇到c[0x0][Rxxx]，尝试反编译，但不保证对
+    if 'cbank' in captured_dict and captured_dict['cbank'] == '0x0' and captured_dict['rad']:
+        print(f'Warning: c[0x0][Rxxx] found ({instr.print_instr()}), need manual adjustment.')
+        t = ptx_new_reg(kernel)
+        instr.add_ptx('sub', f'.s32 {t}, {a}, {kernel.param_base:#0x};')
+        a = t
+        captured_dict['cname'] = 'ARG_0'
+
     if 'rax' in cd and cd['rax']:
         x = cd['rax'][2:]
         if cd['type'] == '32':
@@ -227,7 +236,7 @@ def ptx_addr(kernel, captured_dict, instr):
     return f'[{a}{b}]'
 
 
-ptx_ignore_instrs = ['NOP', 'MEMBAR', 'SSY', 'PBK', 'BMOV', 'BSSY', 'BSYNC']
+ptx_ignore_instrs = ['NOP', 'MEMBAR', 'SSY', 'PBK', 'BMOV', 'BSSY', 'BSYNC', 'BREAK']
 
 ppred = fr'U?P[0-7T]'
 preg = fr'U?R[Z0-9]+'
@@ -252,7 +261,7 @@ adim = fr'(?P<adim>(?P<adneg>\-)?{immed})'
 paddr = fr'\[(?:(?P<rad>{preg})(?P<rax>\.X(4|8|16))?(?P<ratype>\.64|\.U32)?)?' \
         rf'(?:\s*\+?\s*(?P<rad2>{preg}))?(?:\s*\+?\s*{adim})?\]'
 
-caddr = rf'(?P<cneg>\-)?(?P<cabs>\|)?c(\[0x3\]\s*)?' \
+caddr = rf'(?P<cneg>\-)?(?P<cabs>\|)?c(\[(?P<cbank>0x[03])\]\s*)?' \
         rf'\[((?P<rad>{preg})|(?P<cname>[a-zA-Z_]\w*))?(?:\s*\+?\s*{adim})?\]\|?'
 
 
@@ -278,15 +287,6 @@ def ptx_mov(kernel, captured_dict, instr):
 
 def ptx_ldst(kernel, captured_dict, instr):
     op = instr.op
-    if op in ['LDL', 'STL']:
-        ss = '.local'
-    elif op in ['LDS', 'STS']:
-        ss = '.shared'
-    elif 'LDC' in op:
-        ss = '.param' if 'cname' in captured_dict and captured_dict['cname'] and 'ARG_' in captured_dict[
-            'cname'] else '.const'
-    else:
-        ss = '.global'
 
     cache_str = ''
     sync_str = ''
@@ -320,6 +320,16 @@ def ptx_ldst(kernel, captured_dict, instr):
 
     adr = ptx_addr(kernel, captured_dict, instr)
 
+    if op in ['LDL', 'STL']:
+        ss = '.local'
+    elif op in ['LDS', 'STS']:
+        ss = '.shared'
+    elif 'LDC' in op:
+        ss = '.param' if 'cname' in captured_dict and captured_dict['cname'] and 'ARG_' in captured_dict[
+            'cname'] else '.const'
+    else:
+        ss = '.global'
+
     if 'LD' in op:
         op = 'ld'
         dabc = f'{d}, {adr}'
@@ -338,6 +348,14 @@ def ptx_ldst(kernel, captured_dict, instr):
             type_str = captured_dict['type'].lower()
     if 'pim' in captured_dict and captured_dict['pim'] and op == 'ld':
         instr.add_ptx('mov', f'{v_str}{type_str} {dabc};')
+    elif 'cbank' in captured_dict and captured_dict['cbank'] == '0x0' and not captured_dict['rad'] and captured_dict[
+        'adim'] and not captured_dict['cname']:
+        if captured_dict['adim'] == '0x118':
+            # 忽略 c[0x0][0x118]，目前发现只在有IMMA的时候才出现，且只读不用。
+            instr.ptx = []
+        else:
+            # 未知的c[0x0][0xXXX]
+            instr.ptx = None
     else:
         instr.add_ptx(op, f'{sync_str}{ss}{cache_str}{nc}{v_str}{type_str} {dabc};')
 
