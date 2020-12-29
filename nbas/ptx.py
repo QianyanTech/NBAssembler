@@ -243,6 +243,7 @@ preg = fr'U?R[Z0-9]+'
 
 pp = fr'(?P<pp>{ppred})'
 pq = fr'(?P<pq>{ppred})'
+pb = fr'(?P<pbnot>\!)?(?P<pb>{ppred})'
 pc = fr'(?P<pcnot>\!)?(?P<pc>{ppred})'
 pcc1 = fr'(?P<pcc1>{ppred})'
 pcc2 = fr'(?P<pcc2>{ppred})'
@@ -855,11 +856,12 @@ def ptx_bar(kernel, captured_dict, instr):
 
 def ptx_plop3(kernel, captured_dict, instr):
     p = ptx_p(captured_dict, 'pp')
+    b = ptx_p(captured_dict, 'pb')
     i = ptx_i(captured_dict, 'pim')
     if i == '0x80':
-        instr.add_ptx('not', f'.pred {pp}, 0;')
+        instr.add_ptx('and', f'.pred {p}, {b}, 1;')
     elif i == '0x8':
-        instr.add_ptx('not', f'.pred {pp}, 1;')
+        instr.add_ptx('and', f'.pred {p}, {b}, 0;')
 
 
 def ptx_popc(kernel, captured_dict, instr):
@@ -1016,7 +1018,7 @@ grammar_ptx = {
 
     # Predicate Instructions
     'PLOP3': [  # Predicate Logic Operation
-        {'rule': rf'PLOP3\.LUT {pp}, PT, PT, PT, PT, {pim}, 0x0;',
+        {'rule': rf'PLOP3\.LUT {pp}, PT, {pb}, PT, PT, {pim}, 0x0;',
          'ptx': ptx_plop3},
     ],
     'PSETP': [],  # Combine Predicates and Set Predicate
