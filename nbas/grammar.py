@@ -335,6 +335,7 @@ shfl = fr"\.(?P<mode>IDX|UP|DOWN|BFLY)"
 mbar = fr'\.(?P<mode>CTA|GL|SYS)'
 icmp = fr'(?:\.(?P<cmp>LT|EQ|LE|GT|NE|GE))'
 u32 = fr'(?P<U32>\.U32)?'
+s32 = fr'(?P<S32>\.S32)?'
 ftz = fr'(?P<FTZ>\.FTZ)?'
 sat = fr'(?P<SAT>\.SAT)?'
 X = fr'(?P<X>\.X)?'
@@ -803,6 +804,8 @@ ticmp = fr'(?P<cmp>\.F|\.LT|\.EQ|\.LE|\.GT|\.NE|\.GE|\.T)'
 tbool = fr'(?P<bool>\.AND|\.OR|\.XOR)'
 tex = fr'(?P<EX>\.EX)?'
 
+tredux_op = fr'(?P<op>\.OR|\.XOR|.SUM|\.MIN|\.MAX)?'
+
 tvote = fr'(?P<vote>\.ALL|\.ANY|\.EQ)'
 tsh = fr'(?P<SH>\.SH)?'
 
@@ -842,6 +845,10 @@ tftz = fr'(?P<FTZ>\.FTZ)?'
 tround = fr'(?P<round>\.FLOOR|\.CEIL|\.TRUNC)?(?P<NTZ>\.NTZ)?'
 
 tfunc = rf'(?P<func>\.COS|\.SIN|\.EX2|\.LG2|\.RCP|\.RSQ|\.RCP64H|\.RSQ64H|\.SQRT|\.TANH)(?P<F16>\.F16)?'
+
+imma_shape = fr'(?P<shape>\.8816|\.8832|\.16816|\.16864)'
+imma_tp1 = fr'(?P<type1>\.U8|\.S8|\.U4)'
+imma_tp2 = fr'(?P<type2>\.U8|\.S8|\.U4)'
 
 grammar_75 = {
     # Floating Point Instructions
@@ -924,8 +931,8 @@ grammar_75 = {
          'rule': rf'IMAD{timad}{u32}{X} {r16}, ({p81}, )?{r24}, {r64re2}, {ur32}(, {p87})?;'},
     ],
     'IMMA': [  # Integer Matrix Multiply and Accumulate
-        {'type': 'x32', 'code': 0x54000000000000000237,
-         'rule': rf'IMMA\.8816\.S8\.S8 {r16}, {r24}\.ROW, {r32}\.COL, {r64}'},
+        {'type': 'x32', 'code': 0x4000000000000000237,
+         'rule': rf'IMMA{imma_shape}{imma_tp1}{imma_tp2}{sat} {r16}, {r24}\.ROW, {r32}\.COL, {r64}(, {up87})?'},
     ],
     'IMNMX': [  # Integer Minimum/Maximum
         {'type': 'x32', 'code': 0x217, 'rule': rf'IMNMX{u32} {r16}, {r24}, {r32}, {p87};'},
@@ -1129,7 +1136,9 @@ grammar_75 = {
     'R2UR': [  # Move from Vector Register to a Uniform Register
         {'type': 'x32', 'code': 0x3c2, 'rule': rf'R2UR{tbool}? ({p81}, )?{ur16}, {r24};'},
     ],
-    'REDUX': [],  # Reduction of a Vector Register into a Uniform Register
+    'REDUX': [  # Reduction of a Vector Register into a Uniform Register
+        {'type': 'x32', 'code': 0x3c4, 'rule': rf'REDUX{tredux_op}{s32} {ur16}, {r24};'},
+    ],
     'S2UR': [  # Move Special Register to Uniform Register
         {'type': 'x32', 'code': 0x9c3, 'rule': rf'S2UR {ur16}, {sr};'},
     ],
@@ -1148,6 +1157,8 @@ grammar_75 = {
     'UIMAD': [  # Uniform Integer Multiplication
         {'type': 'x32', 'code': 0x2a4,
          'rule': rf'UIMAD{timad}{u32}{X} {ur16}, ({up81}, )?{ur24}, {ur32}, {ur64}(, {up87})?;'},
+        {'type': 'x32', 'code': 0x4a4,
+         'rule': rf'UIMAD{timad}{u32}{X} {ur16}, ({up81}, )?{ur24}, {ur64}, {i32}(, {up87})?;'},
         {'type': 'x32', 'code': 0x8a4,
          'rule': rf'UIMAD{timad}{u32}{X} {ur16}, ({up81}, )?{ur24}, {i32}, {ur64}(, {up87})?;'},
     ],
@@ -1841,8 +1852,37 @@ R2P: r8part
 '''
 
 flags_str_75 = '''
+IMMA: shape
+0x00000000000000000000000000000000 .8816
+0x00000000002000000000000000000000 .8832
+0x00000000004000000000000000000000 .16816
+0x00000000006000000000000000000000 .16864
+
+IMMA: type1
+0x00000000000000000000000000000000 .U8
+0x00000000000010000000000000000000 .S8
+0x00000000000800000000000000000000 .U4
+
+IMMA: type2
+0x00000000000000000000000000000000 .U8
+0x00000000000040000000000000000000 .S8
+0x00000000001000000000000000000000 .U4
+
+IMMA: SAT
+0x00000000000400000000000000000000 .SAT
+
 R2UR: bool
 0x00000000001000000000000000000000 .OR
+
+REDUX: op
+0x00000000000040000000000000000000 .OR
+0x00000000000080000000000000000000 .XOR
+0x000000000000c0000000000000000000 .SUM
+0x00000000000100000000000000000000 .MIN
+0x00000000000140000000000000000000 .MAX
+
+REDUX: s32
+0x00000000000002000000000000000000 .S32
 
 MUFU: func
 0x00000000000000000000000000000000 .COS
@@ -2518,7 +2558,7 @@ UIADD3: up84
 UIMAD, UIADD3, ULEA: up87
 0x00000000078000000000000000000000 DEFAULT
 
-ULOP3, UISETP, USEL: up87not
+ULOP3, UISETP, USEL, IMMA: up87not
 0x00000000040000000000000000000000 !
 '''
 
