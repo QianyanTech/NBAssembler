@@ -897,7 +897,7 @@ class Kernel:
         nop_pad = m - len(instrs) % m if len(instrs) % m else 0
         for i in range(nop_pad):
             line_num = len(instrs)
-            instr = process_asm_line('-:--:-:-:Y:0 NOP;', line_num)
+            instr = process_asm_line('--:--:-:-:Y:0 NOP;', line_num)
             instr['label'] = ''
             instrs.append(instr)
 

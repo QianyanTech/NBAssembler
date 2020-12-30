@@ -888,7 +888,7 @@ grammar_75 = {
 
     # Integer Instructions
     'BMMA': [],  # Bit Matrix Multiply and Accumulate
-    'BMSK': [  # Bitfield Mask
+    'BMSK': [  # Bitfield Mask: d = ((1 << a) - 1) << wrap(b)
         {'type': 'x32', 'code': 0x21b, 'rule': rf'BMSK{tw} {r16}, {r24}, {r32};'},
     ],
     'BREV': [],  # Bit Reverse
