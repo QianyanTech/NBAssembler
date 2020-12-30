@@ -236,7 +236,7 @@ def ptx_addr(kernel, captured_dict, instr):
     return f'[{a}{b}]'
 
 
-ptx_ignore_instrs = ['NOP', 'MEMBAR', 'SSY', 'PBK', 'BMOV', 'BSSY', 'BSYNC', 'BREAK']
+ptx_ignore_instrs = ['NOP', 'MEMBAR', 'SSY', 'PBK', 'BMOV', 'BSSY', 'BSYNC', 'BREAK', 'YIELD']
 
 ppred = fr'U?P[0-7T]'
 preg = fr'U?R[Z0-9]+'
@@ -603,6 +603,11 @@ def ptx_imad(kernel, captured_dict, instr):
     if captured_dict['type'] and captured_dict['type'] in ['.WIDE', '.HI']:
         flag = captured_dict['type'].lower()
 
+    if 'pcc1' in captured_dict and captured_dict['pcc1']:
+        print(f'Warning: {instr.print_instr()}, carry-out written ignored.')
+
+    # 一般不会出现.lo和cc1进位。
+    # 忽略.wide .hi和cc1进位，一般不会去写超过64位的mad，即使汇编中出现，通常也是cc1不使用的废指令
     # if cc1 and cc1 != '0':
     #     type1 = '.s64'
     #     a64 = ptx_pack(kernel, instr, a, 0)
@@ -929,6 +934,11 @@ def ptx_imma(kernel, captured_dict, instr):
         instr.ptx = None
 
 
+def ptx_warpsync(kernel, captured_dict, instr):
+    i = ptx_i(captured_dict, 'pim')
+    instr.add_ptx('bar', f'.warp.sync {i};')
+
+
 grammar_ptx = {
     # Floating Point Instructions
     'FADD': [],  # FP32 Add
@@ -987,9 +997,9 @@ grammar_ptx = {
     'IDP4A': [],  # Integer Dot Product and Accumulate
     'IMAD': [  # Integer Multiply And Add
         {'rule': rf'IMAD\.MOV{u32} {rd}, RZ, RZ, (?:{pim}|{ra}|{caddr});', 'ptx': ptx_mov},
-        {'rule': rf'IMAD{timad}{u32}{X} {rd}, {ra}, (?:{rb}|{pim}|{caddr}), {rc}(, {px1})?;',
+        {'rule': rf'IMAD{timad}{u32}{X} {rd}, ({pcc1}, )?{ra}, (?:{rb}|{pim}|{caddr}), {rc}(, {px1})?;',
          'ptx': ptx_imad},
-        {'rule': rf'IMAD{timad}{u32}{X} {rd}, {ra}, {rb}, (?:{rc}|{pim}|{caddr})(, {px1})?;',
+        {'rule': rf'IMAD{timad}{u32}{X} {rd}, ({pcc1}, )?{ra}, {rb}, (?:{rc}|{pim}|{caddr})(, {px1})?;',
          'ptx': ptx_imad2},
     ],
     'IMMA': [  # Integer Matrix Multiply and Accumulate
@@ -1237,6 +1247,7 @@ grammar_ptx = {
     'RPCMOV': [],  # PC Register Move
     'RTT': [],  # Return From Trap
     'WARPSYNC': [  # Synchronize Threads in Warp
+        {'rule': rf'WARPSYNC {pim};', 'ptx': ptx_warpsync},
     ],
     'YIELD': [  # Yield Control
     ],
