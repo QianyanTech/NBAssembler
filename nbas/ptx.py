@@ -728,13 +728,13 @@ def ptx_atom(kernel, captured_dict, instr):
         ss = '.global'
     op_str = captured_dict['op'].lower()
     if not captured_dict['type']:
-        if op_str in ['or', 'and', 'xor']:
+        if op_str in ['.or', '.and', '.xor']:
             type_str = '.b32'
         else:
             type_str = '.u32'
     else:
         type_str = captured_dict['type'].lower()
-    if '64' in type_str and op_str == 'exch':
+    if '64' in type_str and op_str == '.exch':
         type_str = '.b64'
 
     b = ptx_r(kernel, captured_dict, instr, 'rb')
