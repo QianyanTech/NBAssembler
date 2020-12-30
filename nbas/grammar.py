@@ -847,8 +847,8 @@ tround = fr'(?P<round>\.FLOOR|\.CEIL|\.TRUNC)?(?P<NTZ>\.NTZ)?'
 tfunc = rf'(?P<func>\.COS|\.SIN|\.EX2|\.LG2|\.RCP|\.RSQ|\.RCP64H|\.RSQ64H|\.SQRT|\.TANH)(?P<F16>\.F16)?'
 
 imma_shape = fr'(?P<shape>\.8816|\.8832|\.16816|\.16864)'
-imma_tp1 = fr'(?P<type1>\.U8|\.S8|\.U4)'
-imma_tp2 = fr'(?P<type2>\.U8|\.S8|\.U4)'
+imma_atp = fr'(?P<atype>\.U8|\.S8|\.U4)'
+imma_btp = fr'(?P<btype>\.U8|\.S8|\.U4)'
 
 grammar_75 = {
     # Floating Point Instructions
@@ -932,7 +932,7 @@ grammar_75 = {
     ],
     'IMMA': [  # Integer Matrix Multiply and Accumulate
         {'type': 'x32', 'code': 0x4000000000000000237,
-         'rule': rf'IMMA{imma_shape}{imma_tp1}{imma_tp2}{sat} {r16}, {r24}\.ROW, {r32}\.COL, {r64}(, {up87})?'},
+         'rule': rf'IMMA{imma_shape}{imma_atp}{imma_btp}{sat} {r16}, {r24}\.ROW, {r32}\.COL, {r64}(, {up87})?'},
     ],
     'IMNMX': [  # Integer Minimum/Maximum
         {'type': 'x32', 'code': 0x217, 'rule': rf'IMNMX{u32} {r16}, {r24}, {r32}, {p87};'},
@@ -1858,12 +1858,12 @@ IMMA: shape
 0x00000000004000000000000000000000 .16816
 0x00000000006000000000000000000000 .16864
 
-IMMA: type1
+IMMA: atype
 0x00000000000000000000000000000000 .U8
 0x00000000000010000000000000000000 .S8
 0x00000000000800000000000000000000 .U4
 
-IMMA: type2
+IMMA: btype
 0x00000000000000000000000000000000 .U8
 0x00000000000040000000000000000000 .S8
 0x00000000001000000000000000000000 .U4

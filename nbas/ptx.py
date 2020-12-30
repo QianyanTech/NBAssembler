@@ -899,6 +899,36 @@ def ptx_redux(kernel, captured_dict, instr):
     instr.add_ptx('redux', f'.sync{op}{type_str} {d}, {a}, 0xffffffff;')
 
 
+def ptx_imma(kernel, captured_dict, instr):
+    d = ptx_r(kernel, captured_dict, instr, 'rd')
+    a = ptx_r(kernel, captured_dict, instr, 'ra')
+    b = ptx_r(kernel, captured_dict, instr, 'rb')
+    c = ptx_r(kernel, captured_dict, instr, 'rc')
+    shape = captured_dict['shape']
+    atype = captured_dict['atype'].lower()
+    btype = captured_dict['btype'].lower()
+    sat_str = '.satfinite' if captured_dict['SAT'] else ''
+    if shape == '.8816':
+        d_t, d_idx = ptx_ord(d)
+        d = f'{{{d_t}{d_idx}, {d_t}{d_idx + 1}}}'
+        c_t, c_idx = ptx_ord(c)
+        c = f'{{{c_t}{c_idx}, {c_t}{c_idx + 1}}}'
+        a = f'{{{a}}}'
+        b = f'{{{b}}}'
+        instr.add_ptx('mma', f'.sync.aligned.m8n8k16.row.col{sat_str}.s32{atype}{btype}.s32 {d}, {a}, {b}, {c};')
+    elif shape == '.16816':
+        d_t, d_idx = ptx_ord(d)
+        d = f'{{{d_t}{d_idx}, {d_t}{d_idx + 1}, {d_t}{d_idx + 2}, {d_t}{d_idx + 3}}}'
+        c_t, c_idx = ptx_ord(c)
+        c = f'{{{c_t}{c_idx}, {c_t}{c_idx + 1}, {c_t}{c_idx + 2}, {c_t}{c_idx + 3}}}'
+        a_t, a_idx = ptx_ord(a)
+        a = f'{{{a_t}{a_idx}, {a_t}{a_idx + 1}}}'
+        b = f'{{{b}}}'
+        instr.add_ptx('mma', f'.sync.aligned.m16n8k16.row.col{sat_str}.s32{atype}{btype}.s32 {d}, {a}, {b}, {c};')
+    else:
+        instr.ptx = None
+
+
 grammar_ptx = {
     # Floating Point Instructions
     'FADD': [],  # FP32 Add
@@ -963,9 +993,10 @@ grammar_ptx = {
          'ptx': ptx_imad2},
     ],
     'IMMA': [  # Integer Matrix Multiply and Accumulate
+        {'rule': rf'IMMA{imma_shape}{imma_atp}{imma_btp}{sat} {rd}, {ra}\.ROW, {rb}\.COL, {rc};', 'ptx': ptx_imma},
     ],
     'IMNMX': [  # Integer Minimum/Maximum
-        {'rule': rf'IMNMX{u32} {rd}, {ra}, (?:{rb}|{pim}|{caddr}), {pc};', 'ptx': ptx_imnmx}
+        {'rule': rf'IMNMX{u32} {rd}, {ra}, (?:{rb}|{pim}|{caddr}), {pc};', 'ptx': ptx_imnmx},
     ],
     'IMUL': [],  # Integer Multiply
     'IMUL32I': [],  # Integer Multiply
@@ -1017,16 +1048,16 @@ grammar_ptx = {
     'MOV32I': [],  # Move
     'MOVM': [],  # Move Matrix with Transposition or Expansion
     'PRMT': [  # Permute Register Pair
-        {'rule': rf'PRMT{tprmt} {rd}, {ra}, (?:{rb}|{pim}), (?:{rc}|{caddr});', 'ptx': ptx_prmt}
+        {'rule': rf'PRMT{tprmt} {rd}, {ra}, (?:{rb}|{pim}), (?:{rc}|{caddr});', 'ptx': ptx_prmt},
     ],
     'SEL': [  # Select Source with Predicate
-        {'rule': rf'SEL {rd}, {ra}, (?:{rb}|{pim}|{caddr}), {pc};', 'ptx': ptx_sel}
+        {'rule': rf'SEL {rd}, {ra}, (?:{rb}|{pim}|{caddr}), {pc};', 'ptx': ptx_sel},
     ],
     'SGXT': [  # Sign Extend
-        {'rule': rf'SGXT{tw}{u32} {rd}, {ra}, {pim};', 'ptx': ptx_sgxt}
+        {'rule': rf'SGXT{tw}{u32} {rd}, {ra}, {pim};', 'ptx': ptx_sgxt},
     ],
     'SHFL': [  # Warp Wide Register Shuffle
-        {'rule': rf'SHFL{shfl} {pp}, {rd}, {ra}, (?:{pim}|{rb}), (?:{imask}|{rc});', 'ptx': ptx_shfl}
+        {'rule': rf'SHFL{shfl} {pp}, {rd}, {ra}, (?:{pim}|{rb}), (?:{imask}|{rc});', 'ptx': ptx_shfl},
     ],
 
     # Predicate Instructions
@@ -1046,27 +1077,27 @@ grammar_ptx = {
         {'rule': rf'LDC{tmem_type}{tldc_isl} {rd}, (?:{pim}|{caddr});', 'ptx': ptx_ldst},
     ],
     'LDG': [  # Load from Global Memory
-        {'rule': rf'LDG{te}{tmem_cache}{tmem_ltc}{tmem_type}{tmem_scopes}{tzd} {rd}, {paddr};', 'ptx': ptx_ldst}
+        {'rule': rf'LDG{te}{tmem_cache}{tmem_ltc}{tmem_type}{tmem_scopes}{tzd} {rd}, {paddr};', 'ptx': ptx_ldst},
     ],
     'LDGDEPBAR': [],  # Global Load Dependency Barrier
     'LDGSTS': [],  # Asynchronous Global to Shared Memcopy
     'LDL': [  # Load within Local Memory Window
-        {'rule': rf'LDL{tmem_cache}{tmem_type} {rd}, {paddr};', 'ptx': ptx_ldst}
+        {'rule': rf'LDL{tmem_cache}{tmem_type} {rd}, {paddr};', 'ptx': ptx_ldst},
     ],
     'LDS': [  # Load within Shared Memory Window
-        {'rule': rf'LDS{tu}{tmem_type}{tzd} {rd}, {paddr};', 'ptx': ptx_ldst}
+        {'rule': rf'LDS{tu}{tmem_type}{tzd} {rd}, {paddr};', 'ptx': ptx_ldst},
     ],
     'LDSM': [],  # Load Matrix from Shared Memory with Element Size Expansion
     'ST': [
     ],  # Store to Generic Memory
     'STG': [  # Store to Global Memory
-        {'rule': rf'STG{te}{tmem_cache}{tmem_type}{tmem_scopes}{tzd} {paddr}, {rc};', 'ptx': ptx_ldst}
+        {'rule': rf'STG{te}{tmem_cache}{tmem_type}{tmem_scopes}{tzd} {paddr}, {rc};', 'ptx': ptx_ldst},
     ],
     'STL': [  # Store within Local or Shared Window
-        {'rule': rf'STL{tmem_cache}{tmem_type} {paddr}, {rc};', 'ptx': ptx_ldst}
+        {'rule': rf'STL{tmem_cache}{tmem_type} {paddr}, {rc};', 'ptx': ptx_ldst},
     ],
     'STS': [  # Store within Local or Shared Window
-        {'rule': rf'STS{tmem_type} {paddr}, {rc};', 'ptx': ptx_ldst}
+        {'rule': rf'STS{tmem_type} {paddr}, {rc};', 'ptx': ptx_ldst},
     ],
     'MATCH': [],  # Match Register Values Across Thread Group
     'QSPC': [],  # Query Space
@@ -1094,10 +1125,10 @@ grammar_ptx = {
     'R2UR': [  # Move from Vector Register to a Uniform Register
     ],
     'REDUX': [  # Reduction of a Vector Register into a Uniform Register
-        {'rule': rf'REDUX{tredux_op}{s32} {rd}, {ra};', 'ptx': ptx_redux}
+        {'rule': rf'REDUX{tredux_op}{s32} {rd}, {ra};', 'ptx': ptx_redux},
     ],
     'S2UR': [  # Move Special Register to Uniform Register
-        {'rule': rf'S2UR {rd}, {sr};', 'ptx': ptx_s2r}
+        {'rule': rf'S2UR {rd}, {sr};', 'ptx': ptx_s2r},
     ],
     'UBMSK': [],  # Uniform Bitfield Mask
     'UBREV': [],  # Uniform Bit Reverse
@@ -1123,7 +1154,7 @@ grammar_ptx = {
          'ptx': ptx_isetp}
     ],
     'ULDC': [  # Load from Constant Memory into a Uniform Register
-        {'rule': rf'ULDC{tmem_type} {rd}, (?:{pim}|{caddr});', 'ptx': ptx_ldst}
+        {'rule': rf'ULDC{tmem_type} {rd}, (?:{pim}|{caddr});', 'ptx': ptx_ldst},
     ],
     'ULEA': [  # Uniform Load Effective Address
         {'rule': rf'ULEA{thi}{X}{tsx32} {rd}, ({pcc1}, )?{ra}, (?:{rb}|{pim}|{caddr}), ({rc}, )?{puim}(, {px1})?;',
@@ -1148,7 +1179,7 @@ grammar_ptx = {
     'UPSETP': [],  # Uniform Predicate Logic Operation
     'UR2UP': [],  # Uniform Register to Uniform Predicate
     'USEL': [  # Uniform Select
-        {'rule': rf'USEL {rd}, {ra}, (?:{rb}|{pim}|{caddr}), {pc};', 'ptx': ptx_sel}
+        {'rule': rf'USEL {rd}, {ra}, (?:{rb}|{pim}|{caddr}), {pc};', 'ptx': ptx_sel},
     ],
     'USGXT': [],  # Uniform Sign Extend
     'USHF': [  # Uniform Funnel Shift
@@ -1158,7 +1189,7 @@ grammar_ptx = {
     'USHL': [],  # Uniform Left Shift
     'USHR': [],  # Uniform Right Shift
     'VOTEU': [  # Voting across SIMD Thread Group with Results in Uniform Destination
-        {'rule': rf'VOTEU\.ALL {rd}, UPT, PT;', 'ptx': ptx_vote}
+        {'rule': rf'VOTEU\.ALL {rd}, UPT, PT;', 'ptx': ptx_vote},
     ],
 
     # Texture Instructions
@@ -1180,7 +1211,7 @@ grammar_ptx = {
     ],
     'BPT': [],  # BreakPoint/Trap
     'BRA': [  # Relative Branch
-        {'rule': rf'BRA(?P<U>\.U)? `\(\s*{LABEL_RE}\s*\);', 'ptx': ptx_bra}
+        {'rule': rf'BRA(?P<U>\.U)? `\(\s*{LABEL_RE}\s*\);', 'ptx': ptx_bra},
     ],
     'BREAK': [  # Break out of the Specified Convergence Barrier
     ],
@@ -1194,7 +1225,7 @@ grammar_ptx = {
     'CALL': [  # Call Function
     ],
     'EXIT': [  # Exit Program
-        {'rule': rf'EXIT;', 'ptx': ptx_exit}
+        {'rule': rf'EXIT;', 'ptx': ptx_exit},
     ],
     'JMP': [],  # Absolute Jump
     'JMX': [],  # Absolute Jump Indirect
@@ -1213,10 +1244,10 @@ grammar_ptx = {
     # Miscellaneous Instructions
     'B2R': [],  # Move Barrier To Register
     'BAR': [  # Barrier Synchronization
-        {'rule': rf'BAR\.SYNC {pim};', 'ptx': ptx_bar}
+        {'rule': rf'BAR\.SYNC {pim};', 'ptx': ptx_bar},
     ],
     'CS2R': [  # Move Special Register to Register
-        {'rule': rf'CS2R{tcs2r} {rd}, {sr};', 'ptx': ptx_s2r}
+        {'rule': rf'CS2R{tcs2r} {rd}, {sr};', 'ptx': ptx_s2r},
     ],
     'DEPBAR': [  # Dependency Barrier
     ],
@@ -1227,12 +1258,12 @@ grammar_ptx = {
     'PMTRIG': [],  # Performance Monitor Trigger
     'R2B': [],  # Move Register to Barrier
     'S2R': [  # Move Special Register to Register
-        {'rule': rf'S2R {rd}, {sr};', 'ptx': ptx_s2r}
+        {'rule': rf'S2R {rd}, {sr};', 'ptx': ptx_s2r},
     ],
     'SETCTAID': [],  # Set CTA ID
     'SETLMEMBASE': [],  # Set Local Memory Base Address
     'VOTE': [  # Vote Across SIMD Thread Group
-        {'rule': rf'VOTE\.ALL {rd}, PT, PT;', 'ptx': ptx_vote}
+        {'rule': rf'VOTE\.ALL {rd}, PT, PT;', 'ptx': ptx_vote},
     ],
 
 }
@@ -1392,42 +1423,6 @@ grammar_ptx = {
 #             instr['rest'] = f'.lo.s32 {d}, {a}, {b}, {c1};'
 #         else:
 #             instr['line_num'] = -instr['line_num']
-#
-#
-# def ptx_icmp(kernel, instrs, captured_dict, instr):
-#     cmp_str = captured_dict['cmp'].lower()
-#     type_str = 'u32' if captured_dict['U32'] else 's32'
-#     d = ptx_r(captured_dict, 'r0')
-#     a = ptx_r(captured_dict, 'r8')
-#     b = ptx_irc(kernel, instrs, captured_dict, instr, 'i20', 'r20')
-#     c = ptx_r(captured_dict, 'r39')
-#
-#     p_idx = kernel.ptx_pred_reg_count + 7
-#     kernel.pred_regs.add(p_idx)
-#     kernel.ptx_pred_reg_count += 1
-#
-#     ptx_append_instr(instrs, instr, 'setp', f'.{cmp_str}.{type_str} %p{p_idx}, {c}, 0;')
-#
-#     instr['op'] = 'selp'
-#     instr['rest'] = f'.b32 {d}, {a}, {b}, %p{p_idx};'
-#
-#
-# def ptx_lop(kernel, instrs, captured_dict, instr):
-#     instr['op'] = captured_dict['bool'].lower()
-#     d = ptx_r(captured_dict, 'r0')
-#     a = ptx_r(captured_dict, 'r8')
-#     if captured_dict['INV8']:
-#         a = f'~{a}'
-#     b = ptx_irc(kernel, instrs, captured_dict, instr, 'i20', 'r20')
-#     if instr['op'] == 'pass_b':
-#         instr['op'] = 'not'
-#         instr['rest'] = f'.b32 {d}, {b};'
-#     else:
-#         if captured_dict['TINV']:
-#             b = f'{~int(b, base=0)}'
-#         elif captured_dict['INV']:
-#             b = f'~{b}'
-#         instr['rest'] = f'.b32 {d}, {a}, {b};'
 #
 #
 # def ptx_psetp(kernel, instrs, captured_dict, instr):
