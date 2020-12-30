@@ -886,6 +886,19 @@ def ptx_vote(kernel, captured_dict, instr):
     instr.add_ptx('vote', f'.sync.ballot.b32 {d}, 1, 0xffffffff;')
 
 
+def ptx_redux(kernel, captured_dict, instr):
+    d = ptx_r(kernel, captured_dict, instr, 'rd')
+    a = ptx_r(kernel, captured_dict, instr, 'ra')
+    type_str = '.s32' if captured_dict['S32'] else '.u32'
+    op = captured_dict['op'].lower() if captured_dict['op'] else '.and'
+    if op == '.sum':
+        op = '.add'
+    if op in ['.and', '.or', '.xor']:
+        type_str = '.b32'
+
+    instr.add_ptx('redux', f'.sync{op}{type_str} {d}, {a}, 0xffffffff;')
+
+
 grammar_ptx = {
     # Floating Point Instructions
     'FADD': [],  # FP32 Add
@@ -1080,7 +1093,9 @@ grammar_ptx = {
     # Uniform Datapath Instructions
     'R2UR': [  # Move from Vector Register to a Uniform Register
     ],
-    'REDUX': [],  # Reduction of a Vector Register into a Uniform Register
+    'REDUX': [  # Reduction of a Vector Register into a Uniform Register
+        {'rule': rf'REDUX{tredux_op}{s32} {rd}, {ra};', 'ptx': ptx_redux}
+    ],
     'S2UR': [  # Move Special Register to Uniform Register
         {'rule': rf'S2UR {rd}, {sr};', 'ptx': ptx_s2r}
     ],
