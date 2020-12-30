@@ -1045,7 +1045,9 @@ grammar_75 = {
     'P2R': [  # Move Predicate Register To Register
         {'type': 'x32', 'code': 0x803, 'rule': rf'P2R{tp2r} {r16}, PR, {r24}, {i32};'},
     ],
-    'R2P': [],  # Move Register To Predicate Register
+    'R2P': [  # Move Register To Predicate Register
+        {'type': 'x32', 'code': 0x804, 'rule': rf'R2P PR, {r24}{tp2r}, {i32};'},
+    ],
 
     # Load/Store Instructions
     'LD': [  # Load from generic Memory
@@ -1960,7 +1962,7 @@ DEPBAR: DB
 0x00000000000000000000001000000000 4
 0x00000000000000000000002000000000 5
 
-P2R: B
+P2R, R2P: B
 0x00000000000010000000000000000000 .B1
 0x00000000000020000000000000000000 .B2
 0x00000000000030000000000000000000 .B3
