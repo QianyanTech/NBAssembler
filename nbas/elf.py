@@ -121,7 +121,7 @@ class Header:
     def print_ptx(self):
         cuda_version = f'{self.e_version // 10}.{self.e_version % 10}'
         ptx = f'// CUDA: {cuda_version}\n'
-        if self.e_version >= 111:
+        if self.e_version > 102:
             ptx += f'.version 7.1\n'
         else:
             ptx += f'.version 6.5\n'
