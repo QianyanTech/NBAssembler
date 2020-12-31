@@ -947,6 +947,19 @@ def ptx_r2p(kernel, captured_dict, instr):
     a = ptx_r(kernel, captured_dict, instr, 'ra')
     b = ptx_i(captured_dict, 'pim')
     b = int(b, base=0) if b else 0
+    by = captured_dict['B']
+    if by == '.B1':
+        t = ptx_new_reg(kernel)
+        instr.add_ptx('shr', f'.b32 {t}, {a}, 8;')
+        a = t
+    elif by == '.B2':
+        t = ptx_new_reg(kernel)
+        instr.add_ptx('shr', f'.b32 {t}, {a}, 16;')
+        a = t
+    elif by == '.B3':
+        t = ptx_new_reg(kernel)
+        instr.add_ptx('shr', f'.b32 {t}, {a}, 24;')
+        a = t
     for i in range(7):
         if b & (1 << i):
             r = ptx_new_reg(kernel)
@@ -964,7 +977,7 @@ def ptx_p2r(kernel, captured_dict, instr):
     else:
         p_t = '%p'
     d = ptx_r(kernel, captured_dict, instr, 'rd')
-    a = ptx_r(kernel, captured_dict, instr, 'ra')
+    # a = ptx_r(kernel, captured_dict, instr, 'ra')
     b = ptx_i(captured_dict, 'pim')
     b = int(b, base=0) if b else 0
     instr.add_ptx('mov', f'.b32 {d}, 0;')
@@ -975,7 +988,7 @@ def ptx_p2r(kernel, captured_dict, instr):
                 kernel.upred_regs.add(i)
             else:
                 kernel.pred_regs.add(i)
-            instr.add_ptx('selp', f'.b32 {r}, {1<<7:#0x}, 0, {p_t}{i};')
+            instr.add_ptx('selp', f'.b32 {r}, {1 << 7:#0x}, 0, {p_t}{i};')
             instr.add_ptx('or', f'.b32 {d}, {d}, {r};')
 
 
@@ -1117,8 +1130,11 @@ grammar_ptx = {
     ],
     'PSETP': [],  # Combine Predicates and Set Predicate
     'P2R': [  # Move Predicate Register To Register
+        {'rule': rf'P2R{tp2r} {rd}, PR, {ra}, {pim};', 'ptx': ptx_p2r},
     ],
-    'R2P': [],  # Move Register To Predicate Register
+    'R2P': [  # Move Register To Predicate Register
+        {'rule': rf'R2P PR, RZ, {pim};', 'ptx': ptx_r2p},
+    ],
 
     # Load/Store Instructions
     'LD': [  # Load from generic Memory
@@ -1219,7 +1235,9 @@ grammar_ptx = {
     'UMOV': [  # Uniform Move
         {'rule': rf'UMOV {rd}, (?:{pim}|{ra}|{caddr}|{GLOBAL_NAME_RE});', 'ptx': ptx_mov},
     ],
-    'UP2UR': [],  # Uniform Predicate to Uniform Register
+    'UP2UR': [  # Uniform Predicate to Uniform Register
+        {'rule': rf'UP2UR{tp2r} {rd}, PR, {ra}, {pim};', 'ptx': ptx_p2r},
+    ],
     'UPLOP3': [],  # Uniform Predicate Logic Operation
     'UPOPC': [  # Uniform Population Count
         {'rule': rf'UPOPC {rd}, {ra};', 'ptx': ptx_popc},
@@ -1227,7 +1245,9 @@ grammar_ptx = {
     'UPRMT': [  # Uniform Byte Permute
     ],
     'UPSETP': [],  # Uniform Predicate Logic Operation
-    'UR2UP': [],  # Uniform Register to Uniform Predicate
+    'UR2UP': [  # Uniform Register to Uniform Predicate
+        {'rule': rf'UR2UP PR, URZ, {pim};', 'ptx': ptx_r2p},
+    ],
     'USEL': [  # Uniform Select
         {'rule': rf'USEL {rd}, {ra}, (?:{rb}|{pim}|{caddr}), {pc};', 'ptx': ptx_sel},
     ],
