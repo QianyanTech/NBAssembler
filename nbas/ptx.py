@@ -236,7 +236,7 @@ def ptx_addr(kernel, captured_dict, instr):
     return f'[{a}{b}]'
 
 
-ptx_ignore_instrs = ['NOP', 'MEMBAR', 'SSY', 'PBK', 'BMOV', 'BSSY', 'BSYNC', 'BREAK', 'YIELD']
+ptx_ignore_instrs = ['NOP', 'MEMBAR', 'SSY', 'PBK', 'BMOV', 'BSSY', 'BSYNC', 'BREAK', 'YIELD', 'DEPBAR']
 
 ppred = fr'U?P[0-7T]'
 preg = fr'U?R[Z0-9]+'
