@@ -702,6 +702,12 @@ def ptx_sel(kernel, captured_dict, instr):
     a = ptx_r(kernel, captured_dict, instr, 'ra')
     b = ptx_irc(kernel, captured_dict, instr, 'pim', 'rb')
     c = ptx_p(captured_dict, 'pc')
+
+    if 'up' in c:
+        kernel.upred_regs.add(int(c.strip("%up"), base=0))
+    else:
+        kernel.pred_regs.add(int(c.strip("%p"), base=0))
+
     instr.add_ptx('selp', f'{type_str} {d}, {a}, {b}, {c};')
 
 
