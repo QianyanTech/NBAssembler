@@ -939,6 +939,46 @@ def ptx_warpsync(kernel, captured_dict, instr):
     instr.add_ptx('bar', f'.warp.sync {i};')
 
 
+def ptx_r2p(kernel, captured_dict, instr):
+    if instr.op == 'UR2UP':
+        p_t = '%up'
+    else:
+        p_t = '%p'
+    a = ptx_r(kernel, captured_dict, instr, 'ra')
+    b = ptx_i(captured_dict, 'pim')
+    b = int(b, base=0) if b else 0
+    for i in range(7):
+        if b & (1 << i):
+            r = ptx_new_reg(kernel)
+            if instr.op == 'UR2UP':
+                kernel.upred_regs.add(i)
+            else:
+                kernel.pred_regs.add(i)
+            instr.add_ptx('and', f'.b32 {r}, {a}, {1 << i};')
+            instr.add_ptx('setp', f'.eq.s32 {p_t}{i}, {r}, 0;')
+
+
+def ptx_p2r(kernel, captured_dict, instr):
+    if instr.op == 'UP2UR':
+        p_t = '%up'
+    else:
+        p_t = '%p'
+    d = ptx_r(kernel, captured_dict, instr, 'rd')
+    a = ptx_r(kernel, captured_dict, instr, 'ra')
+    b = ptx_i(captured_dict, 'pim')
+    b = int(b, base=0) if b else 0
+    instr.add_ptx('mov', f'.b32 {d}, 0;')
+    for i in range(7):
+        if b & (1 << 7):
+            r = ptx_new_reg(kernel)
+            if instr.op == 'UP2UR':
+                kernel.upred_regs.add(i)
+            else:
+                kernel.pred_regs.add(i)
+            instr.add_ptx('selp', f'.b32 {r}, {1<<7:#0x}, 0, {p_t}{i};')
+            instr.add_ptx('or', f'.b32 {d}, {d}, {r};')
+
+
 grammar_ptx = {
     # Floating Point Instructions
     'FADD': [],  # FP32 Add
@@ -1495,40 +1535,9 @@ grammar_ptx = {
 #             instr['line_num'] = -instr['line_num']
 #
 #
-# def ptx_sync(kernel, instrs, captured_dict, instr):
-#     instr['op'] = 'bra'
-#     instr['rest'] = f' {captured_dict["label"]};'
-#
-#
 # def ptx_brk(kernel, instrs, captured_dict, instr):
 #     instr['op'] = 'bra'
 #     instr['rest'] = f' {captured_dict["label"]};'
-#
-#
-# def ptx_bar(kernel, instrs, captured_dict, instr):
-#     instr['op'] = 'bar'
-#     if captured_dict['i8w8']:
-#         i_str = ptx_i(captured_dict, 'i8w8')
-#         instr['rest'] = f'.sync {i_str};'
-#     else:
-#         instr['rest'] = instr['rest'].lower()
-#     pass
-#
-#
-# def ptx_r2p(kernel, instrs, captured_dict, instr):
-#     a = ptx_r(captured_dict, 'r8')
-#     b = ptx_i(captured_dict, 'i20')
-#     b = int(b, base=0) if b else 0
-#     for i in range(7):
-#         if b & (1 << i):
-#             kernel.pred_regs.add(i)
-#             r_idx = kernel.reg_count + 256
-#             r_str = f'%r{r_idx}'
-#             kernel.reg_set.add(r_idx)
-#             kernel.ptx_reg_count += 1
-#             ptx_append_instr(instrs, instr, 'and', f'.b32 {r_str}, {a}, {1 << i};')
-#             ptx_append_instr(instrs, instr, 'setp', f'.eq.s32 %p{i}, {r_str}, 0;')
-#     instr['line_num'] = None
 #
 #
 # grammar_ptx_old = {
@@ -1559,15 +1568,6 @@ grammar_ptx = {
 #     # Predicate/CC Instructions
 #     'PSETP': [  # setp
 #         {'rule': rf'PSETP(?:\.(?P<bool>AND|OR|XOR)){bool2} {p3}, {p0}, {p12}, {p29}, {p39};', 'ptx': ptx_psetp}],
-
-#     'BRK': [  # bra
-#         {'rule': rf'BRK `\(\s*{LABEL_RE}\s*\);', 'ptx': ptx_brk}],
 #     'SYNC': [  # bra
 #         {'rule': rf'SYNC `\(\s*{LABEL_RE}\s*\);', 'ptx': ptx_sync}],
-#
-#     # Miscellaneous Instructions
-#     'BAR': [  # bar
-#         {'rule': rf'BAR\.SYNC (?:{i8w8}|{r8});', 'ptx': ptx_bar}],
-#     'R2P': [
-#         {'rule': rf'R2P PR, {r8}, {i20};', 'ptx': ptx_r2p}],
 # }
