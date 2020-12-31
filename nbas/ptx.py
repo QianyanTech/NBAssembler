@@ -994,6 +994,16 @@ def ptx_p2r(kernel, captured_dict, instr):
             instr.add_ptx('or', f'.b32 {d}, {d}, {r};')
 
 
+def ptx_bmsk(kernel, captured_dict, instr):
+    d = ptx_r(kernel, captured_dict, instr, 'rd')
+    a = ptx_r(kernel, captured_dict, instr, 'ra')
+    b = ptx_r(kernel, captured_dict, instr, 'rb')
+    w = '.wrap' if captured_dict['W'] else '.clamp'
+
+    instr.add_ptx('bfe', f'.u32 {d}, -1, 0, {a};')
+    instr.add_ptx('shf', f'.l{w}.b32 {d}, 0, {d}, {b};')
+
+
 grammar_ptx = {
     # Floating Point Instructions
     'FADD': [],  # FP32 Add
@@ -1032,6 +1042,7 @@ grammar_ptx = {
     # Integer Instructions
     'BMMA': [],  # Bit Matrix Multiply and Accumulate
     'BMSK': [  # Bitfield Mask
+        {'rule': rf'BMSK{tw} {rd}, {ra}, {rb};', 'ptx': ptx_bmsk},
     ],
     'BREV': [],  # Bit Reverse
     'FLO': [  # Find Leading One
