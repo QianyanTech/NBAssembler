@@ -256,7 +256,8 @@ class Kernel:
         asm = ''
         asm += f'.kernel: {self.name.decode()}\n'
         asm += f'    # Linkage: {Symbol.STB_STR[self.linkage]}\n'
-        asm += f'    # Registers: {self.reg_count}\n'
+        # asm += f'    # Registers: {self.reg_count}\n'
+        asm += f'    .registers {self.reg_count}\n'
         asm += f'    # Barriers: {self.bar_count}\n'
         if self.section:
             asm += f'    # Size: {self.section.sh_size}\n'
@@ -832,6 +833,8 @@ class Kernel:
                     self.crs_stack_size = int(rest, base=0)
                 elif config == 'max_registers':
                     self.maxreg_count = int(rest, base=0)
+                elif config == 'registers':
+                    self.reg_count = int(rest, base=0)
                 elif config == 'max_threads':
                     x, y, z = rest.split(',')
                     x = int(x, base=0)
@@ -955,7 +958,6 @@ class Kernel:
 
                 instr = {'line_num': len(instrs), 'label': '', 'ctrl': print_ctrl(ctrl), **ctrl, **instr}
 
-
                 instrs.append(instr)
         else:
             raise Exception(f'Unsupported arch {self.arch}')
@@ -1013,9 +1015,9 @@ class Kernel:
                     captured_dict = m.groupdict()
                     break
             if not gram:
-                raise Exception(f'Cannot recognize instruction {op + rest}')
-                # instr.ptx = None
-                # continue
+                # raise Exception(f'Cannot recognize instruction {op + rest}')
+                instr.ptx = None
+                continue
             # 统计寄存器数量
             if 'rd' in captured_dict and captured_dict['rd'] and 'RZ' not in captured_dict['rd']:
                 r_t, r_num = ptx_ord(captured_dict['rd'])
@@ -1207,7 +1209,7 @@ class Kernel:
                 raise Exception(f'Cannot recognize instruction {op + rest}')
             ctrl, code = encode_instruction(op, gram, captured_dict, instr, self.arch)
             # 统计寄存器数量
-            if 'r16' in captured_dict and captured_dict['r16'] and captured_dict['r16'] != 'RZ':
+            if 'r16' in captured_dict and captured_dict['r16'] and captured_dict['r16'] != 'RZ' and not self.reg_count:
                 r_num = int(captured_dict['r16'][1:])
                 reg_set.add(r_num)
                 if 'type' in captured_dict:
@@ -1215,10 +1217,19 @@ class Kernel:
                     if c_type:
                         if '64' in c_type:
                             reg_set.add(r_num + 1)
-                        if '128' in c_type:
+                        elif '128' in c_type:
                             reg_set.add(r_num + 1)
                             reg_set.add(r_num + 2)
                             reg_set.add(r_num + 3)
+                if 'IMMA' == op:
+                    shape = captured_dict['shape']
+                    if '.8816' == shape:
+                        reg_set.add(r_num + 1)
+                    elif '.1616' == shape:
+                        reg_set.add(r_num + 1)
+                        reg_set.add(r_num + 2)
+                        reg_set.add(r_num + 3)
+
             # 统计barrier数量
             if op == 'BAR':
                 bar_id = captured_dict['i54w4']
@@ -1283,7 +1294,8 @@ class Kernel:
             return b''
         if bar_set:
             self.bar_count = max(bar_set) + 1
-        self.reg_count = max(reg_set) + 3
+        if not self.reg_count:
+            self.reg_count = max(reg_set) + 4
         codes64 = []
         for code in codes:
             codes64.append(code & 0xffffffffffffffff)
