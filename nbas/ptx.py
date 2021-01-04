@@ -200,6 +200,12 @@ def ptx_addr(kernel, captured_dict, instr):
         cd['type'] = '32'
     else:
         cd['type'] = '64'
+
+    b = ptx_r(kernel, cd, instr, 'rad2')
+
+    if 'ratype' in cd and cd['ratype'] == '.U32':
+        cd['type'] = '32'
+
     a = ptx_r(kernel, cd, instr, 'rad')
 
     # 如果遇到c[0x0][Rxxx]，尝试反编译，但不保证对
@@ -219,7 +225,21 @@ def ptx_addr(kernel, captured_dict, instr):
             ax = ptx_new_reg64(kernel)
             instr.add_ptx('mul', f'.lo.u64 {ax}, {a}, {x};')
         a = ax
-    b = ptx_r(kernel, cd, instr, 'rad2')
+
+    if cd['rad'] and 'rad2' in cd and cd['rad2']:
+        if 'dr' in a and 'dr' in b:
+            t = ptx_new_reg64(kernel)
+            instr.add_ptx('add', f'.s64 {t}, {a}, {b};')
+        elif ('dr' not in a) and ('dr' not in b):
+            t = ptx_new_reg(kernel)
+            instr.add_ptx('add', f'.u32 {t}, {a}, {b};')
+        else:
+            a = ptx_pack(kernel, instr, a, 0)
+            t = ptx_new_reg64(kernel)
+            instr.add_ptx('add', f'.s64 {t}, {a}, {b};')
+        a = t
+        b = ''
+
     if a in ['0', '-0', '|0|', '']:
         if ss == 'S':
             a = '%s+'
@@ -1138,8 +1158,8 @@ grammar_ptx = {
 
     # Predicate Instructions
     'PLOP3': [  # Predicate Logic Operation
-        {'rule': rf'PLOP3\.LUT {pp}, PT, {pb}, PT, PT, {pim}, 0x0;',
-         'ptx': ptx_plop3},
+        {'rule': rf'PLOP3\.LUT {pp}, PT, {pb}, PT, PT, {pim}, 0x0;', 'ptx': ptx_plop3},
+        {'rule': rf'PLOP3\.LUT {pp}, PT, PT, PT, {pb}, {pim}, 0x0;', 'ptx': ptx_plop3},
     ],
     'PSETP': [],  # Combine Predicates and Set Predicate
     'P2R': [  # Move Predicate Register To Register
@@ -1202,6 +1222,7 @@ grammar_ptx = {
 
     # Uniform Datapath Instructions
     'R2UR': [  # Move from Vector Register to a Uniform Register
+        {'rule': rf'R2UR {rd}, {ra};', 'ptx': ptx_mov},
     ],
     'REDUX': [  # Reduction of a Vector Register into a Uniform Register
         {'rule': rf'REDUX{tredux_op}{s32} {rd}, {ra};', 'ptx': ptx_redux},

@@ -1023,6 +1023,7 @@ grammar_75 = {
     'SEL': [  # Select Source with Predicate
         {'type': 'x32', 'code': 0x207, 'rule': rf'SEL {r16}, {r24}, {r32}, {p87};'},
         {'type': 'x32', 'code': 0x807, 'rule': rf'SEL {r16}, {r24}, {i32}, {p87};'},
+        {'type': 'x32', 'code': 0xa07, 'rule': rf'SEL {r16}, {r24}, {c40}, {p87};'},
         {'type': 'x32', 'code': 0xc07, 'rule': rf'SEL {r16}, {r24}, {ur32}, {p87};'},
     ],
     'SGXT': [  # Sign Extend
@@ -1175,6 +1176,8 @@ grammar_75 = {
     'ULEA': [  # Uniform Load Effective Address
         {'type': 'x32', 'code': 0x291,
          'rule': rf'ULEA{thi}{X}{tsx32} {ur16}, ({up81}, )?{ur24}, {ur32}, ({ur64}, )?{i75w5}(, {up87})?;'},
+        {'type': 'x32', 'code': 0x891,
+         'rule': rf'ULEA{thi}{X}{tsx32} {ur16}, ({up81}, )?{ur24}, {i32}, ({ur64}, )?{i75w5}(, {up87})?;'},
     ],
     'ULOP': [],  # Logic Operation
     'ULOP3': [  # Logic Operation
@@ -2454,7 +2457,11 @@ STS, STL, LDS, LDL, ATOMS: r24x
 0x00000000000080000000000000000000 .X8
 0x000000000000c0000000000000000000 .X16
 
-LDG, STG, RED: r24type
+RED: r24type
+0x00000000080000000000000000000000 .U32
+0x000000000c0000000000000000000000 .64
+
+LDG, STG: r24type
 0x00000000000000000000000000000000 .U32
 0x00000000040000000000000000000000 .64
 0x00000000040000000000000000000000 DEFAULT
@@ -2478,7 +2485,7 @@ IMAD, IADD3: r64neg
 0x00000000000008000000000000000000 -
 0x00000000000008000000000000000000 ~
 
-ULOP3, ULDC, UISETP, USEL, UPRMT, BRA: ur24
+ULOP3, ULDC, UISETP, USEL, UPRMT, BRA, ULEA: ur24
 0x00000000080000000000000000000000 ALL
 
 UIADD3, ULEA: ur24neg
@@ -2489,7 +2496,7 @@ BRA: ur24neg
 0x00000000000000000000000040000000 -
 0x00000000000000000000000040000000 ~
 
-SEL, LDG, LD, LDS, LDL, IMAD, IADD3, FLO, UFLO, POPC, UPOPC, LOP3, ULEA, LEA, ISETP, MOV, UMOV, SHF, IMNMX: ur32
+SEL, LDG, LD, LDS, LDL, IMAD, IADD3, FLO, UFLO, POPC, UPOPC, LOP3, LEA, ISETP, MOV, UMOV, SHF, IMNMX: ur32
 0x00000000080000000000000000000000 ALL
 
 IADD3, UIADD3, FLO, UFLO, UPOPC, POPC, ULEA: ur32neg
