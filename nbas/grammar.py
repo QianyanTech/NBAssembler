@@ -1093,6 +1093,8 @@ grammar_75 = {
     'STL': [  # Store within Local or Shared Window
         {'type': 'x32', 'code': 0x387,
          'rule': rf'STL{tmem_cache}{tmem_type} {addr24}, {r32};'},
+        {'type': 'x32', 'code': 0x987,
+         'rule': rf'STL{tmem_cache}{tmem_type} {uaddr64}, {r32};'},
     ],
     'STS': [  # Store within Local or Shared Window
         {'type': 'x32', 'code': 0x388,
@@ -2503,7 +2505,7 @@ IADD3, UIADD3, FLO, UFLO, UPOPC, POPC, ULEA: ur32neg
 0x00000000000000008000000000000000 -
 0x00000000000000008000000000000000 ~
 
-STG, ST, STS, ATOM, ATOMG, RED, USHF, UIADD3, UIMAD: ur64
+STG, STL, ST, STS, ATOM, ATOMG, RED, USHF, UIADD3, UIMAD: ur64
 0x00000000080000000000000000000000 ALL
 
 ULEA: ur64
