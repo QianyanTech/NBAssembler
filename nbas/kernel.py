@@ -101,11 +101,14 @@ class Instruction:
         ptx = []
         if self.ptx is not None:
             for p in self.ptx:
-                ptx.append(f"{self.ptx_pred:>5s} {p['op']}{p['rest']}")
+                ptx.append(f"{p['pred']:>5s} {p['op']}{p['rest']}")
         return ptx
 
-    def add_ptx(self, op, rest):
-        self.ptx.append({'op': op, 'rest': rest})
+    def add_ptx(self, op, rest, pred=None):
+        if pred is None:
+            self.ptx.append({'pred': self.ptx_pred, 'op': op, 'rest': rest})
+        else:
+            self.ptx.append({'pred': pred, 'op': op, 'rest': rest})
 
 
 class Kernel:
@@ -1351,6 +1354,11 @@ class Kernel:
                         print(f'    bank{j}: {", ".join(bank)}')
 
     def sort_banks(self):
+        """
+        寄存器bank重排序，只排序bank，bank内的顺序不变。
+        某些情况下，重排序会导致Illegal Instruction，
+        :return:
+        """
         bank_map_r = {0: 0}
         bank_map_ur = {0: 0}
 

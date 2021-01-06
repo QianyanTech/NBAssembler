@@ -20,6 +20,14 @@ def ptx_new_reg64(kernel):
     return f'%dr{rd_idx}'
 
 
+def ptx_new_pred(kernel):
+    p_idx = kernel.pred_reg_count + 8
+    p_str = f'%p{p_idx}'
+    kernel.pred_regs.add(p_idx)
+    kernel.pred_reg_count += 1
+    return p_str
+
+
 def ptx_ord(r):
     r_str = r.lower()
     if '1' == r_str:
@@ -242,7 +250,10 @@ def ptx_addr(kernel, captured_dict, instr):
 
     if a in ['0', '-0', '|0|', '']:
         if ss == 'S':
-            a = '%s+'
+            if kernel.shared_size:
+                a = '%s+'
+            else:
+                a = '%ds+'
         else:
             a = ''
     else:
@@ -263,6 +274,7 @@ preg = fr'U?R[Z0-9]+'
 
 pp = fr'(?P<pp>{ppred})'
 pq = fr'(?P<pq>{ppred})'
+pa = fr'(?P<panot>\!)?(?P<pa>{ppred})'
 pb = fr'(?P<pbnot>\!)?(?P<pb>{ppred})'
 pc = fr'(?P<pcnot>\!)?(?P<pc>{ppred})'
 pcc1 = fr'(?P<pcc1>{ppred})'
@@ -436,7 +448,14 @@ def ptx_exit(kernel, captured_dict, instr):  # perfect
 
 
 def ptx_bra(kernel, captured_dict, instr):
+    p = ptx_p(captured_dict, 'pa')
     uni = '.uni' if captured_dict['U'] else ''
+
+    if p:
+        if instr.ptx_pred:
+            p_new = ptx_new_pred(kernel)
+            instr.add_ptx('and', f'.pred {p_new}, {p}, {instr.ptx_pred[1:]};', '')
+            instr.ptx_pred = f'@{p_new}'
     instr.add_ptx('bra', f'{uni} {captured_dict["label"]};')
 
 
@@ -759,7 +778,7 @@ def ptx_atom(kernel, captured_dict, instr):
         ss = '.global'
     op_str = captured_dict['op'].lower()
     if not captured_dict['type']:
-        if op_str in ['.or', '.and', '.xor']:
+        if op_str in ['.or', '.and', '.xor', '.exch']:
             type_str = '.b32'
         else:
             type_str = '.u32'
@@ -1315,7 +1334,7 @@ grammar_ptx = {
     ],
     'BPT': [],  # BreakPoint/Trap
     'BRA': [  # Relative Branch
-        {'rule': rf'BRA(?P<U>\.U)? `\(\s*{LABEL_RE}\s*\);', 'ptx': ptx_bra},
+        {'rule': rf'BRA(?P<U>\.U)? ({pa}, )?`\(\s*{LABEL_RE}\s*\);', 'ptx': ptx_bra},
     ],
     'BREAK': [  # Break out of the Specified Convergence Barrier
     ],

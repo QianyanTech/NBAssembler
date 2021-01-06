@@ -125,6 +125,8 @@ def decompile_ptx(asm_path, ptx_path, define_list):
     for global_ in cubin.global_init_dict.values():
         global_ptx += global_.print_ptx() + '\n'
 
+    global_ptx += '.extern .shared .align 4 .b8 %ds[];\n'
+
     for constant in cubin.constant_dict.values():
         constant_ptx += constant.print_ptx() + '\n'
 

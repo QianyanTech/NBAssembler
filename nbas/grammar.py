@@ -259,7 +259,8 @@ rel_jump_op_61 = [
 
 rel_jump_op_75 = [
     'BRA', 'SSY', 'CAL', 'PBK', 'PCNT',
-    'BSSY', 'CALL', 'RET',  # Turing
+    'BSSY', 'CALL',
+    # 'RET',  # Turing
 ]
 # these ops use absolute addresses
 abs_jump_op = ['JCAL', ]
