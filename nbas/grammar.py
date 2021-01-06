@@ -654,7 +654,9 @@ grammar_61 = {
         {'type': x32_t, 'code': 0xe25000000000000f, 'rule': rf'BRX {r8} {i20w24};'}
     ],  # brx
     'JMP': [],  # Absolute Jump
-    'JMX': [],  # Absolute Jump Indirect
+    'JMX': [  # Absolute Jump Indirect
+        {'type': x32_t, 'code': 0xe20000000000000f, 'rule': rf'JMX {r8} {i20w24};'}
+    ],
     'SSY': [  # Set Synchronization Point
         {'type': x32_t, 'code': 0xe290000000000000, 'rule': rf'{noPred}?SSY {i20w24};'}
     ],  # 映射label后忽略
