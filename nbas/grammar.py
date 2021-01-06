@@ -1265,8 +1265,12 @@ grammar_75 = {
         {'type': 'x32', 'code': 0x94d, 'rule': rf'EXIT( {p87}, )?;'}
     ],
     'JMP': [],  # Absolute Jump
-    'JMX': [],  # Absolute Jump Indirect
-    'JMXU': [],  # Absolute Jump with Uniform Register Based Offset
+    'JMX': [  # Absolute Jump Indirect
+        {'type': 'x32', 'code': 0x94c, 'rule': rf'JMX{tbrx} ( {p87}, )?{r24}( {i32a4})?;'}
+    ],
+    'JMXU': [  # Absolute Jump with Uniform Register Based Offset
+        {'type': 'x32', 'code': 0x959, 'rule': rf'JMXU{tbrx} ( {p87}, )?{ur24}( {i32a4})?;'}
+    ],
     'KILL': [],  # Kill Thread
     'NANOSLEEP': [],  # Suspend Execution
     'RET': [  # Return From Subroutine
@@ -2136,7 +2140,7 @@ BRA: mode
 0x00000000000000000000000200000000 .DIV
 0x00000000000000000000000300000000 .CONV
 
-BRX, BRA: op
+BRX, BRA, JMX, JMXU: op
 0x00000000002000000000000000000000 .INC
 0x00000000004000000000000000000000 .DEC
 
@@ -2488,7 +2492,7 @@ IMAD, IADD3: r64neg
 0x00000000000008000000000000000000 -
 0x00000000000008000000000000000000 ~
 
-ULOP3, ULDC, UISETP, USEL, UPRMT, BRA, ULEA: ur24
+ULOP3, ULDC, UISETP, USEL, UPRMT, BRA, ULEA, JMXU: ur24
 0x00000000080000000000000000000000 ALL
 
 UIADD3, ULEA: ur24neg
@@ -2540,7 +2544,7 @@ IADD3: p84
 IMAD, IADD3, LEA: p87
 0x00000000078000000000000000000000 DEFAULT
 
-BSSY, BRX, BRA, BSYNC, BREAK, EXIT, YIELD, CALL, RET, WARPSYNC: p87
+BSSY, BRX, JMX, JMXU, BRA, BSYNC, BREAK, EXIT, YIELD, CALL, RET, WARPSYNC: p87
 0x00000000038000000000000000000000 DEFAULT
 
 IMAD, IADD3, UIMAD, LOP3, PLOP3, ISETP, IMNMX, FSEL, SEL, WARPSYNC, BRA: p87not
