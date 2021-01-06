@@ -447,6 +447,11 @@ def ptx_exit(kernel, captured_dict, instr):  # perfect
     instr.add_ptx('ret', ';')
 
 
+def ptx_ret(kernel, captured_dict, instr):
+    print(f'Warning: RET found ({instr.print_instr()}), asm function need manual force inline.')
+    instr.ptx = None
+
+
 def ptx_bra(kernel, captured_dict, instr):
     p = ptx_p(captured_dict, 'pa')
     uni = '.uni' if captured_dict['U'] else ''
@@ -1356,6 +1361,7 @@ grammar_ptx = {
     'KILL': [],  # Kill Thread
     'NANOSLEEP': [],  # Suspend Execution
     'RET': [  # Return From Subroutine
+        {'rule': rf'RET{tra}{tnodec}( {pa},)? {ra} {pim};', 'ptx': ptx_ret},
     ],
     'RPCMOV': [],  # PC Register Move
     'RTT': [],  # Return From Trap
