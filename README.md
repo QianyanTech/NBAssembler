@@ -48,7 +48,6 @@ nbasm -h
 #     list                list cubin info
 #     das                 disassemble cubin
 #     as                  assemble asm
-#     pre                 preprocess asm
 #     dcc                 decompile asm to ptx
 #     test                test assembler by disassemble and then assemble
 #     det                 detect machine code bits
