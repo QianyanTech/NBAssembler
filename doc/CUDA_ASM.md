@@ -52,6 +52,7 @@ LOP3.LUT d, a, b, c, 0xXX;
 ; 0x08 d = ~a & b & c
 ; 0x3c d = a ^ b
 ; 0x40 d = a & b & ~c
+; 0x60 d = a & (b ^ c)
 ; 0x48 d = b & (a ^ c)
 ; 0x80 d = a & b & c
 ; 0x96 d = a ^ b ^ c
