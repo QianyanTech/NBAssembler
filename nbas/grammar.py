@@ -1274,7 +1274,9 @@ grammar_75 = {
         {'type': 'x32', 'code': 0x959, 'rule': rf'JMXU{tbrx} ( {p87}, )?{ur24}( {i32a4})?;'}
     ],
     'KILL': [],  # Kill Thread
-    'NANOSLEEP': [],  # Suspend Execution
+    'NANOSLEEP': [  # Suspend Execution
+        {'type': 'x32', 'code': 0x95d, 'rule': rf'NANOSLEEP ({p87}, )?{i32};'}
+    ],
     'RET': [  # Return From Subroutine
         {'type': 'x32', 'code': 0x950, 'rule': rf'RET{tra}{tnodec}( {p87},)? {r24} {i32a4};'},
     ],
@@ -2546,10 +2548,10 @@ IADD3: p84
 IMAD, IADD3, LEA: p87
 0x00000000078000000000000000000000 DEFAULT
 
-BSSY, BRX, JMX, JMXU, BRA, BSYNC, BREAK, EXIT, YIELD, CALL, RET, WARPSYNC: p87
+BSSY, BRX, JMX, JMXU, BRA, BSYNC, BREAK, EXIT, YIELD, CALL, RET, WARPSYNC, NANOSLEEP: p87
 0x00000000038000000000000000000000 DEFAULT
 
-IMAD, IADD3, UIMAD, LOP3, PLOP3, ISETP, IMNMX, FSEL, SEL, WARPSYNC, BRA: p87not
+IMAD, IADD3, UIMAD, LOP3, PLOP3, ISETP, IMNMX, FSEL, SEL, WARPSYNC, NANOSLEEP, BRA: p87not
 0x00000000040000000000000000000000 !
 
 PLOP3: up68
