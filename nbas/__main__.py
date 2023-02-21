@@ -145,7 +145,7 @@ def decompile_ptx(asm_path, ptx_path, define_list):
         print(ptx, end='')
 
 
-def assemble(asm_path, out_cubin_path, define_list, out_asm_path, sort_banks):
+def assemble(asm_path, out_cubin_path, define_list, out_asm_path, sort_banks, strip):
     if not out_cubin_path:
         out_cubin_path = 'out.cubin'
     cubin = Cubin()
@@ -202,69 +202,12 @@ def assemble(asm_path, out_cubin_path, define_list, out_asm_path, sort_banks):
         for constant in cubin.constant_dict.values():
             constant_asm += constant.print() + '\n'
         asm = header_asm + global_asm + constant_asm + kernel_asm
+
+        if strip:
+            asm = strip_comment(asm)
+
         with open(out_asm_path, 'w') as f:
             f.write(asm)
-
-
-def preprocess(asm_path, out_asm_path, define_list, strip):
-    cubin = Cubin()
-
-    define_dict = {}
-    for define in define_list:
-        if not define:
-            continue
-        d = define.split('=')
-        if len(d) < 2:
-            exec(f'{define} = True', define_dict)
-        else:
-            exec(f'{define}', define_dict)
-
-    cubin.load_asm(asm_path, define_dict)
-    header_asm = cubin.header.print() + '\n'
-    global_asm = ''
-    constant_asm = ''
-    kernel_asm = ''
-
-    consts = set()
-    globals_ = set()
-    for kernel in cubin.kernel_dict.values():
-        # Unmap global, const0, const3
-        cubin.unmap_constant3(kernel)
-        kernel.unmap_reg()
-        kernel.unmap_constant0()
-        kernel.unmap_jump()
-        kernel.unmap_global()
-        kernel.schedule()
-        kernel.sort_banks()
-        cubin.map_constant3(kernel)
-        kernel.map_global()
-        kernel.map_constant0()
-        kernel.map_jump(rel=True)
-        kernel.mark_const2()
-        kernel_asm += '\n' + kernel.print()
-        consts = consts.union(kernel.consts)
-        globals_ = globals_.union(kernel.globals)
-
-    for global_ in cubin.global_dict.values():
-        if global_.name in globals_:
-            global_asm += global_.print() + '\n'
-    for global_ in cubin.global_init_dict.values():
-        if global_.name in globals_:
-            global_asm += global_.print() + '\n'
-    for constant in cubin.constant_dict.values():
-        if constant.name in consts or 'ALL_CONST3' in consts:
-            constant_asm += constant.print() + '\n'
-
-    asm = header_asm + global_asm + constant_asm + kernel_asm
-
-    if strip:
-        asm = strip_comment(asm)
-
-    if out_asm_path:
-        with open(out_asm_path, 'w') as f:
-            f.write(asm)
-    else:
-        print(asm, end='')
 
 
 def test_cubin(cubin_path, kernel_names, global_only, check=False):
@@ -397,14 +340,8 @@ def main():
     parser_as.add_argument('-D', '--define', metavar='DEFINE', nargs='+', type=str, default='',
                            help='define variable for embedded python code')
     parser_as.add_argument('-d', '--debug', metavar='OUTPUT_ASM', type=str, default='', help='output asm for debug')
-    parser_as.add_argument('-s', '--sort', action='store_true', help='sort banks')
-
-    parser_pre = subparsers.add_parser('pre', help='preprocess asm')
-    parser_pre.add_argument('asm', help='input asm', metavar='ASM')
-    parser_pre.add_argument('-D', '--define', metavar='DEFINE', nargs='+', type=str, default='',
-                            help='define variable for embedded python code')
-    parser_pre.add_argument('-o', '--output', metavar='OUTPUT', type=str, default='', help='output asm file path')
-    parser_pre.add_argument('-s', '--strip', action='store_true', help='strip comment')
+    parser_as.add_argument('-b', '--bank', action='store_true', help='sort banks')
+    parser_as.add_argument('-s', '--strip', action='store_true', help='strip comment')
 
     parser_pdas = subparsers.add_parser('dcc', help='decompile asm to ptx')
     parser_pdas.add_argument('asm', help='input asm', metavar='ASM')
@@ -435,9 +372,7 @@ def main():
                     global_only=args.global_only, no_line_info=args.no_line_info)
     elif args.cmd == 'as':
         assemble(asm_path=args.asm, out_cubin_path=args.output, define_list=args.define, out_asm_path=args.debug,
-                 sort_banks=args.sort)
-    elif args.cmd == 'pre':
-        preprocess(asm_path=args.asm, out_asm_path=args.output, define_list=args.define, strip=args.strip)
+                 sort_banks=args.bank, strip=args.strip)
     elif args.cmd == 'dcc':
         decompile_ptx(asm_path=args.asm, ptx_path=args.output, define_list=args.define)
     elif args.cmd == 'test':

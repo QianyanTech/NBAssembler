@@ -38,7 +38,6 @@ def load_ptx_line_info(path):
 
 
 def disassemble_nv(binary, arch):
-    # 使用nvdisasm 反汇编
     fd, tmp_file = mkstemp()
     os.close(fd)
     with open(tmp_file, 'wb') as f:
