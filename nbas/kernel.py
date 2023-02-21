@@ -313,7 +313,7 @@ class Kernel:
         if instr['label']:
             asm += f"{instr['label']}:\n"
         if 'ptx' in instr and (not no_line_info):
-            asm += f'{" ":<30s}// {instr["ptx"]}\n'
+            asm += f'{" ":<31s}// {instr["ptx"]}\n'
         if 'addr' in instr:
             asm += f"    /*{instr['addr']}*/  {instr['ctrl']} {print_instr(instr):<56s} /* {instr['code']} */ " \
                    f"# {print_reuse(instr['reuse'])}"
@@ -942,7 +942,16 @@ class Kernel:
                 # 多个空白变成一个空格
                 instr['rest'] = re.sub(r'[ \t]+', ' ', instr['rest'])
 
+                if 80 <= self.arch < 90:
+                    op = instr['op']
+                    if op in ['LD', 'LDG']:
+                        ctrl['schedule'] = (int(instr['code'], base=0) >> 32) & 0x3f
+                    elif op in ['ST', 'STG', 'ATOM', 'ATOMG', 'RED']:
+                        ctrl['schedule'] = (int(instr['code'], base=0) >> 64) & 0x3f
+
                 instr = {'line_num': len(instrs), 'label': '', 'ctrl': print_ctrl(ctrl), **ctrl, **instr}
+
+
                 instrs.append(instr)
         else:
             raise Exception(f'Unsupported arch {self.arch}')
@@ -1052,6 +1061,7 @@ class Kernel:
     def assemble_61(self, test_binary: bytes = b''):
         # prepare test code
         codes_test = []
+        test_pass = True
         if test_binary:
             codes_test = unpack(f'{len(test_binary) // 8}Q', test_binary)
             codes_test = [codes_test[i:i + 4] for i in range(0, len(codes_test), 4)]
@@ -1137,21 +1147,25 @@ class Kernel:
             if test_binary:
                 ctrl_test = codes_test[i][0]
                 if ctrl != ctrl_test:
-                    print(f'Assemble ctrl failed: /*{i * 0x20:x}*/ {ctrl_test:#018x} != {ctrl:#018x}')
+                    print(f'\nAssemble ctrl failed: /*{i * 0x20:x}*/ {ctrl_test:#018x} != {ctrl:#018x}', end='')
                     for j, (ct, c) in enumerate(zip(decode_ctrls(ctrl_test), decode_ctrls(ctrl))):
                         instr = instr_group[j]['op'] + instr_group[j]['rest']
-                        print(f'    /*{i * 0x20 + j * 0x8 + 0x8:x}*/ {instr}')
+                        print(f'\n    /*{i * 0x20 + j * 0x8 + 0x8:x}*/ {instr}')
                         print(f'    ✓ {print_reuse(ct["reuse"])} {print_ctrl(ct)} '
                               f'{ctrl_test >> ((21 * j) & 0x1ffff):#08x}')
-                        print(f'    ✕ {print_reuse(c["reuse"])} {print_ctrl(c)} {ctrl((21 * j) & 0x1ffff):#08x}')
-                    return b''
+                        print(f'    ✕ {print_reuse(c["reuse"])} {print_ctrl(c)} {ctrl((21 * j) & 0x1ffff):#08x}',
+                              end='')
+                    test_pass = False
                 for j, (src, dst) in enumerate(zip(codes_test[i][1:], codes[-3:])):
                     if src != dst:
                         instr = instr_group[j]['op'] + instr_group[j]['rest']
-                        print(f'Assemble failed: /*{i * 0x20 + (j + 1) * 0x8:x}*/ {instr}')
+                        print(f'\nAssemble failed: /*{i * 0x20 + (j + 1) * 0x8:x}*/ {instr}')
                         print(f'    ✓ {src:#018x}')
-                        print(f'    ✕ {dst:#018x}')
-                        return b''
+                        print(f'    ✕ {dst:#018x}', end='')
+                        test_pass = False
+        if not test_pass:
+            print('')
+            return b''
         if bar_set:
             self.bar_count = max(bar_set) + 1
         self.reg_count = max(reg_set) + 1
@@ -1161,6 +1175,7 @@ class Kernel:
     def assemble_75(self, test_binary: bytes = b''):
         # prepare test code
         codes_test = []
+        test_pass = True
         if test_binary:
             codes_test = unpack(f'{len(test_binary) // 8}Q', test_binary)
             codes_test = [((codes_test[i + 1] << 64) | codes_test[i]) for i in range(0, len(codes_test), 2)]
@@ -1252,13 +1267,16 @@ class Kernel:
                     if ctrl != ctrl_test:
                         c = decode_ctrl(ctrl)
                         ct = decode_ctrl(ctrl_test)
-                        print(f'Assemble ctrl failed: /*{i * 0x10:x}*/ {ctrl_test:#08x} != {ctrl:#08x}')
+                        print(f'\nAssemble ctrl failed: /*{i * 0x10:x}*/ {ctrl_test:#08x} != {ctrl:#08x}')
                         print(f'    ✓ {print_reuse(ct["reuse"])} {print_ctrl(ct)} {ctrl_test:#08x}')
-                        print(f'    ✕ {print_reuse(c["reuse"])} {print_ctrl(c)} {ctrl:#08x}')
-                    print(f'Assemble failed: /*{i * 0x10:x}*/ {print_instr(instr)}')
+                        print(f'    ✕ {print_reuse(c["reuse"])} {print_ctrl(c)} {ctrl:#08x}', end='')
+                    print(f'\nAssemble failed: /*{i * 0x10:x}*/ {print_instr(instr)}')
                     print(f'    ✓ {code_test:#034x}')
-                    print(f'    ✕ {code:#034x}')
-                    return b''
+                    print(f'    ✕ {code:#034x}', end='')
+                    test_pass = False
+        if not test_pass:
+            print('')
+            return b''
         if bar_set:
             self.bar_count = max(bar_set) + 1
         self.reg_count = max(reg_set) + 3

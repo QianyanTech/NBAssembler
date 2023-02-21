@@ -94,7 +94,7 @@ DATA_ROW_RE = rf'\s*\.(?P<type>zero|byte|short|word|quad)\s+(?P<data>.+)'
 KERNEL_RE = rf'(?sm:^\.kernel:\s*(?P<name>[a-zA-Z_]\w*)\s+(?P<data>.+?(?=^\.[^L])|.+))'
 
 LABEL_RE = r'(?P<label>L_[0-9a-zA-Z_]+)'
-CTRL_RE = r'(?P<ctrl>[KS\-]:[0-9a-fA-F\-]{2}:[1-6\-]:[1-6\-]:[\-yY]:[0-9a-fA-F\-])'
+CTRL_RE = r'(?P<ctrl>[0-9a-fA-F\-]{2}:[0-9a-fA-F\-]{2}:[1-6\-]:[1-6\-]:[\-yY]:[0-9a-fA-F\-])'
 
 ADDR_RE = r'(/\*(?P<addr>[0-9a-f]+)\*/)'
 PRED_RE = r'(?P<pred>@(?P<pred_not>!)?(?P<pred_reg>U?P([T\d]|_[a-zA-Z_]\w*_?\d+)))'
@@ -2633,6 +2633,18 @@ def encode_ctrls(ctrl1, ctrl2, ctrl3):
     return ctrl1 | ctrl2 << 21 | ctrl3 << 42
 
 
+def encode_ctrl_ex(asm, op, arch):
+    ctrl_ex = 0
+    if 80 <= arch < 90:
+        ex_str = asm.split(":")[0]
+        ex = 0 if ex_str == '--' else int(ex_str, base=16)
+        if op in ['LD', 'LDG']:
+            ctrl_ex = (ex & 0x3f) << 32
+        elif op in ['ST', 'STG', 'ATOM', 'ATOMG', 'RED']:
+            ctrl_ex = (ex & 0x3f) << 64
+    return ctrl_ex
+
+
 def encode_reuse(captured_dict):
     reuse_code = 0x0
     if captured_dict.get('reuse1') == '.reuse':
@@ -2689,6 +2701,10 @@ def encode_instruction(op, gram, captured_dict, instr, arch):
     ctrl = encode_ctrl(instr['ctrl'])
     ctrl |= reuse
 
+    # Process ex ctrl
+    ctrl_ex = encode_ctrl_ex(instr['ctrl'], op, arch)
+    code |= ctrl_ex
+
     return ctrl, code
 
 
@@ -2700,7 +2716,7 @@ def decode_ctrl(sub_code):
     wait_bm = (sub_code >> 11) & 0x3f
     reuse = (sub_code >> 17) & 0xf
     return {
-        'schedule': 1,
+        'schedule': 0,
         'reuse': reuse,
         'wait_bm': wait_bm,
         'rb_idx': rb_idx,
@@ -2721,7 +2737,7 @@ def print_ctrl(ctrl):
     """
     打印控制码
     K:03:1:2:Y:f
-    schedule:是否自动调度，默认自动调度，设置位K保持控制码不变
+    schedule:是否自动调度，默认自动调度'-'，其它值为保持控制码不变。同时在此处填写sm86的LDG、STG等指令的额外调度信息。
     wait_bm：Wait Dependency Barriers Masks，6位bit map，表示该指令等待哪些Dependency Barrier
     rb_idx:  Read Dependency Barrier，数字1-6，用于设置非固定周期指令的读后写依赖
     wb_idx:  Write Dependency Barrier，数字1-6，用于设置非固定周期指令的写后读依赖
@@ -2730,7 +2746,7 @@ def print_ctrl(ctrl):
     :param ctrl: 包含控制码的dict，由decode_ctrl产生
     :return: 便于阅读的控制码字符串
     """
-    schedule = '-' if ctrl['schedule'] else 'K'
+    schedule = f"{ctrl['schedule']:02x}" if ctrl['schedule'] else '--'
     wait_bm = f"{ctrl['wait_bm']:02x}" if ctrl['wait_bm'] else '--'
     rb_idx = '-' if ctrl['rb_idx'] == 7 else ctrl['rb_idx'] + 1
     wb_idx = '-' if ctrl['wb_idx'] == 7 else ctrl['wb_idx'] + 1
