@@ -420,7 +420,7 @@ grammar_61 = {
     ],  # bfe
     'BFI': [  # Bit Field Insert
         {'type': shft_t, 'code': 0x36f0000000000000, 'rule': rf'BFI {r0}, {r8}, {i20}, {r39};'},
-        {'type': shft_t, 'code': 0x53f0000000000000, 'rule': rf'BFI {r0}, {r8}, {r20}, {c20};'},
+        {'type': shft_t, 'code': 0x53f0000000000000, 'rule': rf'BFI {r0}, {r8}, {r39}, {c20};'},
         {'type': shft_t, 'code': 0x5bf0000000000000, 'rule': rf'BFI {r0}, {r8}, {r20}, {r39};'}
     ],  # bfi
     'FLO': [  # Find Leading One
@@ -1343,7 +1343,7 @@ LEA: X38
 0x0000004000000000 .X
 
 # IADD, IADD3, XMAD, LEA, IMNMX
-ISET, ISCADD, F2F, LEA, IADD, IADD3, XMAD: CC
+ISET, ISCADD, F2F, I2I, LEA, IADD, IADD3, XMAD: CC
 0x0000800000000000 .CC
 
 IADD3: type

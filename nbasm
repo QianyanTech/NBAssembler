@@ -160,7 +160,7 @@ def assemble(asm_path, out_cubin_path, define_list):
         kernel.unmap_constant0()
         kernel.unmap_jump()
         # kernel.schedule()
-        # kernel.sort_banks()
+        kernel.sort_banks()
         kernel.assemble()
 
     # 生成elf数据
