@@ -413,7 +413,7 @@ def main():
 
     if args.version:
         print(description)
-        print('version 11.1.0')
+        print('version 11.1.1')
     elif args.cmd == 'list':
         list_cubin(cubin_path=args.cubin, kernel_name=args.kernel.encode(), global_only=args.global_only)
     elif args.cmd == 'das':
